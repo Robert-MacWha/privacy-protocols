@@ -1,3 +1,5 @@
+//! Types for the broadcaster / broadcaster manager
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};

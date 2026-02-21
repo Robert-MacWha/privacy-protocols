@@ -34,11 +34,11 @@ pub struct PendingPoiSubmitterState {
     pending: Vec<PendingPoiEntry>,
 }
 
-/// Minimal serializable snapshot needed to re-prove and submit a
-/// post-transaction POI proof to the POI aggregator.
+/// Serializable snapshot needed to re-prove and submit a post-transaction POI
+/// proof to the POI aggregator.
 ///
-/// Created by `PendingPoiSubmitter::register()` after a transaction has been
-/// broadcast and is waiting for on-chain confirmation.
+/// TODO: Consider privacy / security implications of storing this data on disk.
+/// All the values are required, but many are sensitive.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PendingPoiEntry {
     /// Txid used to look up the on-chain position in the TXID tree.
@@ -93,20 +93,14 @@ impl PendingPoiSubmitter {
         }
     }
 
-    /// Returns the pending entries (for persistence).
-    pub fn pending(&self) -> &[PendingPoiEntry] {
-        &self.pending
-    }
-
-    /// Restore from persisted entries.
-    pub fn from_pending(pending: Vec<PendingPoiEntry>) -> Self {
-        PendingPoiSubmitter { pending }
-    }
-
     /// Register a proved operation for post-transaction POI submission.
     pub fn register(&mut self, op: &PoiProvedOperation) {
         let Some(txid) = op.txid else { return };
         let spending_pubkey = op.operation.from.spending_key().public_key();
+
+        let in_notes = &op.operation.in_notes;
+        let out_notes = op.operation.out_notes();
+        let encryptable_notes = op.operation.out_encryptable_notes();
 
         self.pending.push(PendingPoiEntry {
             txid,
@@ -114,27 +108,16 @@ impl PendingPoiSubmitter {
             nullifying_key: op.operation.from.viewing_key().nullifying_key(),
             utxo_tree_in: op.operation.utxo_tree_number,
             bound_params_hash: op.circuit_inputs.bound_params_hash,
-            in_notes: op
-                .operation
-                .in_notes
+            in_notes: in_notes
                 .iter()
                 .map(|n| n.inner().without_signer().clone())
                 .collect(),
-            out_commitments: op
-                .operation
-                .out_notes()
-                .iter()
-                .map(|n| n.hash().into())
-                .collect(),
-            out_npks: op
-                .operation
-                .out_encryptable_notes()
+            out_commitments: out_notes.iter().map(|n| n.hash().into()).collect(),
+            out_npks: encryptable_notes
                 .iter()
                 .map(|n| n.note_public_key())
                 .collect(),
-            out_values: op
-                .operation
-                .out_encryptable_notes()
+            out_values: encryptable_notes
                 .iter()
                 .map(|n| U256::from(n.value()))
                 .collect(),
@@ -149,12 +132,12 @@ impl PendingPoiSubmitter {
     /// submits to the POI aggregator.
     ///
     /// Returns the txids that were successfully submitted.
-    pub async fn process<P: PoiProver>(
+    pub async fn process(
         &mut self,
         txid_indexer: &TxidIndexer,
         utxo_indexer: &UtxoIndexer,
         poi_client: &PoiClient,
-        prover: &P,
+        prover: &dyn PoiProver,
     ) -> Result<Vec<Txid>, PendingPoiError> {
         let mut submitted = Vec::new();
         for i in 0..self.pending.len() {

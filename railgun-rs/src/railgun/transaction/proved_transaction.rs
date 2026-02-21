@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// A transaction that has been proven for railgun.
-pub struct ProvedTransaction {
+pub struct ProvedTx {
     /// Transaction data to execute this transaction on-chain in railgun.
     pub tx_data: TxData,
     /// The operations included in this transaction alongside their proof data.

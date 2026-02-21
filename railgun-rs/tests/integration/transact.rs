@@ -114,7 +114,7 @@ async fn test_transact() {
         .unwrap();
 
     provider
-        .send_transaction(transfer_tx.into())
+        .send_transaction(transfer_tx.tx_data.into())
         .await
         .unwrap()
         .get_receipt()
@@ -142,7 +142,7 @@ async fn test_transact() {
         .unwrap();
 
     provider
-        .send_transaction(unshield_tx.into())
+        .send_transaction(unshield_tx.tx_data.into())
         .await
         .unwrap()
         .get_receipt()

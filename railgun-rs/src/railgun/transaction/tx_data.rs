@@ -6,6 +6,7 @@ use alloy_sol_types::SolCall;
 
 use crate::abis::railgun::{RailgunSmartWallet, Transaction};
 
+// TODO: Update me to have a `send` method that sends the tx using a DynProvider
 #[derive(Debug, Clone)]
 pub struct TxData {
     pub to: Address,

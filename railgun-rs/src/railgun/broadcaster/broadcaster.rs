@@ -19,7 +19,7 @@ use crate::{
             transport::{WakuTransport, WakuTransportError},
         },
         poi::{ListKey, PreTransactionPoisPerTxidLeafPerList, TxidVersion},
-        transaction::PoiProvedTransaction,
+        transaction::PoiProvedTx,
     },
     sleep::sleep,
 };
@@ -90,7 +90,7 @@ pub enum BroadcastError {
     #[error("Missing fee information for transaction")]
     MissingFee,
     #[error("Missing Txid leaf hash")]
-    MissingTxidLeaf(),
+    MissingTxidLeaf,
     #[error("Timeout while sending message")]
     Timeout,
     #[error("Transport error: {0}")]
@@ -179,7 +179,7 @@ impl Broadcaster {
 
     pub async fn broadcast<R: Rng>(
         &self,
-        transaction: &PoiProvedTransaction,
+        transaction: &PoiProvedTx,
         rng: &mut R,
     ) -> Result<TxHash, BroadcastError> {
         let fees_id = match &transaction.fee {
@@ -278,7 +278,7 @@ impl Broadcaster {
 }
 
 fn new_pre_transaction_pois(
-    transaction: &PoiProvedTransaction,
+    transaction: &PoiProvedTx,
 ) -> Result<PreTransactionPoisPerTxidLeafPerList, BroadcastError> {
     let mut pre_transaction_pois_per_txid_leaf_per_list: PreTransactionPoisPerTxidLeafPerList =
         HashMap::new();
@@ -286,7 +286,7 @@ fn new_pre_transaction_pois(
         let txid_leaf = operation
             .txid_leaf_hash
             .ok_or(())
-            .map_err(|_| BroadcastError::MissingTxidLeaf())?;
+            .map_err(|_| BroadcastError::MissingTxidLeaf)?;
 
         for (list_key, poi) in &operation.pois {
             pre_transaction_pois_per_txid_leaf_per_list

@@ -23,7 +23,7 @@ use crate::{
 
 /// A transaction with POI proofs for all operations.
 #[derive(Debug)]
-pub struct PoiProvedTransaction {
+pub struct PoiProvedTx {
     /// Transaction data to execute this transaction on-chain in railgun.
     pub tx_data: TxData,
     /// The operations with their POI proofs.

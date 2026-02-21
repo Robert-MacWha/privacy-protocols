@@ -1,3 +1,5 @@
+//! Types for the POI client
+
 use std::{collections::HashMap, fmt::Display};
 
 use ruint::aliases::U256;

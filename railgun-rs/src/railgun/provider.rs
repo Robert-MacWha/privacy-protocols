@@ -114,7 +114,7 @@ impl RailgunProvider {
     }
 
     /// Returns a shield builder
-    pub fn shield(&mut self) -> ShieldBuilder {
+    pub fn shield(&self) -> ShieldBuilder {
         ShieldBuilder::new(self.chain)
     }
 
@@ -128,5 +128,9 @@ impl RailgunProvider {
     pub async fn sync(&mut self) -> Result<(), RailgunProviderError> {
         self.utxo_indexer.sync().await?;
         Ok(())
+    }
+
+    pub fn utxo_indexer(&self) -> &UtxoIndexer {
+        &self.utxo_indexer
     }
 }

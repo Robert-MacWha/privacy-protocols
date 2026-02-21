@@ -24,7 +24,7 @@ use railgun_rs::{
         merkle_tree::SmartWalletUtxoVerifier,
         poi::PoiClient,
         signer::Signer,
-        transaction::{PoiProvedTransaction, TransactionBuilder},
+        transaction::{PoiProvedTx, TransactionBuilder},
     },
 };
 use rand::{Rng, SeedableRng};
