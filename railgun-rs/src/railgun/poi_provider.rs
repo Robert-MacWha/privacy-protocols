@@ -22,7 +22,9 @@ use crate::{
         },
         provider::{RailgunProvider, RailgunProviderError, RailgunProviderState},
         signer::Signer,
-        transaction::{BuildError, PoiProvedTx, ShieldBuilder, TransactionBuilder},
+        transaction::{
+            PoiProvedTx, PoiTransactionBuilder, PoiTransactionBuilderError, ShieldBuilder,
+        },
     },
 };
 
@@ -52,7 +54,7 @@ pub enum PoiProviderError {
     #[error("Pending POI error: {0}")]
     PoiClient(#[from] PendingPoiError),
     #[error("Build error: {0}")]
-    Build(#[from] BuildError),
+    Build(#[from] PoiTransactionBuilderError),
 }
 
 impl PoiProvider {
@@ -124,13 +126,13 @@ impl PoiProvider {
         self.inner.shield()
     }
 
-    pub fn transact(&self) -> TransactionBuilder {
-        self.inner.transact()
+    pub fn transact(&self) -> PoiTransactionBuilder {
+        PoiTransactionBuilder::new()
     }
 
     pub async fn build<R: Rng>(
         &self,
-        builder: TransactionBuilder,
+        builder: PoiTransactionBuilder,
         rng: &mut R,
     ) -> Result<PoiProvedTx, PoiProviderError> {
         Ok(builder
@@ -147,7 +149,7 @@ impl PoiProvider {
 
     pub async fn build_broadcast<R: Rng>(
         &mut self,
-        builder: TransactionBuilder,
+        builder: PoiTransactionBuilder,
         fee_payer: Arc<dyn Signer>,
         fee: &Fee,
         rng: &mut R,

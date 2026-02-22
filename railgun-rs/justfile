@@ -29,10 +29,10 @@ test:
 integration: integration-sync-txid integration-sync-utxo integration-transact
 
 integration-sync-txid:
-    RUST_LOG=info cargo test --release --no-default-features --features native -- test_sync_txid --ignored --nocapture
+    RUST_LOG=info cargo test --release --no-default-features --features native,poi -- test_sync_txid --ignored --nocapture
 
 integration-sync-utxo:
-    RUST_LOG=info cargo test --release --no-default-features --features native -- test_sync_utxo --ignored --nocapture
+    RUST_LOG=info cargo test --release --no-default-features --features native,poi -- test_sync_utxo --ignored --nocapture
 
 integration-transact:
     #!/usr/bin/env bash
@@ -46,4 +46,4 @@ integration-transact:
     # Wait for anvil to be ready
     sleep 2
 
-    RUST_LOG=info cargo test --release --no-default-features --features native -- test_transact --ignored --nocapture
+    RUST_LOG=info cargo test --release --no-default-features --features native,poi -- test_transact --ignored --nocapture

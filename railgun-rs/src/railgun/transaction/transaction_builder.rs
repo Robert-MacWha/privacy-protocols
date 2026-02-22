@@ -18,7 +18,6 @@ use std::{
 
 use alloy::primitives::Address;
 use rand::Rng;
-use ruint::aliases::U256;
 use thiserror::Error;
 use tracing::{info, warn};
 
@@ -27,15 +26,14 @@ use crate::{
     caip::AssetId,
     chain_config::ChainConfig,
     circuit::{
-        inputs::{PoiCircuitInputsError, TransactCircuitInputs, TransactCircuitInputsError},
-        prover::{PoiProver, TransactProver},
+        inputs::{TransactCircuitInputs, TransactCircuitInputsError},
+        prover::TransactProver,
     },
     crypto::keys::ViewingPublicKey,
     railgun::{
         address::RailgunAddress,
-        broadcaster::broadcaster::{Broadcaster, Fee},
         indexer::UtxoIndexer,
-        merkle_tree::{MerkleRoot, UtxoMerkleTree},
+        merkle_tree::UtxoMerkleTree,
         note::{
             IncludedNote,
             encrypt::EncryptError,
@@ -44,47 +42,21 @@ use crate::{
             unshield::UnshieldNote,
             utxo::UtxoNote,
         },
-        poi::{ListKey, PendingPoiSubmitter, PoiClient, PoiClientError},
         signer::Signer,
-        transaction::{
-            GasEstimator, PoiProvedOperation, PoiProvedOperationError, PoiProvedTx,
-            ProvedOperation, ProvedTx, TxData,
-        },
+        transaction::{ProvedOperation, ProvedTx, TxData},
     },
 };
 
 /// A builder for constructing railgun transactions (transfers, unshields)
 #[derive(Clone)]
 pub struct TransactionBuilder {
-    transfers: Vec<TransferData>,
-    unshields: BTreeMap<AssetId, UnshieldData>,
-    broadcaster_fee: Option<TransferData>,
-    signers: BTreeMap<ViewingPublicKey, Arc<dyn Signer>>,
-}
-
-pub struct Standard<'a> {
-    indexer: &'a UtxoIndexer,
-    prover: &'a dyn TransactProver,
-}
-pub struct WithPoi<'a> {
-    indexer: &'a UtxoIndexer,
-    prover: &'a dyn TransactProver,
-    poi_client: &'a PoiClient,
-    poi_prover: &'a dyn PoiProver,
-}
-pub struct WithBroadcast<'a> {
-    indexer: &'a UtxoIndexer,
-    prover: &'a dyn TransactProver,
-    poi_client: &'a PoiClient,
-    poi_prover: &'a dyn PoiProver,
-    estimator: &'a dyn GasEstimator,
-    fee_payer: Arc<dyn Signer>,
-    broadcaster: Broadcaster,
-    submitter: &'a mut PendingPoiSubmitter,
+    pub(crate) transfers: Vec<TransferData>,
+    pub(crate) unshields: BTreeMap<AssetId, UnshieldData>,
+    pub(crate) signers: BTreeMap<ViewingPublicKey, Arc<dyn Signer>>,
 }
 
 #[derive(Clone)]
-struct TransferData {
+pub struct TransferData {
     pub from: Arc<dyn Signer>,
     pub to: RailgunAddress,
     pub asset: AssetId,
@@ -93,7 +65,7 @@ struct TransferData {
 }
 
 #[derive(Clone)]
-struct UnshieldData {
+pub struct UnshieldData {
     pub from: Arc<dyn Signer>,
     pub to: Address,
     pub asset: AssetId,
@@ -101,7 +73,7 @@ struct UnshieldData {
 }
 
 #[derive(Debug, Error)]
-pub enum BuildError {
+pub enum TransactionBuilderError {
     #[error("Multiple unshield operations are not supported")]
     MultipleUnshields,
     #[error("Encryption error: {0}")]
@@ -110,30 +82,19 @@ pub enum BuildError {
     Prover(Box<dyn std::error::Error>),
     #[error("Missing tree for number {0}")]
     MissingTree(u32),
+    #[error("No input notes")]
+    NoInputNotes,
     #[error("Transact circuit input error: {0}")]
     TransactCircuitInput(#[from] TransactCircuitInputsError),
-    #[error("Poi Client error: {0}")]
-    PoiClient(#[from] PoiClientError),
-    #[error("Poi Circuit input error: {0}")]
-    PoiCircuitInput(#[from] PoiCircuitInputsError),
     #[error("Operation verification error: {0}")]
     OperationVerification(#[from] OperationVerificationError),
-    #[error("Estimator error: {0}")]
-    Estimator(Box<dyn std::error::Error>),
-    #[error("POI Proved Operation error: {0}")]
-    PoiProvedOperation(#[from] PoiProvedOperationError),
-    #[error("Invalid POI merkleroot for list key {0}: {1}")]
-    InvalidPoiMerkleroot(ListKey, MerkleRoot),
 }
-
-const FEE_BUFFER: f64 = 1.3;
 
 impl TransactionBuilder {
     pub fn new() -> Self {
         Self {
             transfers: Vec::new(),
             unshields: BTreeMap::new(),
-            broadcaster_fee: None,
             signers: BTreeMap::new(),
         }
     }
@@ -198,172 +159,20 @@ impl TransactionBuilder {
         indexer: &UtxoIndexer,
         prover: &dyn TransactProver,
         rng: &mut R,
-    ) -> Result<ProvedTx, BuildError> {
+    ) -> Result<ProvedTx, TransactionBuilderError> {
         let in_notes = indexer.all_unspent();
-        let operations = self.build_operations(in_notes, rng)?;
-
-        let proved = self
-            .prove_operations(prover, &indexer.utxo_trees, &operations, chain, 0, rng)
-            .await?;
+        let draft = self.draft_operations(rng);
+        let ops = build_operations(draft, in_notes, rng)?;
+        let proved = prove_operations(prover, &indexer.utxo_trees, &ops, chain, 0, rng).await?;
 
         Ok(proved)
     }
 
-    /// Builds and proves a transaction for railgun.
-    ///
-    /// The resulting transaction can be self-broadcasted and includes POI Proof
-    /// data.
-    pub async fn build_poi<R: Rng>(
-        self,
-        chain: ChainConfig,
-        indexer: &UtxoIndexer,
-        prover: &dyn TransactProver,
-        poi_client: &PoiClient,
-        poi_prover: &dyn PoiProver,
-        rng: &mut R,
-    ) -> Result<PoiProvedTx, BuildError> {
-        let in_notes = indexer.all_unspent();
-        let operations = self.build_operations(in_notes, rng)?;
-
-        let proved = self
-            .prove_operations(prover, &indexer.utxo_trees, &operations, chain, 0, rng)
-            .await?;
-
-        let list_keys = poi_client.list_keys();
-        self.prove_poi(
-            poi_prover,
-            poi_client,
-            proved,
-            &indexer.utxo_trees,
-            &list_keys,
-            None,
-        )
-        .await
-    }
-
-    /// Builds a transaction with fee calculation and POI proofs for broadcasting.
-    ///
-    /// The resulting transaction includes POI proof data and a broadcaster fee, and is
-    /// ready for broadcasting with the provided broadcaster.
-    pub async fn build_broadcast<R: Rng>(
-        self,
-        chain: ChainConfig,
-        indexer: &UtxoIndexer,
-        prover: &dyn TransactProver,
-        poi_client: &PoiClient,
-        poi_prover: &dyn PoiProver,
-        estimator: &dyn GasEstimator,
-        fee_payer: Arc<dyn Signer>,
-        fee: &Fee,
-        rng: &mut R,
-    ) -> Result<PoiProvedTx, BuildError> {
-        let in_notes = indexer.all_unspent();
-
-        let proved = self
-            .calculate_fee_to_convergence(
-                &in_notes,
-                prover,
-                &indexer.utxo_trees,
-                estimator,
-                fee_payer.clone(),
-                &fee,
-                chain,
-                rng,
-            )
-            .await?;
-
-        let tx = self
-            .prove_poi(
-                poi_prover,
-                poi_client,
-                proved,
-                &indexer.utxo_trees,
-                &fee.list_keys,
-                Some(fee.clone()),
-            )
-            .await?;
-
-        Ok(tx)
-    }
-
-    fn set_broadcaster_fee(
-        &mut self,
-        from: Arc<dyn Signer>,
-        to: RailgunAddress,
-        asset: AssetId,
-        value: u128,
-    ) {
-        self.signers
-            .insert(from.viewing_key().public_key(), from.clone());
-        let fee_data = TransferData {
-            from,
-            to,
-            asset,
-            value,
-            memo: "fee".to_string(),
-        };
-        self.broadcaster_fee = Some(fee_data);
-    }
-
-    /// Proves the operations and returns a proved transaction that can be
-    /// executed in railgun on-chain.
-    async fn prove_operations<R: Rng>(
+    /// Drafts the operations by grouping output notes by (from_address, asset_id)
+    pub(crate) fn draft_operations<R: Rng>(
         &self,
-        prover: &dyn TransactProver,
-        utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
-        operations: &[Operation<UtxoNote>],
-        chain: ChainConfig,
-        min_gas_price: u128,
         rng: &mut R,
-    ) -> Result<ProvedTx, BuildError> {
-        let tx_results = create_transactions(
-            prover,
-            utxo_trees,
-            operations,
-            chain,
-            min_gas_price,
-            Address::ZERO,
-            &[0u8; 32],
-            rng,
-        )
-        .await?;
-
-        let proved_operations: Vec<ProvedOperation> = operations
-            .iter()
-            .zip(tx_results)
-            .map(|(op, (ci, tx))| ProvedOperation {
-                operation: op.clone(),
-                circuit_inputs: ci,
-                transaction: tx,
-            })
-            .collect();
-
-        let transactions: Vec<_> = proved_operations
-            .iter()
-            .map(|po| po.transaction.clone())
-            .collect();
-        let tx_data = TxData::from_transactions(chain.railgun_smart_wallet, transactions);
-
-        Ok(ProvedTx {
-            proved_operations,
-            tx_data,
-            min_gas_price,
-        })
-    }
-
-    /// Builds the operations.
-    ///
-    /// Groups input notes by (tree_number, asset_id, viewing_public_key) and creates
-    /// separate operations for each group. This ensures that each operation only
-    /// contains notes from the same owner, tree, and asset.
-    ///
-    /// Creates change notes when input value exceeds output value.
-    fn build_operations<R: Rng>(
-        &self,
-        in_notes: Vec<UtxoNote>,
-        rng: &mut R,
-    ) -> Result<Vec<Operation<UtxoNote>>, BuildError> {
-        //? Collect all output notes into draft operations, grouped by (from_address, asset_id).
+    ) -> HashMap<(RailgunAddress, AssetId), Operation<UtxoNote>> {
         let mut draft_operations: HashMap<(RailgunAddress, AssetId), Operation<UtxoNote>> =
             HashMap::new();
         for transfer in &self.transfers {
@@ -400,207 +209,86 @@ impl TransactionBuilder {
             ));
         }
 
-        if let Some(fee) = &self.broadcaster_fee {
-            draft_operations
-                .entry((fee.from.address(), fee.asset))
-                .or_insert(Operation::new_empty(0, fee.from.clone(), fee.asset))
-                .fee_note = Some(TransferNote::new(
-                fee.from.viewing_key(),
-                fee.to,
-                fee.asset,
-                fee.value,
-                rng.random(),
-                "fee",
-            ));
-        }
+        draft_operations
+    }
+}
 
-        //? Collect input notes to satisfy each operation's output value.
-        draft_operations.values_mut().for_each(|o| {
-            o.in_notes = select_in_notes(o.from.address(), o.asset, o.out_value(), in_notes.clone())
-        });
+/// Builds operations from a draft by populating input notes, splitting by tree number, and adding
+/// change notes if necessary.
+pub fn build_operations<R: Rng>(
+    mut draft: HashMap<(RailgunAddress, AssetId), Operation<UtxoNote>>,
+    in_notes: Vec<UtxoNote>,
+    rng: &mut R,
+) -> Result<Vec<Operation<UtxoNote>>, TransactionBuilderError> {
+    //? Collect input notes to satisfy each operation's output value.
+    draft.values_mut().for_each(|o| {
+        o.in_notes = select_in_notes(o.from.address(), o.asset, o.out_value(), &in_notes)
+    });
 
-        //? Split operations by tree number and add change notes if necessary.
-        let operations: Vec<_> = draft_operations
-            .into_values()
-            .flat_map(|o| split_trees(o))
-            .collect();
-        let mut operations: Vec<_> = operations
-            .into_iter()
-            .map(|o| add_change_note(o, rng))
-            .collect();
-
-        //? Sort the operations to bring the fee note to the front if it exists
-        operations.sort_by(|a, b| {
-            let a_fee = a.fee_note().is_some();
-            let b_fee = b.fee_note().is_some();
-            b_fee.cmp(&a_fee) // fee note first
-        });
-
-        Ok(operations)
+    //? Split operations by tree number
+    let mut operations = Vec::new();
+    for draft_op in draft.into_values() {
+        let split_ops = split_trees(draft_op)?;
+        operations.extend(split_ops);
     }
 
-    /// Attach POI proofs to a proved transaction.
-    async fn prove_poi(
-        &self,
-        poi_prover: &dyn PoiProver,
-        poi_client: &PoiClient,
-        proved: ProvedTx,
-        utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
-        list_keys: &[ListKey],
-        fee: Option<Fee>,
-    ) -> Result<PoiProvedTx, BuildError> {
-        // Rebuild operations with PoiNote inputs (needed for POI merkle proofs)
-        let proved_operations = proved.proved_operations;
-        let mut poi_operations = Vec::new();
-        for operation in proved_operations {
-            let op = operation.operation;
-            let in_notes = op.in_notes;
-            let poi_in_notes = poi_client.note_to_poi_note(in_notes, list_keys).await?;
+    //? Add change notes
+    let operations: Vec<_> = operations
+        .into_iter()
+        .map(|o| add_change_note(o, rng))
+        .collect();
 
-            //? Need to create a new operation since the generic can't be
-            //? trivially cast.
-            poi_operations.push(PoiProvedOperation {
-                operation: Operation {
-                    utxo_tree_number: op.utxo_tree_number,
-                    from: op.from,
-                    asset: op.asset,
-                    in_notes: poi_in_notes,
-                    out_notes: op.out_notes,
-                    unshield_note: op.unshield_note,
-                    fee_note: op.fee_note,
-                },
-                circuit_inputs: operation.circuit_inputs,
-                transaction: operation.transaction,
-                pois: HashMap::new(),
-                txid_leaf_hash: None,
-                txid: None,
-            });
-        }
+    //? Verify operations
+    for op in &operations {
+        op.verify()?;
+    }
 
-        // Attach POI proofs to each operation
-        for poi_op in poi_operations.iter_mut() {
-            poi_op.add_pois(poi_prover, list_keys, utxo_trees).await?;
-        }
+    Ok(operations)
+}
 
-        // Validate all POI merkle roots
-        //? Should always pass, but sanity check to ensure proofs are valid before broadcasting
-        #[cfg(debug_assertions)]
-        for poi_op in poi_operations.iter() {
-            for (list_key, poi) in poi_op.pois.iter() {
-                for merkleroot in &poi.poi_merkleroots {
-                    let valid = poi_client
-                        .validate_poi_merkleroot(list_key.clone(), *merkleroot)
-                        .await?;
-                    if !valid {
-                        return Err(BuildError::InvalidPoiMerkleroot(
-                            list_key.clone(),
-                            *merkleroot,
-                        ));
-                    }
-                }
-            }
-        }
+/// Proves the operations and returns a proved transaction that can be
+/// executed in railgun on-chain.
+pub async fn prove_operations<R: Rng>(
+    prover: &dyn TransactProver,
+    utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
+    operations: &[Operation<UtxoNote>],
+    chain: ChainConfig,
+    min_gas_price: u128,
+    rng: &mut R,
+) -> Result<ProvedTx, TransactionBuilderError> {
+    let tx_results = create_transactions(
+        prover,
+        utxo_trees,
+        operations,
+        chain,
+        min_gas_price,
+        Address::ZERO,
+        &[0u8; 32],
+        rng,
+    )
+    .await?;
 
-        Ok(PoiProvedTx {
-            tx_data: proved.tx_data,
-            operations: poi_operations,
-            min_gas_price: proved.min_gas_price,
-            fee,
+    let proved_operations: Vec<ProvedOperation> = operations
+        .iter()
+        .zip(tx_results)
+        .map(|(op, (ci, tx))| ProvedOperation {
+            operation: op.clone(),
+            circuit_inputs: ci,
+            transaction: tx,
         })
-    }
+        .collect();
 
-    /// Calculate fee iteratively until convergence. It iteratively builds and proves
-    /// transactions until the fee converges to a stable value.
-    async fn calculate_fee_to_convergence<R: Rng>(
-        &self,
-        in_notes: &[UtxoNote],
-        prover: &dyn TransactProver,
-        utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
-        estimator: &dyn GasEstimator,
-        fee_payer: Arc<dyn Signer>,
-        fee: &Fee,
-        chain: ChainConfig,
-        rng: &mut R,
-    ) -> Result<ProvedTx, BuildError> {
-        const MAX_ITERS: usize = 5;
+    let transactions: Vec<_> = proved_operations
+        .iter()
+        .map(|po| po.transaction.clone())
+        .collect();
+    let tx_data = TxData::from_transactions(chain.railgun_smart_wallet, transactions);
 
-        let gas_price_wei = estimator
-            .gas_price_wei()
-            .await
-            .map_err(BuildError::Estimator)?;
-
-        let mut fee_builder = self.clone();
-        let mut last_fee: u128 = calculate_fee(1000000, gas_price_wei, fee.per_unit_gas);
-        fee_builder.set_broadcaster_fee(
-            fee_payer.clone(),
-            fee.recipient.clone(),
-            AssetId::Erc20(fee.token),
-            last_fee,
-        );
-
-        let mut proved_operations: Vec<ProvedOperation> = Vec::new();
-        let mut tx_data = TxData::new(Address::ZERO, vec![], U256::ZERO);
-
-        for _ in 0..MAX_ITERS {
-            let operations = fee_builder.build_operations(in_notes.to_vec(), rng)?;
-            let tx_results = create_transactions(
-                prover,
-                utxo_trees,
-                &operations,
-                chain,
-                0,
-                Address::ZERO,
-                &[0u8; 32],
-                rng,
-            )
-            .await?;
-
-            proved_operations = operations
-                .into_iter()
-                .zip(tx_results)
-                .map(|(op, (ci, tx))| ProvedOperation {
-                    operation: op,
-                    circuit_inputs: ci,
-                    transaction: tx,
-                })
-                .collect();
-
-            let transactions: Vec<_> = proved_operations
-                .iter()
-                .map(|po| po.transaction.clone())
-                .collect();
-            tx_data = TxData::from_transactions(chain.railgun_smart_wallet, transactions);
-
-            let gas = estimator
-                .estimate_gas(&tx_data)
-                .await
-                .map_err(BuildError::Estimator)?;
-            let new_fee = calculate_fee(gas, gas_price_wei, fee.per_unit_gas);
-
-            info!(
-                "Estimated gas: {}, gas price (wei): {}, fee: {}",
-                gas, gas_price_wei, new_fee
-            );
-            if new_fee <= last_fee {
-                info!("Fee converged at {} after iterations", new_fee);
-                break;
-            }
-
-            fee_builder.set_broadcaster_fee(
-                fee_payer.clone(),
-                fee.recipient.clone(),
-                AssetId::Erc20(fee.token),
-                new_fee,
-            );
-            last_fee = new_fee;
-        }
-
-        Ok(ProvedTx {
-            proved_operations,
-            tx_data,
-            min_gas_price: gas_price_wei,
-        })
-    }
+    Ok(ProvedTx {
+        proved_operations,
+        tx_data,
+        min_gas_price,
+    })
 }
 
 /// Selects input notes for an operation.
@@ -608,7 +296,7 @@ fn select_in_notes<N: IncludedNote + Clone>(
     from: RailgunAddress,
     asset: AssetId,
     value: u128,
-    in_notes: Vec<N>,
+    in_notes: &[N],
 ) -> Vec<N> {
     //? Naive implementation: just takes notes until we have enough value.
     let mut selected = Vec::new();
@@ -628,17 +316,16 @@ fn select_in_notes<N: IncludedNote + Clone>(
 
 /// Splits an operation into multiple operations by tree number if the input notes
 /// are from different trees. The outputs are also split accordingly.
-fn split_trees<N: IncludedNote>(operation: Operation<N>) -> Vec<Operation<N>> {
+fn split_trees<N: IncludedNote>(
+    operation: Operation<N>,
+) -> Result<Vec<Operation<N>>, TransactionBuilderError> {
     //? Naive impl: Assumes that all in notes are from the same tree, so no need to
     //? split.
     let tree_number = operation
         .in_notes
         .first()
         .map(|n| n.tree_number())
-        .unwrap_or_else(|| {
-            warn!("Operation has no input notes, defaulting tree number to 0");
-            0
-        });
+        .ok_or(TransactionBuilderError::NoInputNotes)?;
 
     for note in operation.in_notes.iter() {
         if note.tree_number() != tree_number {
@@ -646,10 +333,10 @@ fn split_trees<N: IncludedNote>(operation: Operation<N>) -> Vec<Operation<N>> {
         }
     }
 
-    vec![Operation {
+    Ok(vec![Operation {
         utxo_tree_number: tree_number,
         ..operation
-    }]
+    }])
 }
 
 /// Adds a change note to the operation if required. The change note sends any
@@ -680,7 +367,7 @@ fn add_change_note<R: Rng, N: IncludedNote + Clone>(
 }
 
 /// Creates a list of railgun transactions for a list of operations.
-async fn create_transactions<R: Rng>(
+pub async fn create_transactions<R: Rng>(
     prover: &dyn TransactProver,
     utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
     operations: &[Operation<UtxoNote>],
@@ -689,7 +376,7 @@ async fn create_transactions<R: Rng>(
     adapt_contract: Address,
     adapt_input: &[u8; 32],
     rng: &mut R,
-) -> Result<Vec<(TransactCircuitInputs, abis::railgun::Transaction)>, BuildError> {
+) -> Result<Vec<(TransactCircuitInputs, abis::railgun::Transaction)>, TransactionBuilderError> {
     let mut transactions = Vec::new();
     for operation in operations {
         operation.verify()?;
@@ -697,7 +384,7 @@ async fn create_transactions<R: Rng>(
         let tree_number = operation.utxo_tree_number();
         let tree = utxo_trees
             .get(&tree_number)
-            .ok_or(BuildError::MissingTree(tree_number))?;
+            .ok_or(TransactionBuilderError::MissingTree(tree_number))?;
 
         let tx = create_transaction(
             prover,
@@ -727,7 +414,7 @@ async fn create_transaction<R: Rng>(
     adapt_contract: Address,
     adapt_input: &[u8; 32],
     rng: &mut R,
-) -> Result<(TransactCircuitInputs, abis::railgun::Transaction), BuildError> {
+) -> Result<(TransactCircuitInputs, abis::railgun::Transaction), TransactionBuilderError> {
     let notes_in = operation.in_notes();
     let notes_out = operation.out_notes();
 
@@ -760,7 +447,7 @@ async fn create_transaction<R: Rng>(
     let (proof, _) = prover
         .prove_transact(&inputs)
         .await
-        .map_err(BuildError::Prover)?;
+        .map_err(TransactionBuilderError::Prover)?;
 
     let transaction = abis::railgun::Transaction {
         proof: proof.into(),
@@ -779,11 +466,4 @@ async fn create_transaction<R: Rng>(
     };
 
     Ok((inputs, transaction))
-}
-
-/// Calculate the broadcaster's fee based on the estimated gas cost, gas price in wei,
-/// broadcaster's fee rate, and a buffer.
-fn calculate_fee(gas_cost: u128, gas_price_wei: u128, fee_rate: u128) -> u128 {
-    let raw = (gas_cost * gas_price_wei * fee_rate) / 10_u128.pow(18);
-    ((raw as f64) * FEE_BUFFER).ceil() as u128
 }

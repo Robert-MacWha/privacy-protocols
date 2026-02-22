@@ -7,7 +7,7 @@ use alloy::{
 use railgun_rs::{
     chain_config::{ChainConfig, MAINNET_CONFIG},
     circuit::native::Groth16Prover,
-    railgun::{indexer::syncer::SubsquidSyncer, provider::RailgunProvider},
+    railgun::{RailgunProvider, indexer::syncer::SubsquidSyncer},
 };
 use tracing::info;
 use tracing_subscriber::EnvFilter;

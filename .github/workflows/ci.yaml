@@ -35,11 +35,14 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - name: Build
-      run: nix develop .#ci --command cargo build
+    - name: Build native
+      run: nix develop .#ci --command cargo build --no-default-features --features native
+
+    - name: Build with POI
+      run: nix develop .#ci --command cargo build --no-default-features --features native,poi
 
     - name: Run tests
-      run: nix develop .#ci --command cargo test
+      run: nix develop .#ci --command cargo test --no-default-features --features native,poi
 
     - name: Run integration tests
       run: nix develop .#ci --command bash -c "cd railgun-rs && just integration"

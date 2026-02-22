@@ -22,7 +22,7 @@
 - [x] Implement a json-rpc txid syncer
   - Needs to do call trace, parsing logs by hand since each `transaction` is the group of all operations in a given block.
 - [x] Seperate private key management into a seperate signer struct + trait, so we can stop passing private keys around everywhere.
-- [ ] Switch to serde_json for state, so it's self-describing.
+- [x] Switch to serde_json for state, so it's self-describing.
 - [ ] Split POI into a feature flag
 - [ ] Add a func to wait for a note to be POI submittable, useful for testing
 - [ ] Update the balance func for the PoiProvider to return annotated balances

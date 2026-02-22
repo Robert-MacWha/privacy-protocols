@@ -94,8 +94,6 @@ pub fn encrypt_note<R: Rng + ?Sized>(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use alloy::primitives::address;
     use rand_chacha::{ChaChaRng, rand_core::SeedableRng};
     use tracing_test::traced_test;

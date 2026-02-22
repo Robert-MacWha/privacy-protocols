@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     circuit::proof::Proof,
     crypto::railgun_txid::Txid,
-    railgun::merkle_tree::{MerkleRoot, TxidLeafHash},
+    railgun::{
+        merkle_tree::{MerkleRoot, TxidLeafHash},
+        note::utxo::UtxoType,
+    },
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -259,5 +262,14 @@ impl Serialize for BlindedCommitment {
     {
         let hex_string = format!("0x{:064x}", self.0);
         serializer.serialize_str(&hex_string)
+    }
+}
+
+impl From<UtxoType> for BlindedCommitmentType {
+    fn from(utxo_type: UtxoType) -> Self {
+        match utxo_type {
+            UtxoType::Shield => BlindedCommitmentType::Shield,
+            UtxoType::Transact => BlindedCommitmentType::Transact,
+        }
     }
 }

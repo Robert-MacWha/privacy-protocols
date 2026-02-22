@@ -1,9 +1,8 @@
 use ruint::aliases::U256;
 
-use crate::circuit::{
-    inputs::{PoiCircuitInputs, TransactCircuitInputs},
-    proof::Proof,
-};
+#[cfg(feature = "poi")]
+use crate::circuit::inputs::PoiCircuitInputs;
+use crate::circuit::{inputs::TransactCircuitInputs, proof::Proof};
 
 pub type PublicInputs = Vec<U256>;
 
@@ -16,6 +15,7 @@ pub trait TransactProver {
     ) -> Result<(Proof, PublicInputs), Box<dyn std::error::Error>>;
 }
 
+#[cfg(feature = "poi")]
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 pub trait PoiProver {

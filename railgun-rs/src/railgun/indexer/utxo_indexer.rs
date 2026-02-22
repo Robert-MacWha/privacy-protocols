@@ -140,8 +140,8 @@ impl UtxoIndexer {
     /// events are persisted and will be replayed to populate the account's state.
     pub async fn register_resync(
         &mut self,
-        signer: Arc<dyn Signer>,
-        from_block: Option<u64>,
+        _signer: Arc<dyn Signer>,
+        _from_block: Option<u64>,
     ) -> Result<(), UtxoIndexerError> {
         todo!()
     }

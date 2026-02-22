@@ -8,12 +8,16 @@ use ark_std::rand::random;
 use ruint::aliases::U256;
 use tracing::info;
 
+#[cfg(feature = "poi")]
+use crate::circuit::inputs::PoiCircuitInputs;
+#[cfg(feature = "poi")]
+use crate::circuit::prover::PoiProver;
 use crate::circuit::{
     artifact_loader::ArtifactLoader,
-    inputs::{PoiCircuitInputs, TransactCircuitInputs},
+    inputs::TransactCircuitInputs,
     native::{FsArtifactLoader, WasmerWitnessCalculator},
     proof::Proof,
-    prover::{PoiProver, PublicInputs, TransactProver},
+    prover::{PublicInputs, TransactProver},
     witness::{CircuitType, WitnessCalculator},
 };
 
@@ -55,6 +59,7 @@ impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> TransactProver for G
     }
 }
 
+#[cfg(feature = "poi")]
 #[async_trait::async_trait]
 impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> PoiProver for Groth16Prover<W, A> {
     #[tracing::instrument(skip_all)]

@@ -17,7 +17,7 @@ use crate::{
         transport::{MessageStream, WakuTransport, WakuTransportError},
         types::WakuMessage,
     },
-    wasm::{JsFee, transaction::JsPoiProvedTx},
+    wasm::{JsFee, poi_transaction_builder::JsPoiProvedTx},
 };
 
 /// Error type for JS Waku transport operations.

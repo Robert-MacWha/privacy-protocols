@@ -8,10 +8,7 @@ use wasm_bindgen::{JsError, prelude::wasm_bindgen};
 
 use crate::{
     chain_config::get_chain_config,
-    railgun::{
-        address::RailgunAddress,
-        provider::{RailgunProvider, RailgunProviderState},
-    },
+    railgun::{RailgunProvider, RailgunProviderState, address::RailgunAddress},
     wasm::{
         JsShieldBuilder, JsSigner, JsTransactionBuilder, JsTxData,
         indexer::{JsBalanceMap, JsSyncer},

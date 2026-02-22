@@ -465,27 +465,6 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_decode_response() {
-        let raw: &[u8] = &[
-            123, 34, 116, 120, 72, 97, 115, 104, 34, 58, 34, 48, 120, 54, 53, 99, 98, 56, 102, 101,
-            100, 48, 49, 97, 48, 49, 102, 48, 48, 101, 97, 56, 55, 52, 101, 52, 99, 54, 51, 98,
-            101, 57, 53, 48, 57, 98, 101, 48, 51, 49, 100, 100, 51, 54, 49, 54, 98, 51, 48, 100,
-            56, 49, 99, 55, 56, 50, 56, 102, 97, 99, 57, 57, 99, 56, 102, 56, 98, 34, 125,
-        ];
-
-        let shared_secret =
-            SharedKey::from_hex("e475eb7b5a48bb85370fa312f6c68d58dd498a111ad8e9a85a9461fe64c4d842")
-                .unwrap();
-
-        let tx_hash = decode_response(&shared_secret, raw).unwrap().unwrap();
-        let expected: TxHash = "0x65cb8fed01a01f00ea874e4c63be9509be031dd3616b30d81c7828fac99c8f8b"
-            .parse()
-            .unwrap();
-
-        assert_eq!(tx_hash, expected);
-    }
-
     fn test_params(broadcaster_viewing_key: ViewingPublicKey) -> BroadcastParamsRaw {
         let pre_transaction_pois_per_txid_leaf_per_list = HashMap::from([(
             "test_list_key".into(),

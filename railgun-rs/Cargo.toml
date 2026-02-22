@@ -18,7 +18,7 @@ harness = false
 required-features = [""]
 
 [features]
-default = ["wasm"]
+default = ["native", "poi"]
 native = ["wasmer", "ark-circom", "reqwest/rustls"]
 wasm = [
     "wasm-bindgen-futures",
@@ -31,6 +31,7 @@ wasm = [
     "tsify-next",
     "gloo-timers",
 ]
+poi = []
 
 [dependencies]
 aes = { workspace = true }

@@ -3,7 +3,7 @@ mod compat;
 mod decimal_bigint;
 mod rpc_syncer;
 mod subsquid_syncer;
-pub(super) mod syncer;
+pub mod syncer;
 
 pub use chained_syncer::ChainedSyncer;
 pub use rpc_syncer::RpcSyncer;

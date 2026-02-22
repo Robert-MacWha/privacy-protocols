@@ -3,31 +3,14 @@ use wasm_bindgen::{JsError, prelude::wasm_bindgen};
 
 use crate::{
     caip::AssetId,
-    railgun::{
-        address::RailgunAddress,
-        transaction::{PoiProvedTx, TransactionBuilder},
-    },
+    railgun::{address::RailgunAddress, transaction::TransactionBuilder},
     wasm::bindings::JsSigner,
 };
 
 /// Builder for transact transactions (transfers and unshields).
-///
-/// Stores transfer/unshield data, then borrows the provider only during `build()`.
-///
-/// @example
-/// ```typescript
-/// const builder = new JsTransactionBuilder();
-/// builder.transfer(signer, "0zk...", wasm.erc20_asset("0x..."), "100", "memo");
-/// const txData = await builder.build(provider);
-/// ```
 #[wasm_bindgen]
 pub struct JsTransactionBuilder {
     inner: TransactionBuilder,
-}
-
-#[wasm_bindgen]
-pub struct JsPoiProvedTx {
-    inner: PoiProvedTx,
 }
 
 #[wasm_bindgen]
@@ -104,17 +87,5 @@ impl From<TransactionBuilder> for JsTransactionBuilder {
 impl From<JsTransactionBuilder> for TransactionBuilder {
     fn from(builder: JsTransactionBuilder) -> Self {
         builder.inner
-    }
-}
-
-impl From<PoiProvedTx> for JsPoiProvedTx {
-    fn from(inner: PoiProvedTx) -> Self {
-        Self { inner }
-    }
-}
-
-impl From<JsPoiProvedTx> for PoiProvedTx {
-    fn from(proved: JsPoiProvedTx) -> Self {
-        proved.inner
     }
 }

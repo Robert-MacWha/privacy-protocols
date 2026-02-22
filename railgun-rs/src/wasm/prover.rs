@@ -9,10 +9,12 @@ use tsify_next::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
+#[cfg(feature = "poi")]
+use crate::circuit::{inputs::PoiCircuitInputs, prover::PoiProver};
 use crate::circuit::{
-    inputs::{PoiCircuitInputs, TransactCircuitInputs},
+    inputs::TransactCircuitInputs,
     proof::{G1Affine, G2Affine, Proof},
-    prover::{PoiProver, PublicInputs, TransactProver},
+    prover::{PublicInputs, TransactProver},
 };
 
 /// JavaScript-backed prover that delegates to snarkjs or similar.
@@ -28,6 +30,7 @@ use crate::circuit::{
 #[derive(Debug, Clone)]
 pub struct JsProver {
     prove_transact_fn: Function,
+    #[cfg(feature = "poi")]
     prove_poi_fn: Function,
 }
 
@@ -72,14 +75,27 @@ impl JsProver {
     /// @param prove_transact_fn - Function to prove transact circuits
     /// @param prove_poi_fn - Function to prove POI circuits
     ///
-    /// Both functions must match the ProveFunction signature:
+    /// Prove functions must match the ProveFunction signature:
     /// `(circuitName: string, inputs: Record<string, string[]>) => Promise<ProofResponse>`
+    #[cfg(feature = "poi")]
     #[wasm_bindgen(constructor)]
     pub fn new(prove_transact_fn: Function, prove_poi_fn: Function) -> Self {
         Self {
             prove_transact_fn,
             prove_poi_fn,
         }
+    }
+
+    #[cfg(not(feature = "poi"))]
+    /// Create a new JsProver with the given prove function.
+    ///
+    /// @param prove_transact_fn - Function to prove transact circuits
+    ///
+    /// Prove functions must match the ProveFunction signature:
+    /// `(circuitName: string, inputs: Record<string, string[]>) => Promise<ProofResponse>`
+    #[wasm_bindgen(constructor)]
+    pub fn new(prove_transact_fn: Function) -> Self {
+        Self { prove_transact_fn }
     }
 }
 
@@ -100,6 +116,7 @@ impl TransactProver for JsProver {
     }
 }
 
+#[cfg(feature = "poi")]
 #[async_trait::async_trait(?Send)]
 impl PoiProver for JsProver {
     async fn prove_poi(

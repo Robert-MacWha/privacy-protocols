@@ -18,7 +18,6 @@ use crate::{
     railgun::{
         merkle_tree::UtxoLeafHash,
         note::{IncludedNote, Note, SignableNote},
-        poi::BlindedCommitmentType,
         signer::{Signer, SpendingKeyProvider, ViewingKeyProvider},
     },
 };
@@ -343,15 +342,6 @@ impl PartialEq for UtxoNote<Arc<dyn Signer>> {
 
 impl Eq for UtxoNote<Arc<dyn Signer>> {}
 
-impl From<UtxoType> for BlindedCommitmentType {
-    fn from(utxo_type: UtxoType) -> Self {
-        match utxo_type {
-            UtxoType::Shield => BlindedCommitmentType::Shield,
-            UtxoType::Transact => BlindedCommitmentType::Transact,
-        }
-    }
-}
-
 fn note_hash(
     sk: &dyn SpendingKeyProvider,
     vk: &dyn ViewingKeyProvider,
@@ -379,11 +369,6 @@ fn note_public_key(
     );
 
     poseidon_hash(&[master_key.to_u256(), U256::from_be_slice(random)]).unwrap()
-}
-
-fn spending_pubkey(sk: &dyn SpendingKeyProvider) -> [U256; 2] {
-    let pubkey = sk.spending_key().public_key();
-    [pubkey.x_u256(), pubkey.y_u256()]
 }
 
 fn nullifying_key(vk: &dyn ViewingKeyProvider) -> U256 {

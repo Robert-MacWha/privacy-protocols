@@ -9,6 +9,7 @@ pub trait IntoU256 {
     fn into_u256(self) -> U256;
 }
 
+#[allow(dead_code)]
 pub trait FromU256: Sized {
     fn from_u256(u: U256) -> Self;
 }

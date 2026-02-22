@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 use crate::railgun::merkle_tree::{
     MerkleProof, MerkleRoot, MerkleTree, MerkleTreeError, MerkleTreeState, MerkleTreeVerifier,

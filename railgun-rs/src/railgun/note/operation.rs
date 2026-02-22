@@ -1,13 +1,15 @@
 use std::{fmt::Display, sync::Arc};
 
+#[cfg(feature = "poi")]
 use ruint::aliases::U256;
 use thiserror::Error;
 
+#[cfg(feature = "poi")]
+use crate::railgun::poi::PoiNote;
 use crate::{
     caip::AssetId,
     railgun::{
         note::{EncryptableNote, Note, transfer::TransferNote, unshield::UnshieldNote},
-        poi::PoiNote,
         signer::Signer,
     },
 };
@@ -42,13 +44,12 @@ pub struct Operation<N> {
     pub in_notes: Vec<N>,
     pub out_notes: Vec<TransferNote>,
     pub unshield_note: Option<UnshieldNote>,
-    pub fee_note: Option<TransferNote>,
 }
 
 #[derive(Debug, Error)]
 pub enum OperationVerificationError {
-    #[error("Insufficient input: {0} < {1} + {2} + {3}")]
-    InsufficientInput(u128, u128, u128, u128),
+    #[error("Imbalanced operation: {0} != {1} + {2}")]
+    Imbalanced(u128, u128, u128),
     #[error("Too many output notes: {0} > 13")]
     TooManyOutputNotes(usize),
     #[error("Too many input notes: {0} > 13")]
@@ -71,7 +72,6 @@ impl<N: Note> Operation<N> {
         in_notes: Vec<N>,
         out_notes: Vec<TransferNote>,
         unshield: Option<UnshieldNote>,
-        fee: Option<TransferNote>,
     ) -> Self {
         Operation {
             utxo_tree_number: tree_number,
@@ -80,7 +80,6 @@ impl<N: Note> Operation<N> {
             in_notes,
             out_notes,
             unshield_note: unshield,
-            fee_note: fee,
         }
     }
 
@@ -92,7 +91,6 @@ impl<N: Note> Operation<N> {
             in_notes: Vec::new(),
             out_notes: Vec::new(),
             unshield_note: None,
-            fee_note: None,
         }
     }
 
@@ -100,14 +98,12 @@ impl<N: Note> Operation<N> {
         let in_value: u128 = self.in_notes.iter().map(|n| n.value()).sum();
         let out_value: u128 = self.out_notes.iter().map(|n| n.value()).sum();
         let unshield_value: u128 = self.unshield_note.as_ref().map_or(0, |n| n.value());
-        let fee_value: u128 = self.fee_note.as_ref().map_or(0, |n| n.value());
 
-        if in_value < out_value + unshield_value + fee_value {
-            return Err(OperationVerificationError::InsufficientInput(
+        if in_value != out_value + unshield_value {
+            return Err(OperationVerificationError::Imbalanced(
                 in_value,
                 out_value,
                 unshield_value,
-                fee_value,
             ));
         }
 
@@ -140,9 +136,8 @@ impl<N: Note> Operation<N> {
     /// Total value being transfered to other railgun addresses in this operation
     pub fn out_value(&self) -> u128 {
         let out_notes_value: u128 = self.out_notes.iter().map(|n| n.value()).sum();
-        let fee_value: u128 = self.fee_note.as_ref().map_or(0, |n| n.value());
         let unshield_value: u128 = self.unshield_note.as_ref().map_or(0, |n| n.value());
-        out_notes_value + fee_value + unshield_value
+        out_notes_value + unshield_value
     }
 
     pub fn in_notes(&self) -> &[N] {
@@ -151,10 +146,6 @@ impl<N: Note> Operation<N> {
 
     pub fn out_notes(&self) -> Vec<Box<dyn Note>> {
         let mut notes: Vec<Box<dyn Note>> = Vec::new();
-
-        if let Some(fee) = &self.fee_note {
-            notes.push(Box::new(fee.clone()));
-        }
 
         for transfer in &self.out_notes {
             notes.push(Box::new(transfer.clone()));
@@ -171,16 +162,8 @@ impl<N: Note> Operation<N> {
         self.unshield_note.clone()
     }
 
-    pub fn fee_note(&self) -> Option<TransferNote> {
-        self.fee_note.clone()
-    }
-
     pub fn out_encryptable_notes(&self) -> Vec<Box<dyn EncryptableNote>> {
         let mut notes: Vec<Box<dyn EncryptableNote>> = Vec::new();
-
-        if let Some(fee) = &self.fee_note {
-            notes.push(Box::new(fee.clone()));
-        }
 
         for transfer in &self.out_notes {
             notes.push(Box::new(transfer.clone()));
@@ -190,6 +173,7 @@ impl<N: Note> Operation<N> {
     }
 }
 
+#[cfg(feature = "poi")]
 impl Operation<PoiNote> {
     pub fn blinded_commitments(&self) -> Vec<U256> {
         self.in_notes
@@ -203,22 +187,19 @@ impl<N: Note> Display for Operation<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Operation(tree: {}, from: {}, asset: {}, in_notes: {}, out_notes: {}, unshield: {}, fee: {})",
+            "Operation(tree: {}, from: {}, asset: {}, in_notes: {}, out_notes: {}, unshield: {})",
             self.utxo_tree_number,
             self.from.address(),
             self.asset,
             self.in_notes.len(),
             self.out_notes.len(),
             self.unshield_note.is_some(),
-            self.fee_note.is_some(),
         )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use alloy::primitives::address;
     use tracing_test::traced_test;
 
@@ -248,14 +229,6 @@ mod tests {
         );
 
         let in_note = test_note();
-        let fee_note = TransferNote::new(
-            ViewingKey::from_bytes([3u8; 32]),
-            from_account.address(),
-            AssetId::Erc20(address!("0x1234567890123456789012345678901234567890")),
-            5,
-            [1u8; 16],
-            "fee memo",
-        );
         let transfer_note = TransferNote::new(
             ViewingKey::from_bytes([3u8; 32]),
             from_account.address(),
@@ -277,11 +250,9 @@ mod tests {
             vec![in_note],
             vec![transfer_note],
             Some(unshield_note.clone()),
-            Some(fee_note.clone()),
         );
 
         let notes_out = operation.out_notes();
         assert_eq!(notes_out.last().unwrap().hash(), unshield_note.hash());
-        assert_eq!(notes_out.first().unwrap().hash(), fee_note.hash());
     }
 }

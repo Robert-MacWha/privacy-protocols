@@ -9,18 +9,15 @@ use wasm_bindgen::{JsError, prelude::wasm_bindgen};
 use crate::{
     chain_config::get_chain_config,
     railgun::{
-        address::RailgunAddress,
-        broadcaster::broadcaster::Fee,
-        indexer::syncer::SubsquidSyncer,
-        poi::PoiClient,
-        poi_provider::{PoiProvider, PoiProviderState},
+        PoiProvider, PoiProviderState, address::RailgunAddress, broadcaster::broadcaster::Fee,
+        indexer::syncer::SubsquidSyncer, poi::PoiClient,
     },
     wasm::{
-        JsFee, JsShieldBuilder, JsTransactionBuilder, JsTxData,
+        JsFee, JsShieldBuilder,
         bindings::JsSigner,
         indexer::{JsBalanceMap, JsSyncer},
+        poi_transaction_builder::{JsPoiProvedTx, JsPoiTransactionBuilder},
         prover::JsProver,
-        transaction::JsPoiProvedTx,
     },
 };
 
@@ -147,11 +144,11 @@ impl JsPoiProvider {
         self.inner.shield().into()
     }
 
-    pub fn transact(&self) -> JsTransactionBuilder {
+    pub fn transact(&self) -> JsPoiTransactionBuilder {
         self.inner.transact().into()
     }
 
-    pub async fn build(&self, builder: JsTransactionBuilder) -> Result<JsPoiProvedTx, JsError> {
+    pub async fn build(&self, builder: JsPoiTransactionBuilder) -> Result<JsPoiProvedTx, JsError> {
         let mut rng = rand::rng();
         let proved_tx = self
             .inner
@@ -164,7 +161,7 @@ impl JsPoiProvider {
 
     pub async fn build_broadcast(
         &mut self,
-        builder: JsTransactionBuilder,
+        builder: JsPoiTransactionBuilder,
         fee_payer: &JsSigner,
         fee: &JsFee,
     ) -> Result<JsPoiProvedTx, JsError> {

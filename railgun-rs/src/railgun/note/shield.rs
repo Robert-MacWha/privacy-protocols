@@ -64,8 +64,6 @@ pub fn create_shield_request<R: Rng>(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use alloy::primitives::Address;
     use rand::Rng;
     use rand_chacha::{ChaChaRng, rand_core::SeedableRng};

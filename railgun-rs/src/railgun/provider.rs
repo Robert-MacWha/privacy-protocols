@@ -14,7 +14,7 @@ use crate::{
         indexer::{UtxoIndexer, UtxoIndexerError, UtxoIndexerState, syncer::NoteSyncer},
         merkle_tree::SmartWalletUtxoVerifier,
         signer::Signer,
-        transaction::{BuildError, ProvedTx, ShieldBuilder, TransactionBuilder},
+        transaction::{TransactionBuilderError, ProvedTx, ShieldBuilder, TransactionBuilder},
     },
 };
 
@@ -38,7 +38,7 @@ pub enum RailgunProviderError {
     #[error("Utxo indexer error: {0}")]
     UtxoIndexer(#[from] UtxoIndexerError),
     #[error("Build error: {0}")]
-    Build(#[from] BuildError),
+    Build(#[from] TransactionBuilderError),
 }
 
 /// General provider functions

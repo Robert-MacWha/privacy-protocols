@@ -1,4 +1,4 @@
-#[cfg(not(feature = "wasm"))]
+#[cfg(all(not(feature = "wasm"), feature = "poi"))]
 mod sync_txid;
 #[cfg(not(feature = "wasm"))]
 mod sync_utxo;
