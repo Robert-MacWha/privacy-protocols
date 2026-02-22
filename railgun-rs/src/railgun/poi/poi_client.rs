@@ -201,7 +201,7 @@ impl PoiClient {
         op: HashMap<ListKey, TransactProofData>,
     ) -> Result<(), PoiClientError> {
         for (list_key, proof_data) in op {
-            let resp: serde_json::Value = self
+            let resp: Result<(), PoiClientError> = self
                 .call(
                     "ppoi_submit_transact_proof",
                     SubmitTransactProofParams {
@@ -210,9 +210,15 @@ impl PoiClient {
                         transact_proof_data: proof_data,
                     },
                 )
-                .await?;
+                .await;
 
-            info!("Submitted proof for list key {}: {}", list_key, resp);
+            match resp {
+                Ok(_) => {}
+                Err(e) if matches!(e, PoiClientError::NullResult) => {}
+                Err(e) => {
+                    return Err(e);
+                }
+            }
         }
 
         Ok(())

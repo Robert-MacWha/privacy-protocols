@@ -29,7 +29,7 @@ pub struct TxidLeafHash(U256);
 ///
 /// Included TxIDs have defined positions based on the index of their first UTXO
 /// note in the on-chain UTXO tree. They are used when submitting to POI nodes.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum UtxoTreeIndex {
     /// Transactions that have been generated but not yet included on-chain (
     /// IE those being prepared for POI proof generation) use the pre-inclusion

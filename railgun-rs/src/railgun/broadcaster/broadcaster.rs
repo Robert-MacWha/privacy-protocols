@@ -24,15 +24,26 @@ use crate::{
     sleep::sleep,
 };
 
+/// Broadcaster instance for a specific fee config
+pub struct Broadcaster {
+    transport: Arc<dyn WakuTransport>,
+    pub chain_id: ChainId,
+    /// Railgun address of the broadcaster (fee recipient)
+    pub address: RailgunAddress,
+    pub identifier: Option<String>,
+    pub fee: Fee,
+
+    timeout: web_time::Duration,
+    retry_delay: web_time::Duration,
+}
+
 /// Fee information for a specific token from a broadcaster.
 #[derive(Debug, Clone)]
 pub struct Fee {
-    /// Address of the ERC-20 token used for fees
     pub token: Address,
     /// Fee per unit gas, where the fee is in the token's base units and the gas
     /// is in units of ether (1e18)
     pub per_unit_gas: u128,
-    /// Railgun address of the fee recipient (broadcaster)
     pub recipient: RailgunAddress,
     /// Unix timestamp when this fee expires
     pub expiration: u64,
@@ -48,33 +59,9 @@ pub struct Fee {
     pub list_keys: Vec<ListKey>,
 }
 
-/// Broadcaster instance for a specific fee token.
-pub struct Broadcaster {
-    transport: Arc<dyn WakuTransport>,
-    pub chain_id: ChainId,
-    /// Railgun address of the broadcaster (fee recipient)
-    pub address: RailgunAddress,
-    /// Human-readable identifier for the broadcaster
-    pub identifier: Option<String>,
-    /// Fee information for the specific token
-    pub fee: Fee,
-
-    timeout: web_time::Duration,
-    retry_delay: web_time::Duration,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ChainType {
     Evm = 0,
-}
-
-impl Serialize for ChainType {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_u8(*self as u8)
-    }
 }
 
 #[derive(Debug, Error)]
@@ -128,13 +115,13 @@ struct BroadcastParamsRaw {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct BroadcastMessage {
+struct BroadcastMessage {
     pub method: String,
     pub params: BroadcastMessageParams,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct BroadcastMessageParams {
+struct BroadcastMessageParams {
     pub pubkey: ViewingPublicKey,
     #[serde(rename = "encryptedData")]
     pub encrypted_data: EncryptedData,
@@ -274,6 +261,15 @@ impl Broadcaster {
                 return Ok(tx_hash);
             }
         }
+    }
+}
+
+impl Serialize for ChainType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u8(*self as u8)
     }
 }
 
@@ -469,33 +465,26 @@ mod test {
         );
     }
 
-    // #[test]
-    // fn test_decode_response() {
-    //     let raw: &[u8] = &[
-    //         123, 34, 106, 115, 111, 110, 114, 112, 99, 34, 58, 34, 50, 46, 48, 34, 44, 34, 114,
-    //         101, 115, 117, 108, 116, 34, 58, 91, 34, 48, 120, 54, 100, 97, 51, 100, 55, 99, 49, 48,
-    //         101, 48, 100, 100, 55, 48, 52, 101, 52, 100, 51, 56, 56, 49, 99, 50, 101, 100, 98, 49,
-    //         53, 48, 57, 49, 102, 51, 50, 97, 55, 55, 102, 51, 56, 101, 97, 97, 99, 97, 100, 56, 53,
-    //         50, 50, 102, 48, 51, 50, 100, 52, 102, 101, 50, 100, 53, 50, 34, 44, 34, 48, 120, 52,
-    //         101, 56, 100, 99, 57, 53, 50, 98, 57, 99, 52, 52, 102, 52, 48, 57, 102, 49, 53, 100,
-    //         57, 51, 54, 97, 49, 102, 48, 55, 49, 57, 99, 49, 50, 98, 97, 99, 55, 55, 55, 48, 54,
-    //         53, 99, 54, 55, 57, 98, 51, 55, 48, 52, 97, 97, 48, 101, 102, 51, 101, 53, 102, 97, 48,
-    //         100, 50, 55, 57, 101, 51, 54, 53, 52, 97, 48, 101, 55, 99, 50, 98, 52, 53, 98, 49, 56,
-    //         100, 54, 52, 101, 100, 53, 53, 48, 98, 56, 99, 56, 52, 49, 99, 102, 56, 97, 50, 54, 50,
-    //         99, 51, 102, 100, 99, 34, 93, 125,
-    //     ];
+    #[test]
+    fn test_decode_response() {
+        let raw: &[u8] = &[
+            123, 34, 116, 120, 72, 97, 115, 104, 34, 58, 34, 48, 120, 54, 53, 99, 98, 56, 102, 101,
+            100, 48, 49, 97, 48, 49, 102, 48, 48, 101, 97, 56, 55, 52, 101, 52, 99, 54, 51, 98,
+            101, 57, 53, 48, 57, 98, 101, 48, 51, 49, 100, 100, 51, 54, 49, 54, 98, 51, 48, 100,
+            56, 49, 99, 55, 56, 50, 56, 102, 97, 99, 57, 57, 99, 56, 102, 56, 98, 34, 125,
+        ];
 
-    //     let shared_secret =
-    //         SharedKey::from_hex("7417f43de2c532f78f9f4faaa1626edea79f75c8c0cec5d1444ff34ab8e7836d")
-    //             .unwrap();
+        let shared_secret =
+            SharedKey::from_hex("e475eb7b5a48bb85370fa312f6c68d58dd498a111ad8e9a85a9461fe64c4d842")
+                .unwrap();
 
-    //     let tx_hash = decode_response(&shared_secret, raw).unwrap().unwrap();
-    //     let expected: TxHash = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-    //         .parse()
-    //         .unwrap();
+        let tx_hash = decode_response(&shared_secret, raw).unwrap().unwrap();
+        let expected: TxHash = "0x65cb8fed01a01f00ea874e4c63be9509be031dd3616b30d81c7828fac99c8f8b"
+            .parse()
+            .unwrap();
 
-    //     assert_eq!(tx_hash, expected);
-    // }
+        assert_eq!(tx_hash, expected);
+    }
 
     fn test_params(broadcaster_viewing_key: ViewingPublicKey) -> BroadcastParamsRaw {
         let pre_transaction_pois_per_txid_leaf_per_list = HashMap::from([(

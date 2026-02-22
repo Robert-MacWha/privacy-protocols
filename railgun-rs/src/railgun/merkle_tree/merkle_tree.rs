@@ -107,6 +107,10 @@ impl MerkleTree {
             warn!("Merkle tree has dirty parents, root may be outdated");
         }
 
+        info!(
+            "Generating Merkle proof for element {:?} in tree {}",
+            element, self.number
+        );
         let initial_index = self.tree[0]
             .iter()
             .position(|val| *val == element)

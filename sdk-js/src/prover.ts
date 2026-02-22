@@ -14,7 +14,7 @@ export interface ProverConfig {
   artifactsPath: string;
   /** Function to resolve artifact paths for a given circuit */
   resolveArtifacts?: (circuitName: string, basePath: string) => ArtifactPaths;
-  /** Whether to verify proofs after generation (default: false) */
+  /** Whether to verify proofs after generation (default: true) */
   verify?: boolean;
 }
 
@@ -64,7 +64,7 @@ async function loadArtifacts(
  */
 export function createProveFunction(config: ProverConfig): ProveFunction {
   const resolveArtifacts = config.resolveArtifacts ?? defaultResolveArtifacts;
-  const shouldVerify = config.verify ?? false;
+  const shouldVerify = config.verify ?? true;
 
   return async (
     circuitName: string,
@@ -96,6 +96,7 @@ export function createProveFunction(config: ProverConfig): ProveFunction {
       if (!valid) {
         throw new Error(`Proof verification failed for ${circuitName}`);
       }
+      console.log("Proof verified");
     }
 
     // Convert proof to the expected format (decimal strings)

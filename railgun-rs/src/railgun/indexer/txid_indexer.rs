@@ -96,8 +96,14 @@ impl TxidIndexer {
         self.synced_block = to_block;
 
         // Advance
-        self.txid_set.validate().await?;
+        self.txid_set.update().await?;
 
         Ok(())
+    }
+
+    /// Resets the indexer state
+    pub fn reset(&mut self) {
+        self.txid_set.reset();
+        self.synced_block = 0;
     }
 }

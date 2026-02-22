@@ -300,6 +300,8 @@ impl Debug for UtxoNote<()> {
             .field("random", &self.random)
             .field("memo", &self.memo)
             .field("type_", &self.type_)
+            .field("hash", &self.hash)
+            .field("npk", &self.npk)
             .finish()
     }
 }

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::info;
 
 use crate::{
     circuit::{
@@ -15,7 +16,7 @@ use crate::{
     },
     railgun::{
         indexer::{TxidIndexer, UtxoIndexer},
-        merkle_tree::UtxoTreeIndex,
+        merkle_tree::{TOTAL_LEAVES, UtxoTreeIndex},
         note::utxo::UtxoNote,
         poi::{ListKey, PoiClient, PoiClientError, types::TransactProofData},
         transaction::PoiProvedOperation,
@@ -102,6 +103,12 @@ impl PendingPoiSubmitter {
         let out_notes = op.operation.out_notes();
         let encryptable_notes = op.operation.out_encryptable_notes();
 
+        info!(
+            "Registering pending POI submission for txid {:?}, with {} input notes and {} output notes",
+            txid,
+            in_notes.len(),
+            out_notes.len(),
+        );
         self.pending.push(PendingPoiEntry {
             txid,
             spending_pubkey,
@@ -140,25 +147,34 @@ impl PendingPoiSubmitter {
         prover: &dyn PoiProver,
     ) -> Result<Vec<Txid>, PendingPoiError> {
         let mut submitted = Vec::new();
-        for i in 0..self.pending.len() {
+        for i in (0..self.pending.len()).rev() {
             let entry = &self.pending[i];
 
-            let Some((tree_number, leaf_index)) = txid_indexer.txid_set.position_of(&entry.txid)
+            let Some((utxo_tree_number, utxo_leaf_index)) =
+                txid_indexer.txid_set.utxo_position(&entry.txid)
             else {
+                info!("Txid {:?} not yet found in UTXO tree, skipping", entry.txid);
+                continue;
+            };
+
+            let Some((txid_tree_number, txid_leaf_index)) =
+                txid_indexer.txid_set.txid_position(&entry.txid)
+            else {
+                info!("Txid {:?} not yet found in TXID tree, skipping", entry.txid);
                 continue;
             };
 
             let txid_tree = txid_indexer
                 .txid_set
-                .tree(tree_number)
-                .ok_or(PendingPoiError::MissingTxidTree(tree_number))?;
+                .tree(utxo_tree_number)
+                .ok_or(PendingPoiError::MissingTxidTree(utxo_tree_number))?;
 
             let utxo_tree = utxo_indexer
                 .utxo_trees
                 .get(&entry.utxo_tree_in)
                 .ok_or(PendingPoiError::MissingUtxoTree(entry.utxo_tree_in))?;
 
-            let included = UtxoTreeIndex::included(tree_number, leaf_index);
+            let included = UtxoTreeIndex::included(utxo_tree_number, utxo_leaf_index);
 
             // Re-fetch fresh POI merkle proofs from the aggregator.
             let fresh_poi_notes = poi_client
@@ -192,13 +208,15 @@ impl PendingPoiSubmitter {
 
                 let blinded_commitments_out = public_inputs[0..inputs.nullifiers.len()].to_vec();
 
+                let txid_merkleroot_index =
+                    txid_tree_number as u64 * TOTAL_LEAVES as u64 + txid_leaf_index as u64;
                 proof_data_map.insert(
                     list_key.clone(),
                     TransactProofData {
                         proof,
                         poi_merkleroots: inputs.poi_merkleroots,
                         txid_merkleroot: inputs.railgun_txid_merkleroot_after_transaction,
-                        txid_merkleroot_index: leaf_index as u64,
+                        txid_merkleroot_index,
                         blinded_commitments_out,
                         railgun_txid_if_has_unshield: inputs.railgun_txid_if_has_unshield,
                     },
@@ -208,6 +226,7 @@ impl PendingPoiSubmitter {
             poi_client.submit_operation(proof_data_map).await?;
             let txid = entry.txid;
             self.pending.remove(i);
+            info!("Submitted POI for {:?}", txid);
             submitted.push(txid);
         }
 

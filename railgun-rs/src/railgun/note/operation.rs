@@ -6,9 +6,7 @@ use thiserror::Error;
 use crate::{
     caip::AssetId,
     railgun::{
-        note::{
-            EncryptableNote, Note, transfer::TransferNote, unshield::UnshieldNote, utxo::UtxoNote,
-        },
+        note::{EncryptableNote, Note, transfer::TransferNote, unshield::UnshieldNote},
         poi::PoiNote,
         signer::Signer,
     },

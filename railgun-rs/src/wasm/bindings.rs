@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use wasm_bindgen::prelude::*;
 
 use crate::crypto::keys::{ByteKey, SpendingKey, ViewingKey};
+use crate::railgun::signer::{PrivateKeySigner, Signer};
 
 /// Parse a 32-byte hex string (with or without 0x prefix)
 fn parse_hex_32(s: &str, name: &str) -> Result<[u8; 32], JsError> {
@@ -12,13 +15,13 @@ fn parse_hex_32(s: &str, name: &str) -> Result<[u8; 32], JsError> {
 }
 
 #[wasm_bindgen]
-pub struct JsRailgunAccount {
-    inner: RailgunAccount,
+pub struct JsSigner {
+    inner: Arc<PrivateKeySigner>,
 }
 
 #[wasm_bindgen]
-impl JsRailgunAccount {
-    /// Create a new Railgun account from hex-encoded keys.
+impl JsSigner {
+    /// Create a new Railgun signer from hex-encoded keys.
     ///
     /// @param spending_key - 32-byte hex string (with or without 0x prefix)
     /// @param viewing_key - 32-byte hex string (with or without 0x prefix)
@@ -28,15 +31,15 @@ impl JsRailgunAccount {
         spending_key: &str,
         viewing_key: &str,
         chain_id: u64,
-    ) -> Result<JsRailgunAccount, JsError> {
+    ) -> Result<JsSigner, JsError> {
         let spending_key = parse_hex_32(spending_key, "spending_key")?;
         let viewing_key = parse_hex_32(viewing_key, "viewing_key")?;
 
         let spending_key = SpendingKey::from_bytes(spending_key);
         let viewing_key = ViewingKey::from_bytes(viewing_key);
 
-        Ok(JsRailgunAccount {
-            inner: RailgunAccount::new(spending_key, viewing_key, chain_id),
+        Ok(JsSigner {
+            inner: PrivateKeySigner::new_evm(spending_key, viewing_key, chain_id),
         })
     }
 
@@ -47,9 +50,9 @@ impl JsRailgunAccount {
     }
 }
 
-impl JsRailgunAccount {
-    pub fn inner(&self) -> &RailgunAccount {
-        &self.inner
+impl JsSigner {
+    pub fn inner(&self) -> Arc<dyn Signer> {
+        self.inner.clone()
     }
 }
 

@@ -78,7 +78,7 @@ pub struct PoiCircuitInputs {
 pub enum PoiCircuitInputsError {
     #[error("Invalid input: {0}")]
     InvalidInput(String),
-    #[error("Merkle tree error")]
+    #[error("Merkle tree error: {0}")]
     MerkleTree(#[from] MerkleTreeError),
     #[error("Missing POI proofs for list key {0}")]
     MissingPoiProofs(ListKey),
@@ -228,6 +228,8 @@ impl PoiCircuitInputs {
             .iter()
             .map(|note| utxo_merkle_tree.generate_proof(note.hash()))
             .collect::<Result<_, _>>()?;
+
+        info!("Computing nullifiers");
         Ok(in_notes
             .iter()
             .zip(utxo_proofs.iter())

@@ -14,18 +14,25 @@ use crate::railgun::{
     address::RailgunAddress, broadcaster::content_topics::fee_content_topic, poi::ListKey,
 };
 
-/// Error type for broadcaster operations.
-#[derive(Debug, Error)]
-pub enum BroadcastersError {
-    #[error("Transport error: {0}")]
-    Transport(#[from] WakuTransportError),
-    #[error("Message parsing error: {0}")]
-    ParseError(String),
-    #[error("Invalid broadcaster version: got {got}, expected {expected}")]
-    IncompatibleVersion { got: String, expected: String },
+/// Manages broadcaster state and fee information.
+///
+/// Subscribes to Waku fee messages and maintains a cache of broadcaster
+/// information, allowing selection of the best broadcaster for a given token.
+#[derive(Clone)]
+pub struct BroadcasterManager {
+    chain_id: u64,
+    transport: Arc<dyn WakuTransport>,
+    broadcasters: Arc<Mutex<HashMap<RailgunAddress, BroadcasterData>>>,
 }
 
-/// Internal fee data for a specific token.
+#[derive(Debug, Clone)]
+struct BroadcasterData {
+    railgun_address: RailgunAddress,
+    identifier: Option<String>,
+    required_poi_list_keys: Vec<ListKey>,
+    token_fees: HashMap<Address, TokenFeeData>,
+}
+
 #[derive(Debug, Clone)]
 struct TokenFeeData {
     fee_per_unit_gas: u128,
@@ -36,24 +43,14 @@ struct TokenFeeData {
     reliability: u32,
 }
 
-/// Internal storage for broadcaster data.
-#[derive(Debug, Clone)]
-struct BroadcasterData {
-    railgun_address: RailgunAddress,
-    identifier: Option<String>,
-    required_poi_list_keys: Vec<ListKey>,
-    token_fees: HashMap<Address, TokenFeeData>,
-}
-
-/// Manages broadcaster state and fee information.
-///
-/// Subscribes to Waku fee messages and maintains a cache of broadcaster
-/// information, allowing selection of the best broadcaster for a given token.
-#[derive(Clone)]
-pub struct BroadcasterManager {
-    chain_id: u64,
-    transport: Arc<dyn WakuTransport>,
-    broadcasters: Arc<Mutex<HashMap<RailgunAddress, BroadcasterData>>>,
+#[derive(Debug, Error)]
+pub enum BroadcastersError {
+    #[error("Transport error: {0}")]
+    Transport(#[from] WakuTransportError),
+    #[error("Message parsing error: {0}")]
+    ParseError(String),
+    #[error("Invalid broadcaster version: got {got}, expected {expected}")]
+    IncompatibleVersion { got: String, expected: String },
 }
 
 impl BroadcasterManager {
@@ -79,7 +76,56 @@ impl BroadcasterManager {
         Ok(())
     }
 
-    /// Handle a single fee message from the Waku network.
+    pub fn chain_id(&self) -> u64 {
+        self.chain_id
+    }
+
+    /// Find the best broadcaster for a given token.
+    /// - Has a valid (non-expired) fee
+    /// - Has at least one available wallet
+    /// - Has the highest reliability among ties
+    pub async fn best_broadcaster_for_token(
+        &self,
+        token: Address,
+        current_time: u64,
+    ) -> Option<Broadcaster> {
+        let broadcasters = self.broadcasters.lock().await;
+
+        broadcasters
+            .values()
+            .filter_map(|data| {
+                data.token_fees
+                    .get(&token)
+                    .filter(|f| f.expiration > current_time && f.available_wallets > 0)
+                    .map(|f| (data, f))
+            })
+            .min_by(|(_, a), (_, b)| {
+                // Sort by fee ascending, then by reliability descending
+                a.fee_per_unit_gas
+                    .cmp(&b.fee_per_unit_gas)
+                    .then_with(|| b.reliability.cmp(&a.reliability))
+            })
+            .map(|(data, token_fee)| {
+                Broadcaster::new(
+                    Arc::clone(&self.transport),
+                    self.chain_id,
+                    data.railgun_address,
+                    data.identifier.clone(),
+                    Fee {
+                        token,
+                        per_unit_gas: token_fee.fee_per_unit_gas,
+                        recipient: data.railgun_address,
+                        expiration: token_fee.expiration,
+                        fees_id: token_fee.fees_id.clone(),
+                        available_wallets: token_fee.available_wallets,
+                        relay_adapt: token_fee.relay_adapt,
+                        reliability: token_fee.reliability,
+                        list_keys: data.required_poi_list_keys.clone(),
+                    },
+                )
+            })
+    }
+
     async fn handle_fee_message(&self, msg: &WakuMessage) -> Result<(), BroadcastersError> {
         let fee_data = decode_fee_message(&msg.payload)?;
 
@@ -148,60 +194,8 @@ impl BroadcasterManager {
 
         Ok(())
     }
-
-    /// Find the best broadcaster for a given token.
-    /// - Has a valid (non-expired) fee
-    /// - Has at least one available wallet
-    /// - Has the highest reliability among ties
-    pub async fn best_broadcaster_for_token(
-        &self,
-        token: Address,
-        current_time: u64,
-    ) -> Option<Broadcaster> {
-        let broadcasters = self.broadcasters.lock().await;
-
-        broadcasters
-            .values()
-            .filter_map(|data| {
-                data.token_fees
-                    .get(&token)
-                    .filter(|f| f.expiration > current_time && f.available_wallets > 0)
-                    .map(|f| (data, f))
-            })
-            .min_by(|(_, a), (_, b)| {
-                // Sort by fee ascending, then by reliability descending
-                a.fee_per_unit_gas
-                    .cmp(&b.fee_per_unit_gas)
-                    .then_with(|| b.reliability.cmp(&a.reliability))
-            })
-            .map(|(data, token_fee)| {
-                Broadcaster::new(
-                    Arc::clone(&self.transport),
-                    self.chain_id,
-                    data.railgun_address,
-                    data.identifier.clone(),
-                    Fee {
-                        token,
-                        per_unit_gas: token_fee.fee_per_unit_gas,
-                        recipient: data.railgun_address,
-                        expiration: token_fee.expiration,
-                        fees_id: token_fee.fees_id.clone(),
-                        available_wallets: token_fee.available_wallets,
-                        relay_adapt: token_fee.relay_adapt,
-                        reliability: token_fee.reliability,
-                        list_keys: data.required_poi_list_keys.clone(),
-                    },
-                )
-            })
-    }
-
-    /// Returns the chain ID this manager operates on.
-    pub fn chain_id(&self) -> u64 {
-        self.chain_id
-    }
 }
 
-/// Decode a fee message payload from the Waku network.
 fn decode_fee_message(payload: &[u8]) -> Result<BroadcasterFeeMessageData, BroadcastersError> {
     let msg: BroadcasterFeeMessage = serde_json::from_slice(payload)
         .map_err(|e| BroadcastersError::ParseError(format!("Invalid JSON: {}", e)))?;

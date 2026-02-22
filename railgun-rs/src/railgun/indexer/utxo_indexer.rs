@@ -224,6 +224,14 @@ impl UtxoIndexer {
         Ok(())
     }
 
+    /// Resets the indexer state
+    pub fn reset(&mut self) {
+        self.utxo_trees.clear();
+        self.synced_block = 0;
+        self.accounts.clear();
+        self.matched_events.clear();
+    }
+
     /// Handles a sync event. Returns true if the event was matched to any account.
     fn handle_event(&mut self, event: &SyncEvent) -> Result<bool, UtxoIndexerError> {
         let matched = match event {

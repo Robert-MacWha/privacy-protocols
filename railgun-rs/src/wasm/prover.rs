@@ -4,6 +4,7 @@ use js_sys::Function;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::info;
 use tsify_next::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -94,6 +95,7 @@ impl TransactProver for JsProver {
             inputs.commitments_out.len()
         );
 
+        info!("Proving transaction with circuit {}", circuit_name);
         Ok(call_js_prover(&self.prove_transact_fn, &circuit_name, inputs.as_flat_map()).await?)
     }
 }
@@ -110,6 +112,7 @@ impl PoiProver for JsProver {
             inputs.commitments.len()
         );
 
+        info!("Proving POI with circuit {}", circuit_name);
         Ok(call_js_prover(&self.prove_poi_fn, &circuit_name, inputs.as_flat_map()).await?)
     }
 }

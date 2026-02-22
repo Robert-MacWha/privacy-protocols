@@ -30,7 +30,7 @@ test:
     # Wait for anvil to be ready
     sleep 2
 
-    pnpm test --timeout 120000
+    pnpm vitest run
 
 anvil:
     anvil --fork-url {{fork_url}} --fork-block-number {{fork_block}} --port 8545 --auto-impersonate --load-state ../railgun-rs/tests/fixtures/state.json

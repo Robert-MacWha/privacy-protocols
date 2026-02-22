@@ -6,10 +6,8 @@ use alloy::{
 };
 use railgun_rs::{
     chain_config::{ChainConfig, MAINNET_CONFIG},
-    railgun::{
-        indexer::{UtxoIndexer, syncer::SubsquidSyncer},
-        merkle_tree::SmartWalletUtxoVerifier,
-    },
+    circuit::native::Groth16Prover,
+    railgun::{indexer::syncer::SubsquidSyncer, provider::RailgunProvider},
 };
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -36,22 +34,19 @@ async fn test_sync_utxo() {
         .unwrap()
         .erased();
 
-    let smart_wallet_verifier = Arc::new(SmartWalletUtxoVerifier::new(
-        CHAIN.railgun_smart_wallet,
-        provider.clone(),
-    ));
-
     info!("Setting up indexer");
     let endpoint = CHAIN
         .subsquid_endpoint
         .expect("Subsquid endpoint must be set");
 
     let subsquid_syncer = Arc::new(SubsquidSyncer::new(endpoint));
-    let mut indexer = UtxoIndexer::new(subsquid_syncer, smart_wallet_verifier);
+    let prover = Arc::new(Groth16Prover::new_native("./artifacts"));
+    let mut railgun =
+        RailgunProvider::new(CHAIN, provider.clone(), subsquid_syncer.clone(), prover);
 
     info!("Syncing indexer");
-    indexer.sync_to(FORK_BLOCK).await.unwrap();
+    railgun.sync_to(FORK_BLOCK).await.unwrap();
 
-    let state = bitcode::serialize(&indexer.state()).unwrap();
-    std::fs::write("./tests/fixtures/indexer_state.bincode", state).unwrap();
+    let state = bitcode::serialize(&railgun.state()).unwrap();
+    std::fs::write("./tests/fixtures/provider_state.bincode", state).unwrap();
 }

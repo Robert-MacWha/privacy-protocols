@@ -12,12 +12,12 @@ use wasm_bindgen_futures::JsFuture;
 
 use crate::{
     railgun::broadcaster::{
-        broadcaster::{Broadcaster, Fee},
+        broadcaster::Broadcaster,
         broadcaster_manager::BroadcasterManager,
         transport::{MessageStream, WakuTransport, WakuTransportError},
         types::WakuMessage,
     },
-    wasm::transaction::JsPoiProvedTx,
+    wasm::{JsFee, transaction::JsPoiProvedTx},
 };
 
 /// Error type for JS Waku transport operations.
@@ -62,11 +62,6 @@ pub struct JsBroadcasterManager {
 #[wasm_bindgen]
 pub struct JsBroadcaster {
     inner: Broadcaster,
-}
-
-#[wasm_bindgen]
-pub struct JsFee {
-    inner: Fee,
 }
 
 struct JsWakuTransport {
@@ -129,16 +124,14 @@ impl JsBroadcasterManager {
 impl JsBroadcaster {
     #[wasm_bindgen]
     pub fn fee(&self) -> JsFee {
-        JsFee {
-            inner: self.inner.fee.clone(),
-        }
+        self.inner.fee.clone().into()
     }
 
     #[wasm_bindgen]
-    pub async fn broadcast(&self, tx: &JsPoiProvedTx) -> Result<String, JsValue> {
+    pub async fn broadcast(&self, tx: JsPoiProvedTx) -> Result<String, JsValue> {
         let tx_hash = self
             .inner
-            .broadcast(&tx.inner, &mut rand::rng())
+            .broadcast(&tx.into(), &mut rand::rng())
             .await
             .map_err(|e| JsValue::from_str(&format!("Broadcast error: {}", e)))?;
         Ok(tx_hash.to_string())
@@ -151,16 +144,6 @@ impl JsBroadcaster {
     }
 
     pub fn inner_mut(&mut self) -> &mut Broadcaster {
-        &mut self.inner
-    }
-}
-
-impl JsFee {
-    pub fn inner(&self) -> &Fee {
-        &self.inner
-    }
-
-    pub fn inner_mut(&mut self) -> &mut Fee {
         &mut self.inner
     }
 }

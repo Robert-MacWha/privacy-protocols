@@ -7,8 +7,7 @@ export {
 } from "./wasm.ts";
 
 export type {
-  JsRailgunAccount,
-  JsIndexer,
+  JsSigner,
   JsSyncer,
   JsProver,
   JsShieldBuilder,
@@ -16,6 +15,8 @@ export type {
   JsTxData,
   JsProofResponse,
   JsBalanceMap,
+  JsRailgunProvider,
+  JsPoiProvider,
   InitOutput as WasmModule,
   JsBroadcaster,
   WakuMessage,

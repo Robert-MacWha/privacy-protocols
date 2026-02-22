@@ -15,10 +15,10 @@ crate-type = ["cdylib", "rlib"]
 [[bench]]
 name = "merkle_tree"
 harness = false
-required-features = ["native"]
+required-features = [""]
 
 [features]
-default = ["native"]
+default = ["wasm"]
 native = ["wasmer", "ark-circom", "reqwest/rustls"]
 wasm = [
     "wasm-bindgen-futures",

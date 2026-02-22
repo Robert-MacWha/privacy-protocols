@@ -1,4 +1,3 @@
-mod broadcastable_transaction;
 mod gas_estimator;
 mod poi_proved_transaction;
 mod proved_transaction;
@@ -6,7 +5,6 @@ mod shield_builder;
 mod transaction_builder;
 mod tx_data;
 
-pub use broadcastable_transaction::BroadcastableTx;
 pub use gas_estimator::GasEstimator;
 pub use poi_proved_transaction::{PoiProvedOperation, PoiProvedOperationError, PoiProvedTx};
 pub use proved_transaction::{ProvedOperation, ProvedTx};

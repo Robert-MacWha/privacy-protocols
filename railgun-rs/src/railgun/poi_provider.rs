@@ -1,26 +1,28 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use alloy::providers::DynProvider;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    caip::AssetId,
     chain_config::ChainConfig,
     circuit::prover::{PoiProver, TransactProver},
     railgun::{
-        broadcaster::broadcaster::Broadcaster,
+        address::RailgunAddress,
+        broadcaster::broadcaster::Fee,
         indexer::{
             TxidIndexer, TxidIndexerError, TxidIndexerState,
             syncer::{NoteSyncer, TransactionSyncer},
         },
-        merkle_tree::MerkleTreeVerifier,
         poi::{
             PendingPoiError, PendingPoiSubmitter, PoiClient,
             pending_poi_submitter::PendingPoiSubmitterState,
         },
         provider::{RailgunProvider, RailgunProviderError, RailgunProviderState},
         signer::Signer,
-        transaction::{ShieldBuilder, TransactionBuilder, WithBroadcast, WithPoi},
+        transaction::{BuildError, PoiProvedTx, ShieldBuilder, TransactionBuilder},
     },
 };
 
@@ -49,6 +51,8 @@ pub enum PoiProviderError {
     TxidIndexer(#[from] TxidIndexerError),
     #[error("Pending POI error: {0}")]
     PoiClient(#[from] PendingPoiError),
+    #[error("Build error: {0}")]
+    Build(#[from] BuildError),
 }
 
 impl PoiProvider {
@@ -56,20 +60,13 @@ impl PoiProvider {
         chain: ChainConfig,
         provider: DynProvider,
         utxo_syncer: Arc<dyn NoteSyncer>,
-        utxo_verifier: Arc<dyn MerkleTreeVerifier>,
         tx_prover: Arc<dyn TransactProver>,
         txid_syncer: Arc<dyn TransactionSyncer>,
         poi_client: PoiClient,
         poi_prover: Arc<dyn PoiProver>,
     ) -> Self {
         Self {
-            inner: RailgunProvider::new(
-                chain,
-                provider.clone(),
-                utxo_syncer,
-                utxo_verifier,
-                tx_prover,
-            ),
+            inner: RailgunProvider::new(chain, provider.clone(), utxo_syncer, tx_prover),
             provider,
             txid_indexer: TxidIndexer::new(txid_syncer, poi_client.clone()),
             poi_client,
@@ -82,7 +79,6 @@ impl PoiProvider {
         state: PoiProviderState,
         provider: DynProvider,
         utxo_syncer: Arc<dyn NoteSyncer>,
-        utxo_verifier: Arc<dyn MerkleTreeVerifier>,
         tx_prover: Arc<dyn TransactProver>,
         txid_syncer: Arc<dyn TransactionSyncer>,
         poi_client: PoiClient,
@@ -93,7 +89,6 @@ impl PoiProvider {
                 state.inner,
                 provider.clone(),
                 utxo_syncer,
-                utxo_verifier,
                 tx_prover,
             )?,
             provider,
@@ -116,34 +111,66 @@ impl PoiProvider {
         }
     }
 
+    pub fn register(&mut self, account: Arc<dyn Signer>) {
+        self.inner.register(account);
+    }
+
     /// Returns POI augmented balance, with metadata on the POI status for notes
-    pub fn balance(&self) {
-        todo!()
+    pub fn balance(&self, address: RailgunAddress) -> HashMap<AssetId, u128> {
+        self.inner.balance(address)
     }
 
     pub fn shield(&self) -> ShieldBuilder {
         self.inner.shield()
     }
 
-    pub fn transact(&self) -> TransactionBuilder<'_, WithPoi> {
-        self.inner
-            .transact()
-            .with_poi(&self.poi_client, self.prover.as_ref())
+    pub fn transact(&self) -> TransactionBuilder {
+        self.inner.transact()
     }
 
-    pub fn transact_broadcast(
+    pub async fn build<R: Rng>(
+        &self,
+        builder: TransactionBuilder,
+        rng: &mut R,
+    ) -> Result<PoiProvedTx, PoiProviderError> {
+        Ok(builder
+            .build_poi(
+                self.inner.chain.clone(),
+                &self.inner.utxo_indexer(),
+                self.inner.prover().as_ref(),
+                &self.poi_client,
+                self.prover.as_ref(),
+                rng,
+            )
+            .await?)
+    }
+
+    pub async fn build_broadcast<R: Rng>(
         &mut self,
+        builder: TransactionBuilder,
         fee_payer: Arc<dyn Signer>,
-        broadcaster: Broadcaster,
-    ) -> TransactionBuilder<'_, WithBroadcast> {
-        self.inner.transact().with_broadcast(
-            &self.poi_client,
-            self.prover.as_ref(),
-            &self.provider,
-            fee_payer,
-            broadcaster,
-            &mut self.pending_submitter,
-        )
+        fee: &Fee,
+        rng: &mut R,
+    ) -> Result<PoiProvedTx, PoiProviderError> {
+        let tx = builder
+            .build_broadcast(
+                self.inner.chain.clone(),
+                &self.inner.utxo_indexer(),
+                self.inner.prover().as_ref(),
+                &self.poi_client,
+                self.prover.as_ref(),
+                &self.provider,
+                fee_payer,
+                fee,
+                rng,
+            )
+            .await?;
+
+        for op in &tx.operations {
+            self.pending_submitter.register(op);
+        }
+
+        Ok(tx)
     }
 
     pub async fn sync(&mut self) -> Result<(), PoiProviderError> {
@@ -158,5 +185,25 @@ impl PoiProvider {
             )
             .await?;
         Ok(())
+    }
+
+    pub async fn sync_to(&mut self, block_number: u64) -> Result<(), PoiProviderError> {
+        self.inner.sync_to(block_number).await?;
+        self.txid_indexer.sync_to(block_number).await?;
+        self.pending_submitter
+            .process(
+                &self.txid_indexer,
+                self.inner.utxo_indexer(),
+                &self.poi_client,
+                self.prover.as_ref(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Resets the provider's internal indexer state
+    pub fn reset_indexer(&mut self) {
+        self.inner.reset_indexer();
+        self.txid_indexer.reset();
     }
 }

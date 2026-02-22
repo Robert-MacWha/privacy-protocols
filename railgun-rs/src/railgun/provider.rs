@@ -1,9 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy::{
-    primitives::ChainId,
-    providers::{DynProvider, Provider},
-};
+use alloy::{primitives::ChainId, providers::DynProvider};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -14,16 +12,15 @@ use crate::{
     railgun::{
         address::RailgunAddress,
         indexer::{UtxoIndexer, UtxoIndexerError, UtxoIndexerState, syncer::NoteSyncer},
-        merkle_tree::MerkleTreeVerifier,
+        merkle_tree::SmartWalletUtxoVerifier,
         signer::Signer,
-        transaction::{ShieldBuilder, TransactionBuilder},
+        transaction::{BuildError, ProvedTx, ShieldBuilder, TransactionBuilder},
     },
 };
 
 /// Provides access to Railgun interactions
 pub struct RailgunProvider {
-    chain: ChainConfig,
-    provider: DynProvider,
+    pub chain: ChainConfig,
     utxo_indexer: UtxoIndexer,
     prover: Arc<dyn TransactProver>,
 }
@@ -40,6 +37,8 @@ pub enum RailgunProviderError {
     UnsupportedChainId(ChainId),
     #[error("Utxo indexer error: {0}")]
     UtxoIndexer(#[from] UtxoIndexerError),
+    #[error("Build error: {0}")]
+    Build(#[from] BuildError),
 }
 
 /// General provider functions
@@ -48,12 +47,15 @@ impl RailgunProvider {
         chain: ChainConfig,
         provider: DynProvider,
         utxo_syncer: Arc<dyn NoteSyncer>,
-        utxo_verifier: Arc<dyn MerkleTreeVerifier>,
         prover: Arc<dyn TransactProver>,
     ) -> Self {
+        let utxo_verifier = Arc::new(SmartWalletUtxoVerifier::new(
+            chain.railgun_smart_wallet,
+            provider.clone(),
+        ));
+
         Self {
             chain,
-            provider,
             utxo_indexer: UtxoIndexer::new(utxo_syncer, utxo_verifier),
             prover,
         }
@@ -63,15 +65,18 @@ impl RailgunProvider {
         state: RailgunProviderState,
         provider: DynProvider,
         utxo_syncer: Arc<dyn NoteSyncer>,
-        utxo_verifier: Arc<dyn MerkleTreeVerifier>,
         prover: Arc<dyn TransactProver>,
     ) -> Result<Self, RailgunProviderError> {
         let chain = get_chain_config(state.chain_id)
             .ok_or(RailgunProviderError::UnsupportedChainId(state.chain_id))?;
 
+        let utxo_verifier = Arc::new(SmartWalletUtxoVerifier::new(
+            chain.railgun_smart_wallet,
+            provider.clone(),
+        ));
+
         Ok(Self {
             chain,
-            provider,
             utxo_indexer: UtxoIndexer::from_state(utxo_syncer, utxo_verifier, state.indexer),
             prover,
         })
@@ -105,12 +110,8 @@ impl RailgunProvider {
     }
 
     /// Raw railgun balance
-    pub async fn balance(
-        &mut self,
-        address: RailgunAddress,
-    ) -> Result<HashMap<AssetId, u128>, RailgunProviderError> {
-        self.sync().await?;
-        Ok(self.utxo_indexer.balance(address))
+    pub fn balance(&self, address: RailgunAddress) -> HashMap<AssetId, u128> {
+        self.utxo_indexer.balance(address)
     }
 
     /// Returns a shield builder
@@ -119,18 +120,47 @@ impl RailgunProvider {
     }
 
     /// Returns a transact builder
-    pub fn transact(&self) -> TransactionBuilder<'_> {
-        TransactionBuilder::new(&self.utxo_indexer, self.prover.as_ref(), self.chain)
+    pub fn transact(&self) -> TransactionBuilder {
+        TransactionBuilder::new()
     }
 
-    /// Manually syncs the provider to the blockchain. This will be called
-    /// automatically when needed
+    /// Builds a transaction using the provider's internal state
+    pub async fn build<R: Rng>(
+        &self,
+        builder: TransactionBuilder,
+        rng: &mut R,
+    ) -> Result<ProvedTx, RailgunProviderError> {
+        Ok(builder
+            .build(
+                self.chain.clone(),
+                &self.utxo_indexer,
+                self.prover.as_ref(),
+                rng,
+            )
+            .await?)
+    }
+
+    /// Syncs the provider to the specified block number.
+    pub async fn sync_to(&mut self, block_number: u64) -> Result<(), RailgunProviderError> {
+        self.utxo_indexer.sync_to(block_number).await?;
+        Ok(())
+    }
+
+    /// Syncs the provider to the latest block.
     pub async fn sync(&mut self) -> Result<(), RailgunProviderError> {
         self.utxo_indexer.sync().await?;
         Ok(())
     }
 
-    pub fn utxo_indexer(&self) -> &UtxoIndexer {
+    /// Resets the provider's internal indexer state
+    pub fn reset_indexer(&mut self) {
+        self.utxo_indexer.reset();
+    }
+
+    pub(crate) fn utxo_indexer(&self) -> &UtxoIndexer {
         &self.utxo_indexer
+    }
+    pub(crate) fn prover(&self) -> Arc<dyn TransactProver> {
+        self.prover.clone()
     }
 }

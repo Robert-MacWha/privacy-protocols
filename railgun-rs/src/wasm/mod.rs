@@ -1,18 +1,25 @@
 mod bindings;
 mod broadcaster;
+mod fee;
 mod indexer;
 mod poi_client;
+mod poi_provider;
 mod prover;
 mod provider;
+mod shield_builder;
 mod transaction;
+mod tx_data;
 
-pub use bindings::{
-    JsChainConfig, JsRailgunAccount, erc20_asset, get_chain_config, init_panic_hook,
-};
+pub use bindings::{JsChainConfig, JsSigner, erc20_asset, get_chain_config, init_panic_hook};
 pub use broadcaster::JsBroadcasterManager;
-pub use indexer::{JsIndexer, JsSyncer};
+pub use fee::JsFee;
+pub use indexer::JsSyncer;
+pub use poi_provider::JsPoiProvider;
 pub use prover::{JsProofResponse, JsProver};
-pub use transaction::{JsShieldBuilder, JsTransactionBuilder, JsTxData};
+pub use provider::JsRailgunProvider;
+pub use shield_builder::JsShieldBuilder;
+pub use transaction::JsTransactionBuilder;
+pub use tx_data::JsTxData;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen(start)]

@@ -21,7 +21,7 @@ const TEST_PRIVATE_KEY =
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const CHAIN_ID = 1n;
 const ARTIFACTS_PATH = "../railgun-rs/artifacts";
-const INDEXER_STATE_PATH = "../railgun-rs/tests/fixtures/indexer_state.bincode";
+const INDEXER_STATE_PATH = "../railgun-rs/tests/fixtures/provider_state.bincode";
 
 const erc20Abi = parseAbi([
   "function balanceOf(address) view returns (uint256)",
@@ -53,21 +53,27 @@ test("shield, transfer, and unshield", async () => {
     transport: http("http://localhost:8545"),
   });
 
-  console.log("Setting up indexer");
-  const indexerState = await readFile(INDEXER_STATE_PATH);
-  const syncer = await wasm.JsSyncer.withRpc(
+  console.log("Setting up Railgun provider");
+  const rpcSyncer = await wasm.JsSyncer.withRpc(
     "http://localhost:8545",
     1n,
     10n,
   );
-  const indexer = await wasm.JsIndexer.from_state(syncer, indexerState);
+
+  const indexerState = await readFile(INDEXER_STATE_PATH);
+  const railgun = await wasm.JsRailgunProvider.from_state(
+    indexerState,
+    "http://localhost:8545",
+    rpcSyncer,
+    prover,
+  );
 
   console.log("Setting up accounts");
-  const account1 = new wasm.JsRailgunAccount(hexKey(1), hexKey(2), CHAIN_ID);
-  const account2 = new wasm.JsRailgunAccount(hexKey(3), hexKey(4), CHAIN_ID);
+  const account1 = new wasm.JsSigner(hexKey(1), hexKey(2), CHAIN_ID);
+  const account2 = new wasm.JsSigner(hexKey(3), hexKey(4), CHAIN_ID);
 
-  indexer.add_account(account1);
-  indexer.add_account(account2);
+  railgun.register(account1);
+  railgun.register(account2);
 
   console.log("Testing shielding");
   const shieldBuilder = new wasm.JsShieldBuilder(CHAIN_ID);
@@ -81,23 +87,20 @@ test("shield, transfer, and unshield", async () => {
   });
   await publicClient.waitForTransactionReceipt({ hash: shieldHash });
 
-  await indexer.sync();
+  await railgun.sync();
   {
-    const balance1 = indexer.balance(account1.address);
-    const balance2 = indexer.balance(account2.address);
+    const balance1 = railgun.balance(account1.address);
+    const balance2 = railgun.balance(account2.address);
 
     // 0.25% shield fee: 1_000_000 * 0.9975 = 997_500
     expect(balance1.get(USDC)).toBe(997500n);
     expect(balance2.get(USDC)).toBeUndefined();
-
-    balance1.free();
-    balance2.free();
   }
 
   console.log("Testing transfer");
   const transferBuilder = new wasm.JsTransactionBuilder();
   transferBuilder.transfer(account1, account2.address, USDC, "5000", "test transfer");
-  const transferTx = await transferBuilder.build(indexer, prover);
+  const transferTx = await transferBuilder.build(railgun);
 
   const transferHash = await walletClient.sendTransaction({
     to: transferTx.to as `0x${string}`,
@@ -106,23 +109,20 @@ test("shield, transfer, and unshield", async () => {
   });
   await publicClient.waitForTransactionReceipt({ hash: transferHash });
 
-  await indexer.sync();
+  await railgun.sync();
   {
-    const balance1 = indexer.balance(account1.address);
-    const balance2 = indexer.balance(account2.address);
+    const balance1 = railgun.balance(account1.address);
+    const balance2 = railgun.balance(account2.address);
 
     expect(balance1.get(USDC)).toBe(992500n);
     expect(balance2.get(USDC)).toBe(5000n);
-
-    balance1.free();
-    balance2.free();
   }
 
   console.log("Testing unshielding");
   const unshieldRecipient = checksumAddress("0xe03747a83E600c3ab6C2e16dd1989C9b419D3a86");
   const unshieldBuilder = new wasm.JsTransactionBuilder();
   unshieldBuilder.unshield(account1, unshieldRecipient, USDC, "1000");
-  const unshieldTx = await unshieldBuilder.build(indexer, prover);
+  const unshieldTx = await unshieldBuilder.build(railgun);
 
   const unshieldHash = await walletClient.sendTransaction({
     to: unshieldTx.to as `0x${string}`,
@@ -131,16 +131,13 @@ test("shield, transfer, and unshield", async () => {
   });
   await publicClient.waitForTransactionReceipt({ hash: unshieldHash });
 
-  await indexer.sync();
+  await railgun.sync();
   {
-    const balance1 = indexer.balance(account1.address);
-    const balance2 = indexer.balance(account2.address);
+    const balance1 = railgun.balance(account1.address);
+    const balance2 = railgun.balance(account2.address);
 
     expect(balance1.get(USDC)).toBe(991500n);
     expect(balance2.get(USDC)).toBe(5000n);
-
-    balance1.free();
-    balance2.free();
   }
   // Check EOA balance (0.2% unshield fee: 1000 * 0.998 = 998)
   const eoaBalance = await publicClient.readContract({
@@ -150,15 +147,6 @@ test("shield, transfer, and unshield", async () => {
     args: [unshieldRecipient as `0x${string}`],
   });
   expect(eoaBalance).toBe(998n);
-
-  // Cleanup
-  shieldBuilder.free();
-  transferBuilder.free();
-  unshieldBuilder.free();
-  prover.free();
-  indexer.free();
-  account1.free();
-  account2.free();
 
   console.log("All tests passed!");
 }, 60000);

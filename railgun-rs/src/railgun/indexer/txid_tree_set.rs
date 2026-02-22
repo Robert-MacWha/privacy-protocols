@@ -21,8 +21,10 @@ pub struct TxidTreeSet {
     /// Operations queued but not yet validated by the POI aggregator.
     pending: VecDeque<(Operation, u64)>,
 
-    /// Maps txid → (tree_number, leaf_index) for validated leaves.
-    txid_to_position: HashMap<Txid, (u32, u32)>,
+    /// Maps TxID to UTXO tree position (tree number, leaf index)
+    txid_to_utxo_position: HashMap<Txid, (u32, u32)>,
+    /// Maps TxID to TXID tree position (tree number, leaf index)
+    txid_to_txid_position: HashMap<Txid, (u32, u32)>,
 
     /// The packed validated txid index from the last successful `advance_to_validated()`.
     /// Format: `(tree_number << 16) | leaf_index_within_tree`.
@@ -35,6 +37,7 @@ pub struct TxidTreeSetState {
     pub trees: BTreeMap<u32, MerkleTreeState>,
     pub pending: Vec<(Operation, u64)>,
     pub txid_to_position: HashMap<Txid, (u32, u32)>,
+    // pub txid_to_txid_position: HashMap<Txid, (u32, u32)>,
     pub validated_index: u64,
 }
 
@@ -52,7 +55,8 @@ impl TxidTreeSet {
             trees: BTreeMap::new(),
             pending: VecDeque::new(),
             poi_client,
-            txid_to_position: HashMap::new(),
+            txid_to_utxo_position: HashMap::new(),
+            txid_to_txid_position: HashMap::new(),
             validated_index: 0,
         }
     }
@@ -68,7 +72,9 @@ impl TxidTreeSet {
             trees,
             pending: state.pending.into_iter().collect(),
             poi_client,
-            txid_to_position: state.txid_to_position,
+            txid_to_utxo_position: state.txid_to_position,
+            // txid_to_txid_position: state.txid_to_txid_position,
+            txid_to_txid_position: Default::default(),
             validated_index: state.validated_index,
         }
     }
@@ -78,7 +84,8 @@ impl TxidTreeSet {
         TxidTreeSetState {
             trees,
             pending: self.pending.iter().cloned().collect(),
-            txid_to_position: self.txid_to_position.clone(),
+            txid_to_position: self.txid_to_utxo_position.clone(),
+            // txid_to_txid_position: self.txid_to_txid_position.clone(),
             validated_index: self.validated_index,
         }
     }
@@ -88,10 +95,14 @@ impl TxidTreeSet {
         self.pending.push_back((op, block));
     }
 
-    /// Returns the `(tree_number, leaf_index)` of a validated txid, or `None`
-    /// if the txid has not yet been inserted into the validated trees.
-    pub fn position_of(&self, txid: &Txid) -> Option<(u32, u32)> {
-        self.txid_to_position.get(txid).copied()
+    /// Returns the start position of a given TxID in the UTXO tree.
+    pub fn utxo_position(&self, txid: &Txid) -> Option<(u32, u32)> {
+        self.txid_to_utxo_position.get(txid).copied()
+    }
+
+    /// Returns the position of a given TxID in the TXID tree.
+    pub fn txid_position(&self, txid: &Txid) -> Option<(u32, u32)> {
+        self.txid_to_txid_position.get(txid).copied()
     }
 
     /// Returns a reference to the validated TXID tree with the given number.
@@ -99,15 +110,9 @@ impl TxidTreeSet {
         self.trees.get(&number)
     }
 
-    /// Returns the packed validated txid index from the last `advance_to_validated()` call.
-    /// Format: `(tree_number << 16) | leaf_index_within_tree`.
-    pub fn validated_index(&self) -> u64 {
-        self.validated_index
-    }
-
     /// Drains pending operations into the validated trees up to the POI aggregator's
     /// current `validated_txid`, then verifies the computed root matches.
-    pub async fn validate(&mut self) -> Result<(), TxidTreeError> {
+    pub async fn update(&mut self) -> Result<(), TxidTreeError> {
         let validated = self.poi_client.validated_txid().await?;
 
         let current_total: usize = self.trees.values().map(|t| t.leaves_len()).sum();
@@ -136,8 +141,10 @@ impl TxidTreeSet {
                 .or_insert_with(|| TxidMerkleTree::new(tree_number))
                 .insert_leaves(&[leaf], position);
 
-            self.txid_to_position
+            self.txid_to_txid_position
                 .insert(txid, (tree_number, position as u32));
+            self.txid_to_utxo_position
+                .insert(txid, (op.utxo_tree_out, op.utxo_out_start_index));
             total += 1;
         }
 
@@ -164,5 +171,13 @@ impl TxidTreeSet {
 
         self.validated_index = total as u64;
         Ok(())
+    }
+
+    /// Resets the tree set state
+    pub fn reset(&mut self) {
+        self.trees.clear();
+        self.pending.clear();
+        self.txid_to_utxo_position.clear();
+        self.validated_index = 0;
     }
 }

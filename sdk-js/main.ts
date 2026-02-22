@@ -1,10 +1,11 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createProverFunctions } from "./src/prover";
 import { initWasm } from "./src/wasm";
 import { createBroadcaster } from "./src/waku-transport";
 import { createPublicClient, createWalletClient, Hex, http } from "viem";
 import { mainnet, sepolia } from "viem/chains";
 import { Address, privateKeyToAccount } from "viem/accounts";
+import { JsPoiProvider } from "./pkg/railgun_rs";
 
 const hexKey = (fill: number): string => "0x" + fill.toString(16).padStart(2, "0").repeat(32);
 
@@ -12,7 +13,7 @@ const USDC_ADDRESS = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238";
 const WETH_ADDRESS = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
 const CHAIN_ID = 11155111n;
 const ARTIFACTS_PATH = "../railgun-rs/artifacts";
-const INDEXER_STATE_PATH = "../railgun-rs/indexer_state_11155111.bincode";
+const PROVIDER_STATE_PATH = "../railgun-rs/provider_state_11155111.bincode";
 
 const TEST_PRIVATE_KEY = process.env.DEV_KEY as string;
 const RPC_URL = process.env.FORK_URL_SEPOLIA as string;
@@ -23,21 +24,19 @@ async function main() {
     console.log("Initializing WASM");
     const wasm = await initWasm();
 
-    // const account = privateKeyToAccount(`0x${TEST_PRIVATE_KEY}`);
-    // const walletClient = createWalletClient({
-    //     account,
-    //     chain: sepolia,
-    //     transport: http(RPC_URL),
-    // });
-
     const broadcast_manager = await createBroadcaster(CHAIN_ID);
     broadcast_manager.start();
 
     const USDC = wasm.erc20_asset(USDC_ADDRESS);
     const WETH = wasm.erc20_asset(WETH_ADDRESS);
 
-    console.log("Setup")
-    // const indexerState = new Uint8Array(await readFile(INDEXER_STATE_PATH));
+    console.log("Setting up prover");
+    const { proveTransact, provePoi } = createProverFunctions({
+        artifactsPath: ARTIFACTS_PATH,
+    });
+    const prover = new wasm.JsProver(proveTransact, provePoi);
+
+    console.log("Setting up syncer");
     const subsquidSyncer = wasm.JsSyncer.withSubsquid("https://rail-squid.squids.live/squid-railgun-eth-sepolia-v2/v/v1/graphql");
     const rpcSyncer = await wasm.JsSyncer.withRpc(
         RPC_URL,
@@ -45,62 +44,74 @@ async function main() {
         10n,
     );
     const syncer = wasm.JsSyncer.withChained([subsquidSyncer, rpcSyncer]);
-    // const indexer = await wasm.JsIndexer.from_state(syncer, indexerState);
-    const indexer = wasm.JsIndexer.new(syncer, CHAIN_ID);
 
-    const account1 = new wasm.JsRailgunAccount(SPENDING_KEY, VIEWING_KEY, CHAIN_ID);
-    console.log("Account 1 address:", account1.address);
-    const account2 = new wasm.JsRailgunAccount(hexKey(3), hexKey(4), CHAIN_ID);
-    console.log("Account 2 address:", account2.address);
+    console.log("Setting up viem client");
+    const walletClient = createWalletClient({
+        account: privateKeyToAccount(`0x${TEST_PRIVATE_KEY}`),
+        chain: sepolia,
+        transport: http(RPC_URL),
+    });
+    console.log("Wallet address:", await walletClient.getAddresses());
 
-    indexer.add_account(account1);
-    indexer.add_account(account2);
+    console.log("Setting up provider");
+    const providerState = new Uint8Array(await readFile(PROVIDER_STATE_PATH));
+    const railgun = await wasm.JsPoiProvider.from_state(
+        providerState,
+        RPC_URL,
+        syncer,
+        "https://rail-squid.squids.live/squid-railgun-eth-sepolia-v2/v/v1/graphql",
+        prover,
+    );
+    railgun.reset_indexer();
 
-    await indexer.sync();
+    // const railgun = await wasm.JsPoiProvider.new(
+    //     CHAIN_ID,
+    //     RPC_URL,
+    //     syncer,
+    //     "https://rail-squid.squids.live/squid-railgun-eth-sepolia-v2/v/v1/graphql",
+    //     prover,
+    // )
 
-    const bal1 = indexer.balance(account1.address);
+    console.log("Setting up accounts");
+    const account1 = new wasm.JsSigner(SPENDING_KEY, VIEWING_KEY, CHAIN_ID);
+    const account2 = new wasm.JsSigner(hexKey(7), hexKey(8), CHAIN_ID);
+
+    railgun.register(account1);
+    railgun.register(account2);
+
+    await railgun.sync();
+
+    console.log("Saving provider state");
+    await saveProviderState(railgun);
+
+    const bal1 = railgun.balance(account1.address);
     console.log("Account 1 balance:");
     console.log("USDC: ", bal1.get(USDC));
     console.log("WETH: ", bal1.get(WETH));
 
-    const bal2 = indexer.balance(account2.address);
+    const bal2 = railgun.balance(account2.address);
     console.log("Account 2 balance:");
     console.log("USDC: ", bal2.get(USDC));
     console.log("WETH: ", bal2.get(WETH));
 
-    // let shield = new wasm.JsShieldBuilder(CHAIN_ID);
-    // shield.shield(account1.address, USDC, "1000");
-    // shield.shield(account1.address, WETH, "10000000000000000");
-    // let tx = shield.build();
+    // // let shield = railgun
+    // //     .shield()
+    // //     .shield(account1.address, USDC, "100")
+    // //     .shield(account1.address, WETH, "100000000000000");
+    // //                                      9973362348350892
+    // // let tx = shield.build();
 
-    // const shieldHash = await walletClient.sendTransaction({
-    //     to: tx.to as Address,
-    //     data: tx.dataHex as Hex,
-    //     value: BigInt(tx.value)
-    // });
-    // console.log("Shield tx hash:", shieldHash);
+    // // const shieldHash = await walletClient.sendTransaction({
+    // //     to: tx.to as Address,
+    // //     data: tx.dataHex as Hex,
+    // //     value: BigInt(tx.value)
+    // // });
+    // // console.log("Shield tx hash:", shieldHash);
 
-    const { proveTransact, provePoi } = createProverFunctions({
-        artifactsPath: ARTIFACTS_PATH,
-    });
-    const prover = new wasm.JsProver(proveTransact, provePoi);
-    const poi_client = await wasm.JsPoiClient.new(CHAIN_ID);
-    const provider = await wasm.JsProvider.with_url(RPC_URL);
-
-    console.log("Balance");
-    let balance = indexer.balance(account1.address);
-    console.log("USDC: ", balance.get(USDC));
-    console.log("WETH: ", balance.get(WETH));
-
-    console.log("Creating transfer transaction");
-    const builder = new wasm.JsTransactionBuilder();
-    builder.transfer(
-        account1,
-        account2.address,
-        USDC,
-        "10",
-        ""
-    );
+    // // console.log("Balance");
+    // // let balance = railgun.balance(account1.address);
+    // // console.log("USDC: ", balance.get(USDC));
+    // // console.log("WETH: ", balance.get(WETH));
 
     console.log("Finding broadcaster");
     let broadcaster = undefined;
@@ -114,11 +125,28 @@ async function main() {
 
     console.log("Best broadcaster for WETH:", broadcaster);
 
-    console.log("Preparing transaction for broadcast");
-    const prepared = await builder.prepare_broadcast(indexer, prover, poi_client, provider, account1, broadcaster.fee());
-    console.log("Prepared transaction");
-    const txhash = await broadcaster.broadcast(prepared);
-    console.log("Broadcasted transaction with hash:", txhash);
+    console.log("Creating transfer transaction");
+    let builder = railgun.transact().transfer(
+        account1,
+        account2.address,
+        USDC,
+        "10",
+        ""
+    );
+
+    console.log("Building transaction");
+    let prepared = await railgun.build_broadcast(builder, account1, broadcaster.fee());
+
+    console.log("Broadcasting transaction");
+    // const txhash = await broadcaster.broadcast(prepared);
+    // console.log("Broadcasted transaction with hash:", txhash);
+
+    // await saveProviderState(railgun);
+}
+
+async function saveProviderState(railgun: JsPoiProvider) {
+    const state = railgun.state();
+    await writeFile(PROVIDER_STATE_PATH, state);
 }
 
 await main();

@@ -24,7 +24,6 @@ use railgun_rs::{
         merkle_tree::SmartWalletUtxoVerifier,
         poi::PoiClient,
         signer::Signer,
-        transaction::{PoiProvedTx, TransactionBuilder},
     },
 };
 use rand::{Rng, SeedableRng};
@@ -138,12 +137,12 @@ async fn main() {
     //     list_keys: vec!["efc6ddb59c098a13fb2b618fdae94c1c3a807abc8fb1837c93620c9143ee9e88".into()],
     // };
 
-    let tx = TransactionBuilder::new(&indexer, &prover, CHAIN)
-        .set_unshield(account1.clone(), address, USDC, 100)
-        .with_poi(&poi_client, &prover)
-        .build(&mut rand)
-        .await
-        .unwrap();
+    // let tx = TransactionBuilder::new(&indexer, &prover, CHAIN)
+    //     .set_unshield(account1.clone(), address, USDC, 100)
+    //     .with_poi(&poi_client, &prover)
+    //     .build(&mut rand)
+    //     .await
+    //     .unwrap();
 
     // poi_client.submit(prepared).await.unwrap();
 
