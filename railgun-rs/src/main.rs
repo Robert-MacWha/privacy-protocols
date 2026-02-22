@@ -37,7 +37,7 @@ const WETH_ADDRESS: Address = address!("0xfff9976782d46cc05630d1f6ebab18b2324d6b
 const WETH: AssetId = AssetId::Erc20(WETH_ADDRESS);
 
 const PPOI_URL: &str = "https://ppoi-agg.horsewithsixlegs.xyz/";
-const INDEXER_STATE: &str = "./indexer_state_11155111.bincode";
+const INDEXER_STATE: &str = "./indexer_state_11155111.json";
 
 #[tokio::main]
 async fn main() {
@@ -93,7 +93,7 @@ async fn main() {
         provider.clone(),
     ));
 
-    let indexer_state = bitcode::deserialize(&std::fs::read(INDEXER_STATE).unwrap()).unwrap();
+    let indexer_state = serde_json::from_slice(&std::fs::read(INDEXER_STATE).unwrap()).unwrap();
     let mut indexer = UtxoIndexer::from_state(chained, smart_wallet_verifier, indexer_state);
     // let mut indexer = UtxoIndexer::new(chained, smart_wallet_verifier);
     indexer.register(account1.clone());
@@ -102,8 +102,8 @@ async fn main() {
     indexer.sync().await.unwrap();
 
     info!("Saving indexer");
-    let indexer_state = bitcode::serialize(&indexer.state()).unwrap();
-    std::fs::write("./indexer_state_11155111.bincode", indexer_state).unwrap();
+    let indexer_state = serde_json::to_string(&indexer.state()).unwrap();
+    std::fs::write(INDEXER_STATE, indexer_state).unwrap();
 
     let prover = Groth16Prover::new_native("./artifacts");
     let poi_client = PoiClient::new(PPOI_URL, CHAIN.id).await.unwrap();

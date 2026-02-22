@@ -22,11 +22,11 @@ pub struct TxidTreeSet {
     pending: VecDeque<(Operation, u64)>,
 
     /// Maps TxID to UTXO tree position (tree number, leaf index)
-    txid_to_utxo_position: HashMap<Txid, (u32, u32)>,
+    txid_to_utxo_pos: HashMap<Txid, (u32, u32)>,
     /// Maps TxID to TXID tree position (tree number, leaf index)
-    txid_to_txid_position: HashMap<Txid, (u32, u32)>,
+    txid_to_txid_pos: HashMap<Txid, (u32, u32)>,
 
-    /// The packed validated txid index from the last successful `advance_to_validated()`.
+    /// Packed validated txid index from the last successful `update()`.
     /// Format: `(tree_number << 16) | leaf_index_within_tree`.
     validated_index: u64,
 }
@@ -36,8 +36,8 @@ pub struct TxidTreeSet {
 pub struct TxidTreeSetState {
     pub trees: BTreeMap<u32, MerkleTreeState>,
     pub pending: Vec<(Operation, u64)>,
-    pub txid_to_position: HashMap<Txid, (u32, u32)>,
-    // pub txid_to_txid_position: HashMap<Txid, (u32, u32)>,
+    pub txid_to_utxo_position: HashMap<Txid, (u32, u32)>,
+    pub txid_to_txid_position: HashMap<Txid, (u32, u32)>,
     pub validated_index: u64,
 }
 
@@ -55,8 +55,8 @@ impl TxidTreeSet {
             trees: BTreeMap::new(),
             pending: VecDeque::new(),
             poi_client,
-            txid_to_utxo_position: HashMap::new(),
-            txid_to_txid_position: HashMap::new(),
+            txid_to_utxo_pos: HashMap::new(),
+            txid_to_txid_pos: HashMap::new(),
             validated_index: 0,
         }
     }
@@ -72,9 +72,8 @@ impl TxidTreeSet {
             trees,
             pending: state.pending.into_iter().collect(),
             poi_client,
-            txid_to_utxo_position: state.txid_to_position,
-            // txid_to_txid_position: state.txid_to_txid_position,
-            txid_to_txid_position: Default::default(),
+            txid_to_utxo_pos: state.txid_to_utxo_position,
+            txid_to_txid_pos: state.txid_to_txid_position,
             validated_index: state.validated_index,
         }
     }
@@ -84,8 +83,8 @@ impl TxidTreeSet {
         TxidTreeSetState {
             trees,
             pending: self.pending.iter().cloned().collect(),
-            txid_to_position: self.txid_to_utxo_position.clone(),
-            // txid_to_txid_position: self.txid_to_txid_position.clone(),
+            txid_to_utxo_position: self.txid_to_utxo_pos.clone(),
+            txid_to_txid_position: self.txid_to_txid_pos.clone(),
             validated_index: self.validated_index,
         }
     }
@@ -97,12 +96,12 @@ impl TxidTreeSet {
 
     /// Returns the start position of a given TxID in the UTXO tree.
     pub fn utxo_position(&self, txid: &Txid) -> Option<(u32, u32)> {
-        self.txid_to_utxo_position.get(txid).copied()
+        self.txid_to_utxo_pos.get(txid).copied()
     }
 
     /// Returns the position of a given TxID in the TXID tree.
     pub fn txid_position(&self, txid: &Txid) -> Option<(u32, u32)> {
-        self.txid_to_txid_position.get(txid).copied()
+        self.txid_to_txid_pos.get(txid).copied()
     }
 
     /// Returns a reference to the validated TXID tree with the given number.
@@ -141,10 +140,11 @@ impl TxidTreeSet {
                 .or_insert_with(|| TxidMerkleTree::new(tree_number))
                 .insert_leaves(&[leaf], position);
 
-            self.txid_to_txid_position
-                .insert(txid, (tree_number, position as u32));
-            self.txid_to_utxo_position
-                .insert(txid, (op.utxo_tree_out, op.utxo_out_start_index));
+            let txid_pos = (tree_number, position as u32);
+            self.txid_to_txid_pos.insert(txid, txid_pos);
+
+            let utxo_pos = (op.utxo_tree_out, op.utxo_out_start_index);
+            self.txid_to_utxo_pos.insert(txid, utxo_pos);
             total += 1;
         }
 
@@ -177,7 +177,7 @@ impl TxidTreeSet {
     pub fn reset(&mut self) {
         self.trees.clear();
         self.pending.clear();
-        self.txid_to_utxo_position.clear();
+        self.txid_to_utxo_pos.clear();
         self.validated_index = 0;
     }
 }

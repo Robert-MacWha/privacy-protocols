@@ -47,6 +47,6 @@ async fn test_sync_utxo() {
     info!("Syncing indexer");
     railgun.sync_to(FORK_BLOCK).await.unwrap();
 
-    let state = bitcode::serialize(&railgun.state()).unwrap();
-    std::fs::write("./tests/fixtures/provider_state.bincode", state).unwrap();
+    let state = serde_json::to_string(&railgun.state()).unwrap();
+    std::fs::write("./tests/fixtures/provider_state.json", state).unwrap();
 }

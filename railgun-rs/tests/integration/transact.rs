@@ -54,8 +54,8 @@ async fn test_transact() {
 
     info!("Setting up railgun");
     let rpc_syncer = Arc::new(syncer::RpcSyncer::new(provider.clone(), CHAIN));
-    let provider_state = std::fs::read("./tests/fixtures/provider_state.bincode").unwrap();
-    let railgun_state = bitcode::deserialize(&provider_state).unwrap();
+    let provider_state = std::fs::read("./tests/fixtures/provider_state.json").unwrap();
+    let railgun_state = serde_json::from_slice(&provider_state).unwrap();
     let mut railgun =
         RailgunProvider::from_state(railgun_state, provider.clone(), rpc_syncer, prover).unwrap();
 

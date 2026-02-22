@@ -50,7 +50,7 @@ impl JsRailgunProvider {
         syncer: JsSyncer,
         prover: JsProver,
     ) -> Result<JsRailgunProvider, JsError> {
-        let state: RailgunProviderState = bitcode::deserialize(state)
+        let state: RailgunProviderState = serde_json::from_slice(state)
             .map_err(|e| JsError::new(&format!("Failed to deserialize state: {}", e)))?;
 
         let provider = build_provider(rpc_url).await;
@@ -84,7 +84,7 @@ impl JsRailgunProvider {
 
     pub fn export_state(&self) -> Vec<u8> {
         let state = self.inner.state();
-        bitcode::serialize(&state).unwrap_or_default()
+        serde_json::to_vec(&state).unwrap_or_default()
     }
 
     pub fn shield(&self) -> JsShieldBuilder {

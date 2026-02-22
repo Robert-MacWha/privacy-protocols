@@ -83,7 +83,7 @@ impl JsPoiProvider {
         txid_subsquid_endpoint: &str,
         prover: JsProver,
     ) -> Result<JsPoiProvider, JsError> {
-        let state: PoiProviderState = bitcode::deserialize(state)
+        let state: PoiProviderState = serde_json::from_slice(state)
             .map_err(|e| JsError::new(&format!("Failed to deserialize state: {}", e)))?;
 
         let chain_id = state.inner.chain_id;
@@ -128,7 +128,7 @@ impl JsPoiProvider {
 
     pub fn state(&self) -> Vec<u8> {
         let state = self.inner.state();
-        bitcode::serialize(&state).unwrap_or_default()
+        serde_json::to_vec(&state).unwrap_or_default()
     }
 
     pub fn register(&mut self, signer: &JsSigner) {

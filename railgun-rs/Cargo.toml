@@ -46,7 +46,6 @@ ark-relations = { workspace = true }
 ark-std = { workspace = true }
 async-trait = { workspace = true }
 bech32 = { workspace = true }
-bitcode = { workspace = true, features = ["serde"] }
 blake-hash = { workspace = true, default-features = false }
 console_error_panic_hook = { workspace = true, optional = true }
 ctr = { workspace = true }

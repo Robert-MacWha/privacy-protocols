@@ -2,9 +2,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createProverFunctions } from "./src/prover";
 import { initWasm } from "./src/wasm";
 import { createBroadcaster } from "./src/waku-transport";
-import { createPublicClient, createWalletClient, Hex, http } from "viem";
-import { mainnet, sepolia } from "viem/chains";
-import { Address, privateKeyToAccount } from "viem/accounts";
+import { createWalletClient, http } from "viem";
+import { sepolia } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
 import { JsPoiProvider } from "./pkg/railgun_rs";
 
 const hexKey = (fill: number): string => "0x" + fill.toString(16).padStart(2, "0").repeat(32);
@@ -98,7 +98,6 @@ async function main() {
     // //     .shield()
     // //     .shield(account1.address, USDC, "100")
     // //     .shield(account1.address, WETH, "100000000000000");
-    // //                                      9973362348350892
     // // let tx = shield.build();
 
     // // const shieldHash = await walletClient.sendTransaction({
