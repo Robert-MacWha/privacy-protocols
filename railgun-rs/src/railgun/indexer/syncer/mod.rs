@@ -8,6 +8,6 @@ mod syncer;
 pub use chained_syncer::ChainedSyncer;
 pub use rpc_syncer::RpcSyncer;
 pub use subsquid_syncer::SubsquidSyncer;
+pub use syncer::{LegacyCommitment, NoteSyncer, SyncEvent};
 #[cfg(feature = "poi")]
-pub use syncer::TransactionSyncer;
-pub use syncer::{LegacyCommitment, NoteSyncer, Operation, SyncEvent};
+pub use syncer::{Operation, TransactionSyncer};

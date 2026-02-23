@@ -18,6 +18,7 @@ pub struct SpentNote {
 }
 
 impl Notebook {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Notebook {
             unspent: BTreeMap::new(),

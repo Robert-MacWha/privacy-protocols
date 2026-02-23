@@ -8,7 +8,7 @@ use thiserror::Error;
 use tracing::{info, warn};
 
 #[cfg(feature = "poi")]
-use crate::railgun::indexer::syncer::TransactionSyncer;
+use crate::railgun::indexer::syncer::{Operation, TransactionSyncer};
 use crate::{
     abis::railgun::{
         CommitmentCiphertext, CommitmentPreimage, RailgunSmartWallet, ShieldCiphertext, TokenData,
@@ -17,7 +17,7 @@ use crate::{
     railgun::indexer::syncer::{
         compat::BoxedSyncStream,
         decimal_bigint,
-        syncer::{LegacyCommitment, NoteSyncer, Operation, SyncEvent},
+        syncer::{LegacyCommitment, NoteSyncer, SyncEvent},
     },
     sleep::sleep,
 };

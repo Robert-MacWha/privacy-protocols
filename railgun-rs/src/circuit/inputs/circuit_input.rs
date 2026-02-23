@@ -1,9 +1,8 @@
 use ruint::aliases::U256;
 
-use crate::{
-    crypto::railgun_txid::Txid,
-    railgun::merkle_tree::{MerkleRoot, TxidLeafHash},
-};
+use crate::railgun::merkle_tree::MerkleRoot;
+#[cfg(feature = "poi")]
+use crate::{crypto::railgun_txid::Txid, railgun::merkle_tree::TxidMerkleTree};
 
 pub trait IntoU256 {
     fn into_u256(self) -> U256;
@@ -50,24 +49,28 @@ impl FromU256 for MerkleRoot {
     }
 }
 
+#[cfg(feature = "poi")]
 impl IntoU256 for Txid {
     fn into_u256(self) -> U256 {
         self.into()
     }
 }
 
+#[cfg(feature = "poi")]
 impl FromU256 for Txid {
     fn from_u256(u: U256) -> Self {
         u.into()
     }
 }
 
+#[cfg(feature = "poi")]
 impl IntoU256 for TxidLeafHash {
     fn into_u256(self) -> U256 {
         self.into()
     }
 }
 
+#[cfg(feature = "poi")]
 impl FromU256 for TxidLeafHash {
     fn from_u256(u: U256) -> Self {
         u.into()

@@ -3,6 +3,7 @@ pub mod babyjubjub;
 pub mod keys;
 pub mod poseidon;
 pub mod railgun_base_37;
+#[cfg(feature = "poi")]
 pub mod railgun_txid;
 pub mod railgun_zero;
 
