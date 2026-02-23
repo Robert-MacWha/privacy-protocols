@@ -400,6 +400,7 @@ impl SubsquidSyncer {
         Ok((nullified_events, last_id))
     }
 
+    #[cfg(feature = "poi")]
     async fn fetch_operations(
         &self,
         from_block: u64,

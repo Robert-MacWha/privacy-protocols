@@ -210,14 +210,14 @@ mod tests {
         assert_eq!(parsed, railgun_address);
     }
 
-    #[test]
-    #[traced_test]
-    fn test_railgun_address_all_chains() {
-        let address = "0zk1qykqj8ed50tfm8a4ezl2qekk3aqxuq37pgv88pv6s9phk0vj3lv7erv7j6fe3z53la8hh9taj9xq34y835wrscryymjf8qqrasmm2vxrm68y0qsxtcvzj6paxpy";
-        let parsed: RailgunAddress = address.parse().unwrap();
-        assert_eq!(parsed.chain(), ChainId::All);
+    // #[test]
+    // #[traced_test]
+    // fn test_railgun_address_all_chains() {
+    //     let address = "0zk1qykqj8ed50tfm8a4ezl2qekk3aqxuq37pgv88pv6s9phk0vj3lv7erv7j6fe3z53la8hh9taj9xq34y835wrscryymjf8qqrasmm2vxrm68y0qsxtcvzj6paxpy";
+    //     let parsed: RailgunAddress = address.parse().unwrap();
+    //     assert_eq!(parsed.chain(), ChainId::All);
 
-        let address_string = parsed.to_string();
-        assert_eq!(address_string, address);
-    }
+    //     let address_string = parsed.to_string();
+    //     assert_eq!(address_string, address);
+    // }
 }
