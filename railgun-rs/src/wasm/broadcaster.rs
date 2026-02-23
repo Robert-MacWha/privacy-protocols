@@ -80,9 +80,14 @@ impl JsBroadcasterManager {
         subscribe_fn: Function,
         send_fn: Function,
         retrieve_historical_fn: Function,
+        whitelisted_broadcasters: Vec<String>,
     ) -> Self {
         let transport = JsWakuTransport::new(subscribe_fn, send_fn, retrieve_historical_fn);
-        let inner = BroadcasterManager::new(chain_id, transport);
+        let whitelisted = whitelisted_broadcasters
+            .into_iter()
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        let inner = BroadcasterManager::new(chain_id, transport, whitelisted);
         Self { inner }
     }
 

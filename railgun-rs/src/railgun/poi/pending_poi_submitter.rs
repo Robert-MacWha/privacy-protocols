@@ -175,10 +175,14 @@ impl PendingPoiSubmitter {
 
             // Re-fetch fresh POI merkle proofs from the aggregator.
             let mut poi_notes = Vec::new();
-            for note in &entry.in_notes {
-                let poi_note = poi_client
-                    .note_to_poi_note(note.clone(), &entry.list_keys)
-                    .await?;
+            for note in entry.in_notes.clone() {
+                let poi_note = match poi_client.note_to_poi_note(note, &entry.list_keys).await {
+                    Ok(poi_note) => poi_note,
+                    Err(e) => {
+                        info!("Failed to get POI note for txid {:?}: {:?}", entry.txid, e);
+                        continue;
+                    }
+                };
                 poi_notes.push(poi_note);
             }
 

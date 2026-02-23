@@ -3,15 +3,18 @@ use std::{collections::HashMap, sync::Arc};
 use alloy::primitives::Address;
 use futures::{FutureExt, StreamExt, lock::Mutex};
 use thiserror::Error;
-use tracing::info;
+use tracing::{info, warn};
 
 use super::{
     broadcaster::{Broadcaster, Fee},
     transport::{WakuTransport, WakuTransportError},
     types::{BROADCASTER_VERSION, BroadcasterFeeMessage, BroadcasterFeeMessageData, WakuMessage},
 };
-use crate::railgun::{
-    address::RailgunAddress, broadcaster::content_topics::fee_content_topic, poi::ListKey,
+use crate::{
+    railgun::{
+        address::RailgunAddress, broadcaster::content_topics::fee_content_topic, poi::ListKey,
+    },
+    sleep::sleep,
 };
 
 /// Manages broadcaster state and fee information.
@@ -23,6 +26,9 @@ pub struct BroadcasterManager {
     chain_id: u64,
     transport: Arc<dyn WakuTransport>,
     broadcasters: Arc<Mutex<HashMap<RailgunAddress, BroadcasterData>>>,
+    /// Optional list of whitelisted broadcasters to filter by (if empty, all
+    /// broadcasters are considered)
+    whitelisted_broadcasters: Vec<RailgunAddress>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,11 +60,18 @@ pub enum BroadcastersError {
 }
 
 impl BroadcasterManager {
-    pub fn new(chain_id: u64, transport: impl WakuTransport + 'static) -> Self {
+    pub fn new(
+        chain_id: u64,
+        transport: impl WakuTransport + 'static,
+        whitelisted: Vec<RailgunAddress>,
+    ) -> Self {
+        info!(chain_id, ?whitelisted, "Creating BroadcasterManager");
+
         Self {
             chain_id,
             transport: Arc::new(transport),
             broadcasters: Arc::new(Mutex::new(HashMap::new())),
+            whitelisted_broadcasters: whitelisted,
         }
     }
 
@@ -73,7 +86,7 @@ impl BroadcasterManager {
 
         loop {
             let mut stream = self.transport.subscribe(vec![topic.clone()]).await?;
-            info!("Subscribed to broadcaster fee topic: {}", topic);
+            info!(topic, "Subscribed to broadcaster fee topic");
 
             let staleness_timeout = web_time::Duration::from_secs(90);
 
@@ -89,24 +102,24 @@ impl BroadcasterManager {
                                 // Reset backoff on successful message receipt.
                                 backoff = web_time::Duration::from_secs(1);
                                 if let Err(e) = self.handle_fee_message(&msg).await {
-                                    tracing::warn!("Error handling fee message: {}", e);
+                                    warn!("Error handling fee message: {}", e);
                                 }
                             }
                             None => break, // Stream closed
                         }
                     }
                     _ = timeout => {
-                        tracing::warn!("No fee messages received in {:?}, resubscribing", staleness_timeout);
+                        warn!("No fee messages received in {:?}, resubscribing", staleness_timeout);
                         break;
                     }
                 }
             }
 
-            tracing::warn!(
+            warn!(
                 "Broadcaster fee subscription ended, reconnecting in {:?}",
                 backoff
             );
-            crate::sleep::sleep(backoff).await;
+            sleep(backoff).await;
             backoff = (backoff * 2).min(max_backoff);
         }
     }
@@ -128,12 +141,21 @@ impl BroadcasterManager {
 
         broadcasters
             .values()
+            //? Filter by whitelist if it's not empty
+            .filter(|data| {
+                self.whitelisted_broadcasters.is_empty()
+                    || self
+                        .whitelisted_broadcasters
+                        .contains(&data.railgun_address)
+            })
+            //? Filter for entries with a valid fee for the token
             .filter_map(|data| {
                 data.token_fees
                     .get(&token)
                     .filter(|f| f.expiration > current_time && f.available_wallets > 0)
                     .map(|f| (data, f))
             })
+            //? Find the entry with the lowest fee, breaking ties by reliability
             .min_by(|(_, a), (_, b)| {
                 // Sort by fee ascending, then by reliability descending
                 a.fee_per_unit_gas
@@ -169,6 +191,7 @@ impl BroadcasterManager {
             .split('.')
             .next()
             .unwrap_or(&fee_data.version);
+
         if major_version != BROADCASTER_VERSION {
             return Err(BroadcastersError::IncompatibleVersion {
                 got: fee_data.version.clone(),
@@ -176,34 +199,8 @@ impl BroadcasterManager {
             });
         }
 
-        let railgun_address: RailgunAddress = fee_data.railgun_address.parse().map_err(|e| {
-            BroadcastersError::ParseError(format!(
-                "Invalid railgun address ({}): {}",
-                fee_data.railgun_address, e
-            ))
-        })?;
-
-        let relay_adapt = fee_data.relay_adapt.parse::<Address>().map_err(|e| {
-            BroadcastersError::ParseError(format!(
-                "Invalid relay adapt address ({}): {}",
-                fee_data.relay_adapt, e
-            ))
-        })?;
-
         let mut token_fees = HashMap::new();
-        for (token_addr_str, fee_hex) in &fee_data.fees {
-            let token_addr = token_addr_str.parse::<Address>().map_err(|e| {
-                BroadcastersError::ParseError(format!(
-                    "Invalid token address ({}): {}",
-                    token_addr_str, e
-                ))
-            })?;
-
-            let fee_str = fee_hex.trim_start_matches("0x");
-            let fee_per_unit_gas = u128::from_str_radix(fee_str, 16).map_err(|e| {
-                BroadcastersError::ParseError(format!("Invalid fee hex ({}): {}", fee_hex, e))
-            })?;
-
+        for (token_addr, fee_per_unit_gas) in fee_data.fees {
             token_fees.insert(
                 token_addr,
                 TokenFeeData {
@@ -211,19 +208,29 @@ impl BroadcasterManager {
                     expiration: fee_data.fee_expiration,
                     fees_id: fee_data.fees_id.clone(),
                     available_wallets: fee_data.available_wallets,
-                    relay_adapt,
+                    relay_adapt: fee_data.relay_adapt,
                     reliability: (fee_data.reliability * 100.0) as u32,
                 },
             );
         }
 
         let data = BroadcasterData {
-            railgun_address,
+            railgun_address: fee_data.railgun_address,
             identifier: fee_data.identifier.clone(),
             required_poi_list_keys: fee_data.required_poi_list_keys,
             token_fees,
         };
-        self.broadcasters.lock().await.insert(railgun_address, data);
+
+        info!(
+            address = %data.railgun_address,
+            identifier = ?data.identifier,
+            tokens = ?data.token_fees.keys(),
+            "Received fee update",
+        );
+        self.broadcasters
+            .lock()
+            .await
+            .insert(fee_data.railgun_address, data);
 
         Ok(())
     }

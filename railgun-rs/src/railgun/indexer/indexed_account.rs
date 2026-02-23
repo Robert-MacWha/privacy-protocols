@@ -124,12 +124,7 @@ impl IndexedAccount {
                 Ok(n) => n,
             };
 
-            info!(
-                "Decrypted Shield Note: index={}, value={}, asset={}",
-                index,
-                note.value(),
-                note.asset(),
-            );
+            info!(?note, "Decrypted Shield Note");
             self.notebooks
                 .entry(tree_number)
                 .or_default()
@@ -175,11 +170,7 @@ impl IndexedAccount {
                 Ok(n) => n,
             };
 
-            info!(
-                "Decrypted Transact Note: value={}, asset={}",
-                note.value(),
-                note.asset()
-            );
+            info!(?note, "Decrypted Transact Note");
             self.notebooks
                 .entry(tree_number)
                 .or_default()

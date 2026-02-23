@@ -1,17 +1,19 @@
+use std::sync::Arc;
+
 use futures::{StreamExt, stream};
 
 use super::{compat::BoxedSyncStream, syncer::NoteSyncer};
 
 /// A syncer that chains multiple syncers in priority order.
 pub struct ChainedSyncer {
-    syncers: Vec<Box<dyn NoteSyncer>>,
+    syncers: Vec<Arc<dyn NoteSyncer>>,
 }
 
 impl ChainedSyncer {
     /// Creates a new ChainedSyncer with the given syncers in priority order.
     ///
     /// Syncers will be queried in the order they are provided, first to last.
-    pub fn new(syncers: Vec<Box<dyn NoteSyncer>>) -> Self {
+    pub fn new(syncers: Vec<Arc<dyn NoteSyncer>>) -> Self {
         Self { syncers }
     }
 }

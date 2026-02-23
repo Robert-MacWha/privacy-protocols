@@ -18,8 +18,9 @@ use crate::{
             NoteSyncer, TransactionSyncer, TxidIndexer, TxidIndexerError, TxidIndexerState,
             UtxoIndexerError,
         },
+        note::Note,
         poi::{
-            PendingPoiError, PendingPoiSubmitter, PoiClient,
+            ListKey, PendingPoiError, PendingPoiSubmitter, PoiClient, PoiStatus,
             pending_poi_submitter::PendingPoiSubmitterState,
         },
         provider::{RailgunProvider, RailgunProviderError, RailgunProviderState},
@@ -125,13 +126,29 @@ impl PoiProvider {
     }
 
     /// Returns POI augmented balance, with metadata on the POI status for notes
-    // pub fn balance(&self, address: RailgunAddress) -> HashMap<PoiStatus, HashMap<AssetId, u128>> {
-    //     // let notes = self.inner.utxo_indexer.unspent(address);
-    //     // let poi_notes =
-    // }
+    pub async fn balance(
+        &self,
+        address: RailgunAddress,
+        list_key: &ListKey,
+    ) -> HashMap<(PoiStatus, AssetId), u128> {
+        let notes = self.inner.utxo_indexer.unspent(address);
 
-    pub fn balance(&self, address: RailgunAddress) -> HashMap<AssetId, u128> {
-        self.inner.balance(address)
+        let mut bal_map = HashMap::new();
+        for note in notes {
+            let status = self
+                .poi_client
+                .note_pois(&note, &[list_key.clone()])
+                .await
+                .unwrap_or_default();
+            let status = status.get(&list_key).cloned().unwrap_or(PoiStatus::Missing);
+
+            bal_map
+                .entry((status, note.asset()))
+                .and_modify(|v| *v += note.value())
+                .or_insert(note.value());
+        }
+
+        bal_map
     }
 
     pub fn shield(&self) -> ShieldBuilder {
@@ -143,11 +160,11 @@ impl PoiProvider {
     }
 
     pub async fn build<R: Rng>(
-        &self,
+        &mut self,
         builder: PoiTransactionBuilder,
         rng: &mut R,
     ) -> Result<PoiProvedTx, PoiProviderError> {
-        Ok(builder
+        let tx = builder
             .build_poi(
                 self.inner.chain.clone(),
                 &self.inner.utxo_indexer,
@@ -156,7 +173,13 @@ impl PoiProvider {
                 self.prover.as_ref(),
                 rng,
             )
-            .await?)
+            .await?;
+
+        for op in &tx.operations {
+            self.pending_submitter.register(op);
+        }
+
+        Ok(tx)
     }
 
     pub async fn build_broadcast<R: Rng>(

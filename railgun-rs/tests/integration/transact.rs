@@ -53,7 +53,7 @@ async fn test_transact() {
     let usdc_contract = ERC20::new(USDC_ADDRESS, provider.clone());
 
     info!("Setting up railgun");
-    let rpc_syncer = Arc::new(RpcSyncer::new(provider.clone(), CHAIN));
+    let rpc_syncer = Arc::new(RpcSyncer::new(provider.clone(), CHAIN).with_batch_size(10));
     let provider_state = std::fs::read("./tests/fixtures/provider_state.json").unwrap();
     let railgun_state = serde_json::from_slice(&provider_state).unwrap();
     let mut railgun =
@@ -72,7 +72,7 @@ async fn test_transact() {
     let shield_tx = railgun
         .shield()
         .shield(account_1.address(), USDC, 1_000_000)
-        .build()
+        .build(&mut rand::rng())
         .unwrap();
 
     provider

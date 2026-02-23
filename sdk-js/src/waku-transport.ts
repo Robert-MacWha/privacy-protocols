@@ -69,11 +69,11 @@ const PEER_DISCOVERY_TIMEOUT_MS = 60_000;
 
 export async function createBroadcaster(
   chain_id: bigint,
+  whitelistedBroadcasters: string[] = [],
   options: CreateNodeOptions = {
     defaultBootstrap: true,
     networkConfig: {
       clusterId: 1,
-      shards: [1],
     },
   }
 ): Promise<JsBroadcasterManager> {
@@ -89,7 +89,7 @@ export async function createBroadcaster(
   const peers = await node.getConnectedPeers();
   console.log(`Connected to ${peers.length} Waku peers`);
 
-  return createBroadcasterFromNode(chain_id, node);
+  return createBroadcasterFromNode(chain_id, whitelistedBroadcasters, node);
 }
 
 /**
@@ -97,6 +97,7 @@ export async function createBroadcaster(
  */
 export function createBroadcasterFromNode(
   chain_id: bigint,
+  whitelistedBroadcasters: string[] = [],
   node: LightNode
 ): JsBroadcasterManager {
   const { JsBroadcasterManager: JsBroadcasterManagerClass } = getWasm();
@@ -169,6 +170,7 @@ export function createBroadcasterFromNode(
     chain_id,
     subscribeFn,
     sendFn,
-    retrieveHistoricalFn
+    retrieveHistoricalFn,
+    whitelistedBroadcasters
   );
 }

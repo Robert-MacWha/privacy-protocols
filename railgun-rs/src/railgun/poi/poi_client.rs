@@ -16,6 +16,7 @@ use crate::railgun::{
     merkle_tree::{MerkleProof, MerkleRoot, MerkleTreeVerifier},
     note::{IncludedNote, Note, utxo::UtxoNote},
     poi::{
+        PoiStatus,
         poi_note::PoiNote,
         types::{
             BlindedCommitment, BlindedCommitmentData, ChainParams, GetMerkleProofsParams,
@@ -137,6 +138,25 @@ impl PoiClient {
         .await
     }
 
+    /// Returns the POI status for a given note across the given list keys.
+    pub async fn note_pois<S>(
+        &self,
+        note: &UtxoNote<S>,
+        list_keys: &[ListKey],
+    ) -> Result<HashMap<ListKey, PoiStatus>, PoiClientError> {
+        let blinded_commitment_data = BlindedCommitmentData {
+            blinded_commitment: note.blinded_commitment().into(),
+            commitment_type: note.utxo_type().into(),
+        };
+
+        let pois = self.pois(list_keys, &[blinded_commitment_data]).await?;
+        let status = pois
+            .get(&note.blinded_commitment().into())
+            .cloned()
+            .unwrap_or_default();
+        Ok(status)
+    }
+
     /// Converts a UTXO note into a POI note
     pub async fn note_to_poi_note<S>(
         &self,
@@ -144,17 +164,8 @@ impl PoiClient {
         list_keys: &[ListKey],
     ) -> Result<PoiNote<S>, PoiClientError> {
         let blinded_commitment = note.blinded_commitment();
-        let blinded_commitment_data = BlindedCommitmentData {
-            blinded_commitment: note.blinded_commitment().into(),
-            commitment_type: note.utxo_type().into(),
-        };
 
-        let mut status = self.pois(list_keys, &vec![blinded_commitment_data]).await?;
-        let status = status
-            .remove(&blinded_commitment.into())
-            .unwrap_or(HashMap::new());
-        info!("POI status for note {:?}, status={:#?}", note, status);
-
+        let status = self.note_pois(&note, list_keys).await?;
         let mut proofs = self
             .merkle_proofs(&vec![blinded_commitment.into()], list_keys)
             .await?;
@@ -309,7 +320,6 @@ async fn call<P: Serialize, R: DeserializeOwned>(
         params,
     };
 
-    info!("Calling RPC method: {}", method);
     info!("Request: {}", serde_json::to_string(&req).unwrap());
 
     let resp: JsonRpcResponse<R> = http

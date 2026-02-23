@@ -1,18 +1,18 @@
 use std::{fmt::Display, str::FromStr};
 
 use bech32::Hrp;
-use serde::{Deserialize, Serialize};
+use serde::{self, Deserialize, Serialize};
 use thiserror::Error;
 use tracing::warn;
 
 use crate::crypto::keys::{HexKey, MasterPublicKey, SpendingKey, ViewingKey, ViewingPublicKey};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct RailgunAddress {
     master_key: MasterPublicKey,
     viewing_pubkey: ViewingPublicKey,
     chain_id: ChainId,
-    // pub version: u8,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -115,9 +115,8 @@ impl FromStr for RailgunAddress {
 
         let version = u8::from_str_radix(&address_hex[0..2], 16)?;
         let master_key = MasterPublicKey::from_hex(&address_hex[2..66])?;
-        let viewing_pubkey = ViewingPublicKey::from_hex(&address_hex[82..146])?;
-
         let chain_id = decode_network_id(&xor_network_id(&address_hex[66..82]))?;
+        let viewing_pubkey = ViewingPublicKey::from_hex(&address_hex[82..146])?;
 
         if version != ADDRESS_VERSION {
             return Err(RailgunAddressError::InvalidVersion(version));
@@ -128,6 +127,20 @@ impl FromStr for RailgunAddress {
             viewing_pubkey,
             chain_id,
         })
+    }
+}
+
+impl TryFrom<String> for RailgunAddress {
+    type Error = RailgunAddressError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+
+impl From<RailgunAddress> for String {
+    fn from(address: RailgunAddress) -> Self {
+        address.to_string()
     }
 }
 
@@ -187,18 +200,24 @@ mod tests {
         let master_key = MasterPublicKey::from_bytes([1u8; 32]);
         let viewing_pubkey = ViewingPublicKey::from_bytes([2u8; 32]);
         let chain = 1;
-
-        let expected_address_string = "0zk1qyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszunpd9kxwatwqypqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqy3t4umn";
-
         let railgun_address = RailgunAddress::new(master_key, viewing_pubkey, ChainId::EVM(chain));
 
         let address_string = railgun_address.to_string();
-        let parsed_address = RailgunAddress::from_str(&address_string).unwrap();
-
-        assert_eq!(railgun_address, parsed_address);
+        let expected_address_string = "0zk1qyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszunpd9kxwatwqypqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqy3t4umn";
         assert_eq!(address_string, expected_address_string);
 
-        let parsed: RailgunAddress = expected_address_string.parse().unwrap();
+        let parsed: RailgunAddress = address_string.parse().unwrap();
         assert_eq!(parsed, railgun_address);
+    }
+
+    #[test]
+    #[traced_test]
+    fn test_railgun_address_all_chains() {
+        let address = "0zk1qykqj8ed50tfm8a4ezl2qekk3aqxuq37pgv88pv6s9phk0vj3lv7erv7j6fe3z53la8hh9taj9xq34y835wrscryymjf8qqrasmm2vxrm68y0qsxtcvzj6paxpy";
+        let parsed: RailgunAddress = address.parse().unwrap();
+        assert_eq!(parsed.chain(), ChainId::All);
+
+        let address_string = parsed.to_string();
+        assert_eq!(address_string, address);
     }
 }

@@ -40,7 +40,6 @@ use crate::{
             operation::{Operation, OperationVerificationError},
             transfer::TransferNote,
             unshield::UnshieldNote,
-            utxo::UtxoNote,
         },
         signer::Signer,
         transaction::{ProvedOperation, ProvedTx, TxData},

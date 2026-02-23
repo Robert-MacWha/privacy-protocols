@@ -4,3 +4,5 @@ mod sync_txid;
 mod sync_utxo;
 #[cfg(not(feature = "wasm"))]
 mod transact;
+#[cfg(all(not(feature = "wasm"), feature = "poi"))]
+mod transact_poi;

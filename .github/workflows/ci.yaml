@@ -44,5 +44,14 @@ jobs:
     - name: Run tests
       run: nix develop .#ci --command cargo test --no-default-features --features native,poi
 
-    - name: Run integration tests
-      run: nix develop .#ci --command bash -c "cd railgun-rs && just integration"
+    - name: Run sync-utxo
+      run: nix develop .#ci --command bash -c "cd railgun-rs && just integration-sync-utxo"
+
+    - name: Run sync-txid
+      run: nix develop .#ci --command bash -c "cd railgun-rs && just integration-sync-txid"
+
+    - name: Run transact
+      run: nix develop .#ci --command bash -c "cd railgun-rs && just integration-transact"
+
+    - name: Run transact-poi
+      run: nix develop .#ci --command bash -c "cd railgun-rs && just integration-transact-poi"

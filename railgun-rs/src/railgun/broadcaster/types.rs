@@ -2,11 +2,13 @@
 
 use std::collections::HashMap;
 
+use alloy::primitives::Address;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 #[cfg(feature = "wasm")]
 use tsify_next::Tsify;
 
-use crate::railgun::poi::ListKey;
+use crate::railgun::{address::RailgunAddress, poi::ListKey};
 
 /// A message received from the Waku network.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,17 +28,19 @@ pub struct WakuMessage {
 ///
 /// This is the decoded content of a fee message from the Waku network.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde_as]
 #[serde(rename_all = "camelCase")]
 pub struct BroadcasterFeeMessageData {
     /// Map of token address (checksummed) to fee per unit gas (hex string)
-    pub fees: HashMap<String, String>,
+    #[serde_as(as = "HashMap<DisplayFromStr, Hex>")]
+    pub fees: HashMap<Address, u128>,
     /// Unix timestamp when these fees expire
     pub fee_expiration: u64,
     /// Unique identifier for this fee update
     #[serde(rename = "feesID")]
     pub fees_id: String,
     /// Broadcaster's RAILGUN address
-    pub railgun_address: String,
+    pub railgun_address: RailgunAddress,
     /// Optional human-readable identifier
     pub identifier: Option<String>,
     /// Number of wallets available for broadcasting
@@ -44,7 +48,7 @@ pub struct BroadcasterFeeMessageData {
     /// Broadcaster version string (e.g., "8.0.0")
     pub version: String,
     /// Address of the relay adapt contract
-    pub relay_adapt: String,
+    pub relay_adapt: Address,
     /// Required POI list keys for this broadcaster
     #[serde(rename = "requiredPOIListKeys")]
     pub required_poi_list_keys: Vec<ListKey>,
