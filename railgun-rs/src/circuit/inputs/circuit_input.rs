@@ -2,7 +2,7 @@ use ruint::aliases::U256;
 
 use crate::railgun::merkle_tree::MerkleRoot;
 #[cfg(feature = "poi")]
-use crate::{crypto::railgun_txid::Txid, railgun::merkle_tree::TxidMerkleTree};
+use crate::{crypto::railgun_txid::Txid, railgun::merkle_tree::TxidLeafHash};
 
 pub trait IntoU256 {
     fn into_u256(self) -> U256;
