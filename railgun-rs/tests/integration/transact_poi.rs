@@ -81,14 +81,14 @@ async fn test_transact_poi() {
         railgun_rs::railgun::signer::PrivateKeySigner::new_evm(random(), random(), CHAIN.id);
     let account_2 =
         railgun_rs::railgun::signer::PrivateKeySigner::new_evm(random(), random(), CHAIN.id);
-    railgun.register(account_1.clone());
-    railgun.register(account_2.clone());
 
     info!("Syncing to latest block");
     railgun.sync().await.unwrap();
+    railgun.register(account_1.clone());
+    railgun.register(account_2.clone());
 
     // Test Shielding
-    info!("Testing shielding");
+    info!("Testing shield");
     test_shield_poi(
         &mut railgun,
         &provider,
@@ -143,12 +143,8 @@ async fn test_shield_poi(
         .unwrap();
 
     info!("Shielded with tx hash: {:?}", tx.transaction_hash);
-
-    let balance_1 = await_balance_update(railgun, account_1.clone(), USDC, list_key).await;
-    let balance_2 = railgun.balance(account_2.address(), &list_key).await;
-
-    assert_eq!(balance_1.get(&(PoiStatus::Valid, USDC)), Some(&10));
-    assert_eq!(balance_2.get(&(PoiStatus::Valid, USDC)), None);
+    await_balance_update(railgun, account_1.clone(), USDC, list_key, Some(10)).await;
+    await_balance_update(railgun, account_2.clone(), USDC, list_key, None).await;
 }
 
 async fn test_transfer_poi(
@@ -177,11 +173,8 @@ async fn test_transfer_poi(
 
     info!("Transferred with tx hash: {:?}", tx.transaction_hash);
 
-    let balance_1 = await_balance_update(railgun, account_1.clone(), USDC, list_key).await;
-    let balance_2 = railgun.balance(account_2.address(), &list_key).await;
-
-    assert_eq!(balance_1.get(&(PoiStatus::Valid, USDC)), Some(&5));
-    assert_eq!(balance_2.get(&(PoiStatus::Valid, USDC)), Some(&5));
+    await_balance_update(railgun, account_1.clone(), USDC, list_key, Some(5)).await;
+    await_balance_update(railgun, account_2.clone(), USDC, list_key, Some(5)).await;
 }
 
 async fn test_unshield_poi(
@@ -222,13 +215,10 @@ async fn test_unshield_poi(
         .await
         .unwrap();
 
-    let balance_1 = await_balance_update(railgun, account_1.clone(), USDC, list_key).await;
-    let balance_2 = railgun.balance(account_2.address(), &list_key).await;
+    await_balance_update(railgun, account_1.clone(), USDC, list_key, Some(3)).await;
+    await_balance_update(railgun, account_2.clone(), USDC, list_key, Some(5)).await;
 
     let delta_balance_eoa = post_unshield_balance_eoa - pre_unshield_balance_eoa;
-
-    assert_eq!(balance_1.get(&(PoiStatus::Valid, USDC)), Some(&3));
-    assert_eq!(balance_2.get(&(PoiStatus::Valid, USDC)), Some(&5));
     assert_eq!(delta_balance_eoa, 2);
 }
 
@@ -237,7 +227,8 @@ async fn await_balance_update(
     account: Arc<dyn Signer>,
     asset: AssetId,
     list_key: &ListKey,
-) -> HashMap<(PoiStatus, AssetId), u128> {
+    expected: Option<u128>,
+) {
     let start = std::time::Instant::now();
     loop {
         info!("Waiting for balance to update...");
@@ -251,8 +242,8 @@ async fn await_balance_update(
         let balance = railgun.balance(account.address(), &list_key).await;
         info!("Balance: {:?}", balance);
 
-        if balance.get(&(PoiStatus::Missing, asset)) == None {
-            return balance;
+        if balance.get(&(PoiStatus::Valid, asset)) == expected.as_ref() {
+            return;
         }
     }
 }
