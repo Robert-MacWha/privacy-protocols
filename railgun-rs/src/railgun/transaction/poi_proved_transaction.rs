@@ -12,11 +12,12 @@ use crate::{
         inputs::{PoiCircuitInputs, PoiCircuitInputsError, TransactCircuitInputs},
         prover::PoiProver,
     },
+    crypto::railgun_txid::Txid,
     railgun::{
         broadcaster::broadcaster::Fee,
         merkle_tree::{TxidLeafHash, UtxoMerkleTree},
         note::operation::Operation,
-        poi::{ListKey, PoiNote, PreTransactionPoi},
+        poi::{BlindedCommitment, ListKey, PoiNote, PreTransactionPoi},
         transaction::tx_data::TxData,
     },
 };
@@ -42,7 +43,7 @@ pub struct PoiProvedOperation {
     /// POI proofs keyed by list key.
     pub pois: HashMap<ListKey, PreTransactionPoi>,
     /// The txid for this operation. Computed on first `add_pois` call.
-    pub txid: Option<crate::crypto::railgun_txid::Txid>,
+    pub txid: Option<Txid>,
     /// The leaf hash for this operation. Computed on first `add_pois` call.
     pub txid_leaf_hash: Option<TxidLeafHash>,
 }
@@ -124,7 +125,11 @@ impl PoiProvedOperation {
                 proof,
                 txid_merkleroot: inputs.railgun_txid_merkleroot_after_transaction,
                 poi_merkleroots: inputs.poi_merkleroots,
-                blinded_commitments_out: public_inputs[0..inputs.nullifiers.len()].to_vec(),
+                blinded_commitments_out: public_inputs[0..inputs.commitments.len()]
+                    .iter()
+                    .copied()
+                    .map(BlindedCommitment::from)
+                    .collect(),
                 railgun_txid_if_has_unshield: inputs.railgun_txid_if_has_unshield,
             };
 

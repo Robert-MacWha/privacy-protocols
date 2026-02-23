@@ -7,6 +7,6 @@ pub use pending_poi_submitter::{PendingPoiEntry, PendingPoiError, PendingPoiSubm
 pub use poi_client::{PoiClient, PoiClientError};
 pub use poi_note::PoiNote;
 pub use types::{
-    BlindedCommitment, BlindedCommitmentType, ListKey, PreTransactionPoi,
+    BlindedCommitment, BlindedCommitmentType, ListKey, PoiStatus, PreTransactionPoi,
     PreTransactionPoisPerTxidLeafPerList, TxidVersion,
 };

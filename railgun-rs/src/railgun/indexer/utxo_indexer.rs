@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     sync::Arc,
     u64,
 };
@@ -44,6 +44,7 @@ pub struct UtxoIndexer {
 
     accounts: Vec<IndexedAccount>,
     matched_events: Vec<SyncEvent>,
+    seen_commitments: HashSet<U256>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -61,6 +62,8 @@ pub enum UtxoIndexerError {
     VerificationError(#[from] VerificationError),
     #[error("Note error: {0}")]
     NoteError(#[from] NoteError),
+    #[error("Timed out waiting for commitments")]
+    Timeout,
 }
 
 impl UtxoIndexer {
@@ -75,6 +78,7 @@ impl UtxoIndexer {
             utxo_verifier,
             accounts: vec![],
             matched_events: vec![],
+            seen_commitments: HashSet::new(),
         }
     }
 
@@ -98,6 +102,7 @@ impl UtxoIndexer {
             utxo_verifier,
             accounts: vec![],
             matched_events: state.matched_events,
+            seen_commitments: HashSet::new(),
         }
     }
 
@@ -195,7 +200,6 @@ impl UtxoIndexer {
         let to_block = to_block.min(latest_block);
 
         if from_block > to_block {
-            info!("Already synced to block {}", to_block);
             return Ok(());
         }
 
@@ -230,6 +234,39 @@ impl UtxoIndexer {
         self.synced_block = 0;
         self.accounts.clear();
         self.matched_events.clear();
+        self.seen_commitments.clear();
+    }
+
+    /// Returns true if all the given commitments have been seen in Transact events.
+    pub fn has_commitments(&self, commitments: &[U256]) -> bool {
+        commitments
+            .iter()
+            .all(|c| self.seen_commitments.contains(c))
+    }
+
+    /// Polls `sync()` until all given commitments appear in Transact events,
+    /// or returns `Err(Timeout)` if the timeout is exceeded.
+    pub async fn await_commitments(
+        &mut self,
+        commitments: &[U256],
+        poll_interval: web_time::Duration,
+        timeout: web_time::Duration,
+    ) -> Result<(), UtxoIndexerError> {
+        let start = web_time::Instant::now();
+
+        loop {
+            self.sync().await?;
+
+            if self.has_commitments(commitments) {
+                return Ok(());
+            }
+
+            if start.elapsed() >= timeout {
+                return Err(UtxoIndexerError::Timeout);
+            }
+
+            crate::sleep::sleep(poll_interval).await;
+        }
     }
 
     /// Handles a sync event. Returns true if the event was matched to any account.
@@ -288,6 +325,11 @@ impl UtxoIndexer {
             .iter()
             .map(|h| U256::from_be_bytes(**h).into())
             .collect();
+
+        // Track commitment hashes for await_commitments
+        for h in &event.hash {
+            self.seen_commitments.insert(U256::from_be_bytes(**h));
+        }
 
         insert_utxo_leaves(
             &mut self.utxo_trees,

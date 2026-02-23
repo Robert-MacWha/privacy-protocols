@@ -4,18 +4,23 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::info;
 
-use crate::railgun::{
-    indexer::{
-        syncer::TransactionSyncer,
-        txid_tree_set::{TxidTreeError, TxidTreeSet, TxidTreeSetState},
+use crate::{
+    crypto::railgun_txid::Txid,
+    railgun::{
+        indexer::{
+            syncer::TransactionSyncer,
+            txid_tree_set::{TxidTreeError, TxidTreeSet, TxidTreeSetState},
+        },
+        merkle_tree::TxidMerkleTree,
+        poi::PoiClient,
     },
-    poi::PoiClient,
+    sleep::sleep,
 };
 
 /// TxID indexer that maintains the set of Txid merkle trees.
 pub struct TxidIndexer {
-    pub txid_set: TxidTreeSet,
-    pub synced_block: u64,
+    txid_set: TxidTreeSet,
+    synced_block: u64,
     txid_syncer: Arc<dyn TransactionSyncer>,
 }
 
@@ -61,8 +66,18 @@ impl TxidIndexer {
         }
     }
 
-    pub fn synced_block(&self) -> u64 {
-        self.synced_block
+    pub fn tree(&self, tree_number: u32) -> Option<&TxidMerkleTree> {
+        self.txid_set.trees.get(&tree_number)
+    }
+
+    /// Returns the position of a given TxID in the TXID tree, if included.
+    pub fn txid_position(&self, txid: &Txid) -> Option<(u32, u32)> {
+        self.txid_set.txid_to_txid_pos.get(txid).cloned()
+    }
+
+    /// Returns the position of a given TxID in the UTXO tree, if included.
+    pub fn utxo_position(&self, txid: &Txid) -> Option<(u32, u32)> {
+        self.txid_set.txid_to_utxo_pos.get(txid).cloned()
     }
 
     pub async fn sync(&mut self) -> Result<(), TxidIndexerError> {
@@ -79,11 +94,6 @@ impl TxidIndexer {
             .await
             .map_err(TxidIndexerError::SyncerError)?;
         let to_block = to_block.min(latest_block);
-
-        if from_block > to_block {
-            info!("Already synced to block {}", to_block);
-            return Ok(());
-        }
 
         // Sync
         let ops = syncer

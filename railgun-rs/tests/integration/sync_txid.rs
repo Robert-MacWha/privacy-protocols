@@ -3,7 +3,7 @@ use std::sync::Arc;
 use railgun_rs::{
     chain_config::{ChainConfig, MAINNET_CONFIG},
     railgun::{
-        indexer::{TxidIndexer, syncer::SubsquidSyncer},
+        indexer::{SubsquidSyncer, TxidIndexer},
         poi::PoiClient,
     },
 };

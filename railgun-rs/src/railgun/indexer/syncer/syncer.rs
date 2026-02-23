@@ -45,6 +45,7 @@ pub trait NoteSyncer: Send + Sync {
 
 /// Trait for syncers that fetch full operation data (nullifiers + commitments + tree positions).
 /// Used to build the TXID tree for post-transaction POI submission.
+#[cfg(feature = "poi")]
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 pub trait TransactionSyncer: Send + Sync {

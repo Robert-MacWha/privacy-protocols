@@ -10,7 +10,6 @@ use crate::{
 
 pub mod encrypt;
 pub mod operation;
-pub mod shield;
 pub mod transfer;
 pub mod unshield;
 pub mod utxo;

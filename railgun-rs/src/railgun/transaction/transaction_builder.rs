@@ -35,7 +35,7 @@ use crate::{
         indexer::UtxoIndexer,
         merkle_tree::UtxoMerkleTree,
         note::{
-            IncludedNote,
+            IncludedNote, Note, SignableNote,
             encrypt::EncryptError,
             operation::{Operation, OperationVerificationError},
             transfer::TransferNote,
@@ -169,12 +169,11 @@ impl TransactionBuilder {
     }
 
     /// Drafts the operations by grouping output notes by (from_address, asset_id)
-    pub(crate) fn draft_operations<R: Rng>(
+    pub(crate) fn draft_operations<N: Note, R: Rng>(
         &self,
         rng: &mut R,
-    ) -> HashMap<(RailgunAddress, AssetId), Operation<UtxoNote>> {
-        let mut draft_operations: HashMap<(RailgunAddress, AssetId), Operation<UtxoNote>> =
-            HashMap::new();
+    ) -> HashMap<(RailgunAddress, AssetId), Operation<N>> {
+        let mut draft_operations: HashMap<(RailgunAddress, AssetId), Operation<N>> = HashMap::new();
         for transfer in &self.transfers {
             draft_operations
                 .entry((transfer.from.address(), transfer.asset))
@@ -215,11 +214,11 @@ impl TransactionBuilder {
 
 /// Builds operations from a draft by populating input notes, splitting by tree number, and adding
 /// change notes if necessary.
-pub fn build_operations<R: Rng>(
-    mut draft: HashMap<(RailgunAddress, AssetId), Operation<UtxoNote>>,
-    in_notes: Vec<UtxoNote>,
+pub fn build_operations<N: IncludedNote + Clone, R: Rng>(
+    mut draft: HashMap<(RailgunAddress, AssetId), Operation<N>>,
+    in_notes: Vec<N>,
     rng: &mut R,
-) -> Result<Vec<Operation<UtxoNote>>, TransactionBuilderError> {
+) -> Result<Vec<Operation<N>>, TransactionBuilderError> {
     //? Collect input notes to satisfy each operation's output value.
     draft.values_mut().for_each(|o| {
         o.in_notes = select_in_notes(o.from.address(), o.asset, o.out_value(), &in_notes)
@@ -248,14 +247,14 @@ pub fn build_operations<R: Rng>(
 
 /// Proves the operations and returns a proved transaction that can be
 /// executed in railgun on-chain.
-pub async fn prove_operations<R: Rng>(
+pub async fn prove_operations<N: IncludedNote + SignableNote + Clone, R: Rng>(
     prover: &dyn TransactProver,
     utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
-    operations: &[Operation<UtxoNote>],
+    operations: &[Operation<N>],
     chain: ChainConfig,
     min_gas_price: u128,
     rng: &mut R,
-) -> Result<ProvedTx, TransactionBuilderError> {
+) -> Result<ProvedTx<N>, TransactionBuilderError> {
     let tx_results = create_transactions(
         prover,
         utxo_trees,
@@ -268,7 +267,7 @@ pub async fn prove_operations<R: Rng>(
     )
     .await?;
 
-    let proved_operations: Vec<ProvedOperation> = operations
+    let proved_operations: Vec<ProvedOperation<N>> = operations
         .iter()
         .zip(tx_results)
         .map(|(op, (ci, tx))| ProvedOperation {
@@ -367,10 +366,10 @@ fn add_change_note<R: Rng, N: IncludedNote + Clone>(
 }
 
 /// Creates a list of railgun transactions for a list of operations.
-pub async fn create_transactions<R: Rng>(
+pub async fn create_transactions<N: IncludedNote + SignableNote, R: Rng>(
     prover: &dyn TransactProver,
     utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
-    operations: &[Operation<UtxoNote>],
+    operations: &[Operation<N>],
     chain: ChainConfig,
     min_gas_price: u128,
     adapt_contract: Address,
@@ -405,10 +404,10 @@ pub async fn create_transactions<R: Rng>(
 }
 
 /// Creates a railgun transaction for a single operation.
-async fn create_transaction<R: Rng>(
+async fn create_transaction<N: IncludedNote + SignableNote, R: Rng>(
     prover: &dyn TransactProver,
     utxo_tree: &UtxoMerkleTree,
-    operation: &Operation<UtxoNote>,
+    operation: &Operation<N>,
     chain: ChainConfig,
     min_gas_price: u128,
     adapt_contract: Address,

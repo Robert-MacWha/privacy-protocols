@@ -31,6 +31,7 @@
   - [ ] Perform real-world workflow on sepolia to test broadcaster + POI end-to-end. I can't think of a way to mock this properly since I don't understand the POI process well enough. Should be pretty cheap - about 0.0001 ETH.
 - [ ] Smarter artifact loader that fetches from remote & caches in memory.
   - Consider whether we ought to integrate the artifact loader into the JS SDK, or just leave it seperate.
+- [ ] Update poi builder so input POIs are pre-fetched, so invalid notes aren't used as inputs.
 
 - Optimize performance / size
   - Benchmark current performance + components

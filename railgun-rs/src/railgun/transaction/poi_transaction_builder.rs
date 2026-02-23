@@ -21,8 +21,8 @@ use crate::{
         broadcaster::broadcaster::Fee,
         indexer::UtxoIndexer,
         merkle_tree::{MerkleRoot, UtxoMerkleTree},
-        note::{operation::Operation, utxo::UtxoNote},
-        poi::{ListKey, PoiClient, PoiClientError},
+        note::{IncludedNote, Note, SignableNote, operation::Operation, utxo::UtxoNote},
+        poi::{ListKey, PoiClient, PoiClientError, PoiNote},
         transaction::{
             GasEstimator, PoiProvedOperation, PoiProvedOperationError, PoiProvedTx, ProvedTx,
             TransactionBuilder, TransactionBuilderError,
@@ -98,12 +98,17 @@ impl PoiTransactionBuilder {
         poi_prover: &dyn PoiProver,
         rng: &mut R,
     ) -> Result<PoiProvedTx, PoiTransactionBuilderError> {
+        info!("Building POI Transaction");
+        let list_keys = poi_client.list_keys();
         let in_notes = indexer.all_unspent();
+        let poi_in_notes = notes_to_poi_notes(poi_client, &list_keys, in_notes).await;
+
+        info!("Creating proved TX");
         let draft = self.inner.draft_operations(rng);
-        let ops = build_operations(draft, in_notes, rng)?;
+        let ops = build_operations(draft, poi_in_notes, rng)?;
         let proved = prove_operations(prover, &indexer.utxo_trees, &ops, chain, 0, rng).await?;
 
-        let list_keys = poi_client.list_keys();
+        info!("Attaching POI proofs");
         self.prove_poi(
             poi_prover,
             poi_client,
@@ -131,11 +136,14 @@ impl PoiTransactionBuilder {
         fee: &Fee,
         rng: &mut R,
     ) -> Result<PoiProvedTx, PoiTransactionBuilderError> {
+        info!("Building broadcast transaction");
         let in_notes = indexer.all_unspent();
+        let poi_in_notes = notes_to_poi_notes(poi_client, &fee.list_keys, in_notes).await;
 
+        info!("Creating proved TX");
         let proved = self
             .calculate_fee_to_convergence(
-                &in_notes,
+                &poi_in_notes,
                 prover,
                 &indexer.utxo_trees,
                 estimator,
@@ -146,6 +154,7 @@ impl PoiTransactionBuilder {
             )
             .await?;
 
+        info!("Attaching POI proofs");
         let tx = self
             .prove_poi(
                 poi_prover,
@@ -162,9 +171,9 @@ impl PoiTransactionBuilder {
 
     /// Calculate fee iteratively until convergence. It iteratively builds and proves
     /// transactions until the fee converges to a stable value.
-    async fn calculate_fee_to_convergence<R: Rng>(
+    async fn calculate_fee_to_convergence<N: SignableNote + IncludedNote + Note + Clone, R: Rng>(
         &self,
-        in_notes: &[UtxoNote],
+        in_notes: &[N],
         prover: &dyn TransactProver,
         utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
         estimator: &dyn GasEstimator,
@@ -172,7 +181,7 @@ impl PoiTransactionBuilder {
         fee: &Fee,
         chain: ChainConfig,
         rng: &mut R,
-    ) -> Result<ProvedTx, PoiTransactionBuilderError> {
+    ) -> Result<ProvedTx<N>, PoiTransactionBuilderError> {
         const MAX_ITERS: usize = 5;
 
         let gas_price_wei = estimator
@@ -194,7 +203,7 @@ impl PoiTransactionBuilder {
             "fee",
         );
 
-        let mut proved_tx: Option<ProvedTx> = None;
+        let mut proved_tx: Option<ProvedTx<N>> = None;
         for _ in 0..MAX_ITERS {
             let draft = fee_builder.draft_operations(rng);
             let mut operations = build_operations(draft, in_notes.to_vec(), rng)?;
@@ -233,7 +242,7 @@ impl PoiTransactionBuilder {
                 "Estimated gas: {}, gas price (wei): {}, fee: {}",
                 gas, gas_price_wei, new_fee
             );
-            if new_fee <= last_fee {
+            if new_fee <= (last_fee * 100) / 99 {
                 info!("Fee converged at {} after iterations", new_fee);
                 break;
             }
@@ -255,32 +264,17 @@ impl PoiTransactionBuilder {
         &self,
         poi_prover: &dyn PoiProver,
         poi_client: &PoiClient,
-        proved: ProvedTx,
+        proved: ProvedTx<PoiNote>,
         utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
         list_keys: &[ListKey],
         fee: Option<Fee>,
     ) -> Result<PoiProvedTx, PoiTransactionBuilderError> {
-        // Rebuild operations with PoiNote inputs (needed for POI merkle proofs)
-        let proved_operations = proved.proved_operations;
         let mut poi_operations = Vec::new();
-        for operation in proved_operations {
-            let op = operation.operation;
-            let in_notes = op.in_notes;
-            let poi_in_notes = poi_client.note_to_poi_note(in_notes, list_keys).await?;
-
-            //? Need to create a new operation since the generic can't be
-            //? trivially cast.
+        for proved_op in proved.proved_operations {
             poi_operations.push(PoiProvedOperation {
-                operation: Operation {
-                    utxo_tree_number: op.utxo_tree_number,
-                    from: op.from,
-                    asset: op.asset,
-                    in_notes: poi_in_notes,
-                    out_notes: op.out_notes,
-                    unshield_note: op.unshield_note,
-                },
-                circuit_inputs: operation.circuit_inputs,
-                transaction: operation.transaction,
+                operation: proved_op.operation,
+                circuit_inputs: proved_op.circuit_inputs,
+                transaction: proved_op.transaction,
                 pois: HashMap::new(),
                 txid_leaf_hash: None,
                 txid: None,
@@ -318,6 +312,25 @@ impl PoiTransactionBuilder {
             fee,
         })
     }
+}
+
+async fn notes_to_poi_notes(
+    poi_client: &PoiClient,
+    list_keys: &[ListKey],
+    in_notes: Vec<UtxoNote>,
+) -> Vec<PoiNote> {
+    info!("Loading note POI data");
+    let mut poi_in_notes = Vec::new();
+    for note in in_notes {
+        match poi_client.note_to_poi_note(note, &list_keys).await {
+            Ok(poi_note) => poi_in_notes.push(poi_note),
+            Err(e) => {
+                info!("Failed to get POI note: {:?}", e);
+                continue;
+            }
+        }
+    }
+    poi_in_notes
 }
 
 /// Calculate the broadcaster's fee based on the estimated gas cost, gas price in wei,

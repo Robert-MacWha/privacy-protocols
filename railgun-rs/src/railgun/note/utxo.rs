@@ -3,6 +3,7 @@ use std::{fmt::Debug, sync::Arc};
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::info;
 
 use crate::{
     abis::railgun::{CommitmentCiphertext, ShieldRequest, TokenData, TokenDataError},
@@ -34,7 +35,7 @@ pub struct UtxoNote<S = Arc<dyn Signer>> {
     value: u128,
     asset: AssetId,
     memo: String,
-    type_: UtxoType,
+    utxo_type: UtxoType,
 
     hash: UtxoLeafHash,
     npk: U256,
@@ -76,6 +77,10 @@ impl UtxoNote<Arc<dyn Signer>> {
         let npk = note_public_key(signer.as_ref(), signer.as_ref(), &random);
         let nullifying_key = nullifying_key(signer.as_ref());
         let blinded_commitment = blinded_commitment(note_hash.into(), npk, tree_number, leaf_index);
+        info!(
+            "Creating note: tree_number={}, leaf_index={}, hash={:?}, npk={}, blinded_commitment={}",
+            tree_number, leaf_index, note_hash, npk, blinded_commitment
+        );
 
         UtxoNote {
             tree_number,
@@ -86,7 +91,7 @@ impl UtxoNote<Arc<dyn Signer>> {
             value,
             random,
             memo: memo.to_string(),
-            type_,
+            utxo_type: type_,
             hash: note_hash,
             npk,
             nullifying_key,
@@ -212,7 +217,7 @@ impl UtxoNote<Arc<dyn Signer>> {
             value: self.value,
             random: self.random,
             memo: self.memo.clone(),
-            type_: self.type_,
+            utxo_type: self.utxo_type,
             hash: self.hash,
             npk: self.npk,
             nullifying_key: self.nullifying_key,
@@ -281,6 +286,12 @@ impl<S> IncludedNote for UtxoNote<S> {
     }
 }
 
+impl<S> UtxoNote<S> {
+    pub fn utxo_type(&self) -> UtxoType {
+        self.utxo_type
+    }
+}
+
 impl SignableNote for UtxoNote<Arc<dyn Signer>> {
     fn sign(&self, inputs: &[U256]) -> [U256; 3] {
         let sig_hash = poseidon_hash(inputs).unwrap();
@@ -289,7 +300,7 @@ impl SignableNote for UtxoNote<Arc<dyn Signer>> {
     }
 }
 
-impl Debug for UtxoNote<()> {
+impl<S> Debug for UtxoNote<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UtxoNote")
             .field("tree_number", &self.tree_number)
@@ -298,9 +309,11 @@ impl Debug for UtxoNote<()> {
             .field("value", &self.value)
             .field("random", &self.random)
             .field("memo", &self.memo)
-            .field("type_", &self.type_)
+            .field("type", &self.utxo_type)
             .field("hash", &self.hash)
             .field("npk", &self.npk)
+            .field("nullifying_key", &self.nullifying_key)
+            .field("blinded_commitment", &self.blinded_commitment)
             .finish()
     }
 }
@@ -314,21 +327,6 @@ impl PartialEq for UtxoNote<()> {
 }
 
 impl Eq for UtxoNote<()> {}
-
-impl Debug for UtxoNote<Arc<dyn Signer>> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SignableUtxoNote")
-            .field("signer", &self.signer.address())
-            .field("tree_number", &self.tree_number)
-            .field("leaf_index", &self.leaf_index)
-            .field("asset", &self.asset)
-            .field("value", &self.value)
-            .field("random", &self.random)
-            .field("memo", &self.memo)
-            .field("type", &self.type_)
-            .finish()
-    }
-}
 
 impl PartialEq for UtxoNote<Arc<dyn Signer>> {
     fn eq(&self, other: &Self) -> bool {

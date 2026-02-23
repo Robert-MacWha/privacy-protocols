@@ -7,6 +7,8 @@ use reqwest::Client;
 use thiserror::Error;
 use tracing::{info, warn};
 
+#[cfg(feature = "poi")]
+use crate::railgun::indexer::syncer::TransactionSyncer;
 use crate::{
     abis::railgun::{
         CommitmentCiphertext, CommitmentPreimage, RailgunSmartWallet, ShieldCiphertext, TokenData,
@@ -15,7 +17,7 @@ use crate::{
     railgun::indexer::syncer::{
         compat::BoxedSyncStream,
         decimal_bigint,
-        syncer::{LegacyCommitment, NoteSyncer, Operation, SyncEvent, TransactionSyncer},
+        syncer::{LegacyCommitment, NoteSyncer, Operation, SyncEvent},
     },
     sleep::sleep,
 };
@@ -139,6 +141,7 @@ impl NoteSyncer for SubsquidSyncer {
     }
 }
 
+#[cfg(feature = "poi")]
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 impl TransactionSyncer for SubsquidSyncer {

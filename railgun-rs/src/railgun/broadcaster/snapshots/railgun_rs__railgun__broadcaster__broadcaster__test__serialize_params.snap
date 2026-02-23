@@ -1,6 +1,6 @@
 ---
 source: railgun-rs/src/railgun/broadcaster/broadcaster.rs
-assertion_line: 421
+assertion_line: 420
 expression: serialized
 ---
 {
@@ -45,8 +45,8 @@ expression: serialized
           "000000000000000000000000000000000000000000000000000000000000000b"
         ],
         "blindedCommitmentsOut": [
-          "0xc",
-          "0xd"
+          "0x000000000000000000000000000000000000000000000000000000000000000c",
+          "0x000000000000000000000000000000000000000000000000000000000000000d"
         ],
         "railgunTxidIfHasUnshield": "000000000000000000000000000000000000000000000000000000000000000e"
       }

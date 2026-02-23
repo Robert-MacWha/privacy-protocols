@@ -2,7 +2,7 @@
 import { readFile } from "node:fs/promises";
 import * as snarkjs from "snarkjs";
 import type { ProveFunction } from "./wasm.ts";
-import { JsProofResponse } from "../pkg/railgun_rs";
+import { JsProofResponse, JsProver } from "../pkg/railgun_rs";
 
 export interface ArtifactPaths {
   wasmPath: string;
@@ -80,7 +80,10 @@ export function createProveFunction(config: ProverConfig): ProveFunction {
       bigintInputs[key] = values.map((v) => BigInt(v));
     }
 
+    console.log("Loading artifacts")
     const { wasm, zkey } = await loadArtifacts(wasmPath, zkeyPath);
+
+    console.log("Generating proof");
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
       bigintInputs,
       wasm,
@@ -91,6 +94,7 @@ export function createProveFunction(config: ProverConfig): ProveFunction {
     );
 
     if (shouldVerify) {
+      console.log("Verifying proof");
       const vkey = await snarkjs.zKey.exportVerificationKey(zkey);
       const valid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
       if (!valid) {
@@ -124,6 +128,11 @@ export function createProverFunctions(config: ProverConfig): {
     proveTransact: proveFn,
     provePoi: proveFn,
   };
+}
+
+export function createProver(config: ProverConfig): JsProver {
+  const { proveTransact, provePoi } = createProverFunctions(config);
+  return new JsProver(proveTransact, provePoi);
 }
 
 /**

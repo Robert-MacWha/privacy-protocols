@@ -1,6 +1,6 @@
 ---
-source: railgun-rs/src/railgun/note/shield.rs
-assertion_line: 92
+source: railgun-rs/src/railgun/transaction/shield_builder.rs
+assertion_line: 140
 expression: shield_request
 ---
 ShieldRequest {

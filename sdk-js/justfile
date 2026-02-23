@@ -16,7 +16,7 @@ run:
     pnpm tsx main.ts
 
 wasm:
-    wasm-pack build --target nodejs ../railgun-rs --out-dir ../sdk-js/pkg --features wasm --no-default-features
+    wasm-pack build --target nodejs ../railgun-rs --out-dir ../sdk-js/pkg --no-default-features --features wasm,poi
 
 test:
     #!/usr/bin/env bash

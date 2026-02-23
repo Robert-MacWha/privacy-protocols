@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use alloy::primitives::Address;
-use futures::{StreamExt, lock::Mutex};
+use futures::{FutureExt, StreamExt, lock::Mutex};
 use thiserror::Error;
 use tracing::info;
 
@@ -63,17 +63,52 @@ impl BroadcasterManager {
     }
 
     /// Start listening for broadcaster fee messages.
+    ///
+    /// Automatically reconnects with exponential backoff if the subscription
+    /// stream closes unexpectedly.
     pub async fn start(&self) -> Result<(), BroadcastersError> {
         let topic = fee_content_topic(self.chain_id);
+        let mut backoff = web_time::Duration::from_secs(1);
+        let max_backoff = web_time::Duration::from_secs(60);
 
-        let mut stream = self.transport.subscribe(vec![topic]).await?;
-        while let Some(msg) = stream.next().await {
-            if let Err(e) = self.handle_fee_message(&msg).await {
-                tracing::warn!("Error handling fee message: {}", e);
+        loop {
+            let mut stream = self.transport.subscribe(vec![topic.clone()]).await?;
+            info!("Subscribed to broadcaster fee topic: {}", topic);
+
+            let staleness_timeout = web_time::Duration::from_secs(90);
+
+            loop {
+                let next_msg = stream.next().fuse();
+                let timeout = crate::sleep::sleep(staleness_timeout).fuse();
+                futures::pin_mut!(next_msg, timeout);
+
+                futures::select! {
+                    msg = next_msg => {
+                        match msg {
+                            Some(msg) => {
+                                // Reset backoff on successful message receipt.
+                                backoff = web_time::Duration::from_secs(1);
+                                if let Err(e) = self.handle_fee_message(&msg).await {
+                                    tracing::warn!("Error handling fee message: {}", e);
+                                }
+                            }
+                            None => break, // Stream closed
+                        }
+                    }
+                    _ = timeout => {
+                        tracing::warn!("No fee messages received in {:?}, resubscribing", staleness_timeout);
+                        break;
+                    }
+                }
             }
-        }
 
-        Ok(())
+            tracing::warn!(
+                "Broadcaster fee subscription ended, reconnecting in {:?}",
+                backoff
+            );
+            crate::sleep::sleep(backoff).await;
+            backoff = (backoff * 2).min(max_backoff);
+        }
     }
 
     pub fn chain_id(&self) -> u64 {
@@ -188,8 +223,6 @@ impl BroadcasterManager {
             required_poi_list_keys: fee_data.required_poi_list_keys,
             token_fees,
         };
-
-        info!("Updated broadcaster info: {:?}", data);
         self.broadcasters.lock().await.insert(railgun_address, data);
 
         Ok(())

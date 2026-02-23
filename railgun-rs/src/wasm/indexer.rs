@@ -9,7 +9,7 @@ use wasm_bindgen::{JsError, prelude::wasm_bindgen};
 use crate::{
     caip::AssetId,
     chain_config::get_chain_config,
-    railgun::indexer::syncer::{ChainedSyncer, NoteSyncer, RpcSyncer, SubsquidSyncer},
+    railgun::indexer::{ChainedSyncer, NoteSyncer, RpcSyncer, SubsquidSyncer},
 };
 
 #[wasm_bindgen]

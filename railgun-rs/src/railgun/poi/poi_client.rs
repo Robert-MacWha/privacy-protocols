@@ -14,7 +14,7 @@ use tracing::info;
 
 use crate::railgun::{
     merkle_tree::{MerkleProof, MerkleRoot, MerkleTreeVerifier},
-    note::{IncludedNote, utxo::UtxoNote},
+    note::{IncludedNote, Note, utxo::UtxoNote},
     poi::{
         poi_note::PoiNote,
         types::{
@@ -123,56 +123,55 @@ impl PoiClient {
     /// Returns the POIs for the given list keys and blinded commitments.
     pub async fn pois(
         &self,
-        list_keys: Vec<ListKey>,
-        blinded_commitment_datas: Vec<BlindedCommitmentData>,
+        list_keys: &[ListKey],
+        blinded_commitment_datas: &[BlindedCommitmentData],
     ) -> Result<PoisPerListMap, PoiClientError> {
         self.call(
             "ppoi_pois_per_list",
             GetPoisPerListParams {
                 chain: self.chain(),
-                list_keys,
-                blinded_commitment_datas,
+                list_keys: list_keys.to_vec(),
+                blinded_commitment_datas: blinded_commitment_datas.to_vec(),
             },
         )
         .await
     }
 
-    /// Converts a list of UTXO notes into POI notes by fetching the necessary
-    /// merkle proofs from the POI node for the given list keys.
+    /// Converts a UTXO note into a POI note
     pub async fn note_to_poi_note<S>(
         &self,
-        notes: Vec<UtxoNote<S>>,
+        note: UtxoNote<S>,
         list_keys: &[ListKey],
-    ) -> Result<Vec<PoiNote<S>>, PoiClientError> {
-        let blinded_commitments = notes
-            .iter()
-            .map(|n| n.blinded_commitment().into())
-            .collect();
-        let proofs = self.merkle_proofs(blinded_commitments, list_keys).await?;
+    ) -> Result<PoiNote<S>, PoiClientError> {
+        let blinded_commitment = note.blinded_commitment();
+        let blinded_commitment_data = BlindedCommitmentData {
+            blinded_commitment: note.blinded_commitment().into(),
+            commitment_type: note.utxo_type().into(),
+        };
 
-        let mut poi_notes = Vec::new();
-        for (i, note) in notes.into_iter().enumerate() {
-            let mut note_proofs = HashMap::new();
+        let mut status = self.pois(list_keys, &vec![blinded_commitment_data]).await?;
+        let status = status
+            .remove(&blinded_commitment.into())
+            .unwrap_or(HashMap::new());
+        info!("POI status for note {:?}, status={:#?}", note, status);
 
-            for (list_key, proofs) in proofs.iter() {
-                let proof = proofs.get(i).unwrap();
-                note_proofs.insert(list_key.clone(), proof.clone());
-            }
+        let mut proofs = self
+            .merkle_proofs(&vec![blinded_commitment.into()], list_keys)
+            .await?;
+        let proofs = proofs
+            .remove(&blinded_commitment.into())
+            .unwrap_or(HashMap::new());
 
-            let poi_note = PoiNote::new(note, note_proofs);
-            poi_notes.push(poi_note);
-        }
-
-        Ok(poi_notes)
+        Ok(PoiNote::new(note, status, proofs))
     }
 
     /// Fetches the POI merkle proofs for the given blinded commitments and
     /// list keys.
     pub async fn merkle_proofs(
         &self,
-        blinded_commitments: Vec<BlindedCommitment>,
+        blinded_commitments: &[BlindedCommitment],
         list_keys: &[ListKey],
-    ) -> Result<HashMap<ListKey, Vec<MerkleProof>>, PoiClientError> {
+    ) -> Result<HashMap<BlindedCommitment, HashMap<ListKey, MerkleProof>>, PoiClientError> {
         let mut proofs = HashMap::new();
         for list_key in list_keys.iter() {
             let list_key_proofs: Vec<MerkleProof> = self
@@ -181,21 +180,25 @@ impl PoiClient {
                     GetMerkleProofsParams {
                         chain: self.chain(),
                         list_key: list_key.clone(),
-                        blinded_commitments: blinded_commitments.clone(),
+                        blinded_commitments: blinded_commitments.to_vec(),
                     },
                 )
                 .await?;
 
-            proofs.insert(list_key.clone(), list_key_proofs);
+            for (proof, blinded_commitment) in
+                list_key_proofs.into_iter().zip(blinded_commitments.iter())
+            {
+                proofs
+                    .entry(blinded_commitment.clone())
+                    .or_insert_with(HashMap::new)
+                    .insert(list_key.clone(), proof);
+            }
         }
 
         Ok(proofs)
     }
 
     /// Submits a proved operation to the POI node.
-    /// TODO: Update this to accept a new IncludedOperation or IndexedOperation that
-    /// comes from txid syncing. We need to provide real txid merkle root / merkle root index,
-    /// not the dummy values used for broadcasting / proving.
     pub async fn submit_operation(
         &self,
         op: HashMap<ListKey, TransactProofData>,

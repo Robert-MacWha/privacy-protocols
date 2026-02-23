@@ -24,8 +24,8 @@ const WAKU_RAILGUN_SHARD_CONFIG = {
   pubsubTopic: WAKU_RAILGUN_PUB_SUB_TOPIC,
 };
 
-/** Historical look-back window in milliseconds (60 seconds). */
-const HISTORICAL_LOOK_BACK_MS = 60_000;
+/** Historical look-back window in milliseconds (5 minutes). */
+const HISTORICAL_LOOK_BACK_MS = 300_000;
 
 /**
  * Subscribe function signature expected by JsBroadcaster.
@@ -65,11 +65,17 @@ type RetrieveHistoricalFn = (topic: string) => Promise<WakuMessage[]>;
  * provided options.
  */
 /** Timeout for peer discovery in milliseconds. */
-const PEER_DISCOVERY_TIMEOUT_MS = 20_000;
+const PEER_DISCOVERY_TIMEOUT_MS = 60_000;
 
 export async function createBroadcaster(
   chain_id: bigint,
-  options: CreateNodeOptions = { defaultBootstrap: true }
+  options: CreateNodeOptions = {
+    defaultBootstrap: true,
+    networkConfig: {
+      clusterId: 1,
+      shards: [1],
+    },
+  }
 ): Promise<JsBroadcasterManager> {
   const node = await createLightNode(options);
   await node.start();
@@ -123,9 +129,6 @@ export function createBroadcasterFromNode(
     await node.lightPush.send(encoder, { payload });
   };
 
-  // Track the last message per topic for cursor-based pagination.
-  const lastMessageByTopic = new Map<string, IDecodedMessage>();
-
   const retrieveHistoricalFn: RetrieveHistoricalFn = async (topic) => {
     const decoder = createDecoder(topic, WAKU_RAILGUN_SHARD_CONFIG);
     const messages: WakuMessage[] = [];
@@ -137,19 +140,10 @@ export function createBroadcasterFromNode(
       paginationForward: true,
     };
 
-    const lastMessage = lastMessageByTopic.get(topic);
-    if (lastMessage) {
-      // Resume from where we left off.
-      options.paginationCursor = node.store.createCursor(lastMessage);
-    } else {
-      // First call — use the look-back window.
-      const startTime = new Date(Date.now() - HISTORICAL_LOOK_BACK_MS);
-      const endTime = new Date();
-      options.timeStart = startTime;
-      options.timeEnd = endTime;
-    }
-
-    let latestDecodedMessage: IDecodedMessage | undefined;
+    const startTime = new Date(Date.now() - HISTORICAL_LOOK_BACK_MS);
+    const endTime = new Date();
+    options.timeStart = startTime;
+    options.timeEnd = endTime;
 
     const generator = node.store.queryGenerator([decoder], options);
     for await (const pagePromises of generator) {
@@ -157,8 +151,6 @@ export function createBroadcasterFromNode(
         if (messagePromise == null) continue;
         const decoded = await messagePromise;
         if (decoded == null) continue;
-
-        latestDecodedMessage = decoded;
 
         messages.push({
           payload: Array.from(decoded.payload),
@@ -168,11 +160,6 @@ export function createBroadcasterFromNode(
             : undefined,
         });
       }
-    }
-
-    // Update cursor for the next call.
-    if (latestDecodedMessage) {
-      lastMessageByTopic.set(topic, latestDecodedMessage);
     }
 
     return messages;

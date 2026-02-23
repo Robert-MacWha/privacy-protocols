@@ -56,12 +56,12 @@ pub enum JsWakuTransportError {
 /// ```
 #[wasm_bindgen]
 pub struct JsBroadcasterManager {
-    inner: BroadcasterManager,
+    pub(crate) inner: BroadcasterManager,
 }
 
 #[wasm_bindgen]
 pub struct JsBroadcaster {
-    inner: Broadcaster,
+    pub(crate) inner: Broadcaster,
 }
 
 struct JsWakuTransport {
@@ -110,16 +110,6 @@ impl JsBroadcasterManager {
     }
 }
 
-impl JsBroadcasterManager {
-    pub fn inner(&self) -> &BroadcasterManager {
-        &self.inner
-    }
-
-    pub fn inner_mut(&mut self) -> &mut BroadcasterManager {
-        &mut self.inner
-    }
-}
-
 #[wasm_bindgen]
 impl JsBroadcaster {
     #[wasm_bindgen]
@@ -128,23 +118,18 @@ impl JsBroadcaster {
     }
 
     #[wasm_bindgen]
-    pub async fn broadcast(&self, tx: JsPoiProvedTx) -> Result<String, JsValue> {
+    pub fn address(&self) -> String {
+        self.inner.address.to_string()
+    }
+
+    #[wasm_bindgen]
+    pub async fn broadcast(&self, tx: &JsPoiProvedTx) -> Result<String, JsValue> {
         let tx_hash = self
             .inner
-            .broadcast(&tx.into(), &mut rand::rng())
+            .broadcast(&tx.inner, &mut rand::rng())
             .await
             .map_err(|e| JsValue::from_str(&format!("Broadcast error: {}", e)))?;
         Ok(tx_hash.to_string())
-    }
-}
-
-impl JsBroadcaster {
-    pub fn inner(&self) -> &Broadcaster {
-        &self.inner
-    }
-
-    pub fn inner_mut(&mut self) -> &mut Broadcaster {
-        &mut self.inner
     }
 }
 

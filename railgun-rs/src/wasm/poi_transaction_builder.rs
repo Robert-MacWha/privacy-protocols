@@ -13,12 +13,12 @@ use crate::{
 /// Builder for POI transact transactions (transfers and unshields).
 #[wasm_bindgen]
 pub struct JsPoiTransactionBuilder {
-    inner: PoiTransactionBuilder,
+    pub(crate) inner: PoiTransactionBuilder,
 }
 
 #[wasm_bindgen]
 pub struct JsPoiProvedTx {
-    inner: PoiProvedTx,
+    pub(crate) inner: PoiProvedTx,
 }
 
 #[wasm_bindgen]
@@ -94,20 +94,8 @@ impl From<PoiTransactionBuilder> for JsPoiTransactionBuilder {
     }
 }
 
-impl From<JsPoiTransactionBuilder> for PoiTransactionBuilder {
-    fn from(builder: JsPoiTransactionBuilder) -> Self {
-        builder.inner
-    }
-}
-
 impl From<PoiProvedTx> for JsPoiProvedTx {
     fn from(inner: PoiProvedTx) -> Self {
         Self { inner }
-    }
-}
-
-impl From<JsPoiProvedTx> for PoiProvedTx {
-    fn from(proved: JsPoiProvedTx) -> Self {
-        proved.inner
     }
 }

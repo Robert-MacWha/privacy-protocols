@@ -9,7 +9,10 @@ use tracing::{info, warn};
 use crate::{
     abis::railgun::RailgunSmartWallet,
     chain_config::ChainConfig,
-    railgun::indexer::syncer::{compat::BoxedSyncStream, syncer::{NoteSyncer, SyncEvent}},
+    railgun::indexer::syncer::{
+        compat::BoxedSyncStream,
+        syncer::{NoteSyncer, SyncEvent},
+    },
     sleep::sleep,
 };
 
@@ -118,12 +121,14 @@ impl RpcSyncer {
                 sleep(sleep_duration).await;
             }
 
-            info!(
-                "Fetched {} logs from blocks {} to {}",
-                logs.len(),
-                current_block,
-                batch_end
-            );
+            if logs.len() != 0 {
+                info!(
+                    "Fetched {} logs from blocks {} to {}",
+                    logs.len(),
+                    current_block,
+                    batch_end
+                );
+            }
 
             // Decode logs into events
             let mut events = Vec::new();

@@ -10,17 +10,17 @@ use crate::{
 };
 
 /// A transaction that has been proven for railgun.
-pub struct ProvedTx {
+pub struct ProvedTx<N = UtxoNote> {
     /// Transaction data to execute this transaction on-chain in railgun.
     pub tx_data: TxData,
     /// The operations included in this transaction alongside their proof data.
-    pub proved_operations: Vec<ProvedOperation>,
+    pub proved_operations: Vec<ProvedOperation<N>>,
     pub min_gas_price: u128,
 }
 
 /// A single proved operation.
-pub struct ProvedOperation {
-    pub operation: Operation<UtxoNote>,
+pub struct ProvedOperation<N = UtxoNote> {
+    pub operation: Operation<N>,
     pub circuit_inputs: TransactCircuitInputs,
     pub transaction: abis::railgun::Transaction,
 }

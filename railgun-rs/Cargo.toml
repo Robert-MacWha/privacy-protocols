@@ -18,7 +18,7 @@ harness = false
 required-features = [""]
 
 [features]
-default = ["native", "poi"]
+default = ["wasm", "poi"]
 native = ["wasmer", "ark-circom", "reqwest/rustls"]
 wasm = [
     "wasm-bindgen-futures",

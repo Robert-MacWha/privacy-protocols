@@ -11,7 +11,9 @@ use railgun_rs::{
     caip::AssetId,
     chain_config::{ChainConfig, MAINNET_CONFIG},
     circuit::native::Groth16Prover,
-    railgun::{RailgunProvider, indexer::syncer, signer::Signer, transaction::TransactionBuilder},
+    railgun::{
+        RailgunProvider, indexer::RpcSyncer, signer::Signer, transaction::TransactionBuilder,
+    },
 };
 use rand::random;
 use tracing::info;
@@ -51,7 +53,7 @@ async fn test_transact() {
     let usdc_contract = ERC20::new(USDC_ADDRESS, provider.clone());
 
     info!("Setting up railgun");
-    let rpc_syncer = Arc::new(syncer::RpcSyncer::new(provider.clone(), CHAIN));
+    let rpc_syncer = Arc::new(RpcSyncer::new(provider.clone(), CHAIN));
     let provider_state = std::fs::read("./tests/fixtures/provider_state.json").unwrap();
     let railgun_state = serde_json::from_slice(&provider_state).unwrap();
     let mut railgun =

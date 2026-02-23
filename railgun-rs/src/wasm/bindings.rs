@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
+use rand::random;
 use wasm_bindgen::prelude::*;
 
-use crate::crypto::keys::{ByteKey, SpendingKey, ViewingKey};
-use crate::railgun::signer::{PrivateKeySigner, Signer};
+use crate::{
+    crypto::keys::{ByteKey, SpendingKey, ViewingKey},
+    railgun::signer::{PrivateKeySigner, Signer},
+};
 
 /// Parse a 32-byte hex string (with or without 0x prefix)
 fn parse_hex_32(s: &str, name: &str) -> Result<[u8; 32], JsError> {
@@ -27,20 +30,18 @@ impl JsSigner {
     /// @param viewing_key - 32-byte hex string (with or without 0x prefix)
     /// @param chain_id - The chain ID for this account
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        spending_key: &str,
-        viewing_key: &str,
-        chain_id: u64,
-    ) -> Result<JsSigner, JsError> {
+    pub fn new(spending_key: &str, viewing_key: &str, chain_id: u64) -> Result<JsSigner, JsError> {
         let spending_key = parse_hex_32(spending_key, "spending_key")?;
         let viewing_key = parse_hex_32(viewing_key, "viewing_key")?;
 
         let spending_key = SpendingKey::from_bytes(spending_key);
         let viewing_key = ViewingKey::from_bytes(viewing_key);
 
-        Ok(JsSigner {
-            inner: PrivateKeySigner::new_evm(spending_key, viewing_key, chain_id),
-        })
+        Ok(PrivateKeySigner::new_evm(spending_key, viewing_key, chain_id).into())
+    }
+
+    pub fn random(chain_id: u64) -> JsSigner {
+        PrivateKeySigner::new_evm(random(), random(), chain_id).into()
     }
 
     /// The Railgun address (0zk...) for this account
@@ -51,7 +52,7 @@ impl JsSigner {
 }
 
 impl JsSigner {
-    pub fn inner(&self) -> Arc<dyn Signer> {
+    pub fn inner(&self) -> Arc<PrivateKeySigner> {
         self.inner.clone()
     }
 }
@@ -111,4 +112,10 @@ pub fn get_chain_config(chain_id: u64) -> Option<JsChainConfig> {
 #[wasm_bindgen]
 pub fn erc20_asset(address: &str) -> String {
     format!("erc20:{}", address.to_lowercase())
+}
+
+impl From<Arc<PrivateKeySigner>> for JsSigner {
+    fn from(signer: Arc<PrivateKeySigner>) -> Self {
+        JsSigner { inner: signer }
+    }
 }

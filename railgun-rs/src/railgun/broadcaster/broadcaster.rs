@@ -1,6 +1,13 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::{DefaultHasher, Hash, Hasher},
+    pin::Pin,
+    sync::Arc,
+    task::Poll,
+};
 
 use alloy::primitives::{Address, Bytes, ChainId, FixedBytes, TxHash};
+use futures::Stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -215,51 +222,86 @@ impl Broadcaster {
         self.send(shared_secret, message).await
     }
 
-    /// Send the message via the waku transport
+    /// Send the message via the waku transport.
+    ///
+    /// Subscribes to the response topic via Filter (live push) for prompt
+    /// delivery, while also polling Store as a fallback. Messages are
+    /// deduplicated by payload hash so re-delivered messages are ignored.
     async fn send(
         &self,
         shared_secret: SharedKey,
         message: BroadcastMessage,
     ) -> Result<TxHash, BroadcastError> {
-        info!(
-            "Broadcasting message: {}",
-            serde_json::to_string_pretty(&message)?
-        );
         let payload = serde_json::to_vec(&message)?;
         let req_topic = &transact_content_topic(self.chain_id);
         let resp_topic = &transact_response_content_topic(self.chain_id);
 
-        let start_time = web_time::Instant::now();
-        loop {
-            info!("Sending message to topic {}", req_topic);
-            self.transport.send(req_topic, payload.clone()).await?;
+        // Subscribe to response topic via Filter for live push delivery.
+        let mut filter_stream = self
+            .transport
+            .subscribe(vec![resp_topic.to_string()])
+            .await?;
 
+        let start_time = web_time::Instant::now();
+        let resend_interval = web_time::Duration::from_secs(30);
+
+        // Send the message once upfront.
+        info!("Sending message to topic {}", req_topic);
+        self.transport.send(req_topic, payload.clone()).await?;
+        let mut last_send = web_time::Instant::now();
+        let mut last_store_poll = web_time::Instant::now();
+
+        // Dedup messages by payload hash to avoid re-processing.
+        let mut seen: HashSet<u64> = HashSet::new();
+
+        loop {
             let elapsed = start_time.elapsed();
             if elapsed >= self.timeout {
                 return Err(BroadcastError::Timeout);
             }
 
-            if elapsed < self.retry_delay {
-                sleep(self.retry_delay - elapsed).await;
+            // Drain any messages that arrived via Filter (non-blocking).
+            while let Some(msg) = poll_next_ready(&mut filter_stream) {
+                let hash = hash_payload(&msg.payload);
+                if seen.insert(hash) {
+                    if let Some(tx_hash) = decode_response(&shared_secret, &msg.payload)? {
+                        return Ok(tx_hash);
+                    }
+                }
             }
 
-            // Retrieve historical messages to check if we got a response.
-            let historical_messages = self.transport.retrieve_historical(resp_topic).await?;
-            info!(
-                "Retrieved {} historical messages from topic {}",
-                historical_messages.len(),
-                resp_topic
-            );
-            let Some(message) = historical_messages.first() else {
-                continue;
-            };
-
-            //? If the message doesn't match our request (e.g. decryption fails), continue
-            //? If it matches but indicates an error, return that error.
-            //? If it matches and is ok, return the tx hash.
-            if let Some(tx_hash) = decode_response(&shared_secret, &message.payload)? {
-                return Ok(tx_hash);
+            // Poll Store as a fallback every retry_delay interval.
+            if last_store_poll.elapsed() >= self.retry_delay {
+                last_store_poll = web_time::Instant::now();
+                info!("Polling Store for response...");
+                match self.transport.retrieve_historical(resp_topic).await {
+                    Ok(msgs) => {
+                        for msg in &msgs {
+                            let hash = hash_payload(&msg.payload);
+                            if seen.insert(hash) {
+                                if let Some(tx_hash) =
+                                    decode_response(&shared_secret, &msg.payload)?
+                                {
+                                    return Ok(tx_hash);
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("retrieve_historical errored: {e}");
+                    }
+                }
             }
+
+            // Re-send periodically in case the original message was lost.
+            if last_send.elapsed() >= resend_interval {
+                info!("Re-sending message to topic {}", req_topic);
+                self.transport.send(req_topic, payload.clone()).await?;
+                last_send = web_time::Instant::now();
+            }
+
+            // Short sleep to avoid busy-looping between Filter drains.
+            sleep(web_time::Duration::from_millis(250)).await;
         }
     }
 }
@@ -324,6 +366,24 @@ fn encrypt_transaction<R: Rng>(
     Ok(((iv_tag.into(), data.into()), random_pubkey, shared_secret))
 }
 
+/// Non-blockingly poll the next ready item from a stream.
+/// Returns `Some(item)` if a message is immediately available, `None` otherwise.
+fn poll_next_ready<S: Stream + Unpin>(stream: &mut S) -> Option<S::Item> {
+    match Pin::new(stream).poll_next(&mut std::task::Context::from_waker(
+        futures::task::noop_waker_ref(),
+    )) {
+        Poll::Ready(Some(item)) => Some(item),
+        _ => None,
+    }
+}
+
+/// Hash a payload for deduplication purposes.
+fn hash_payload(payload: &[u8]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    payload.hash(&mut hasher);
+    hasher.finish()
+}
+
 /// Decode a broadcaster response message. If the message is not a valid response,
 /// returns Ok(None). If the message is a valid response but indicates an error,
 /// returns Err.
@@ -331,8 +391,6 @@ fn decode_response(
     shared_secret: &SharedKey,
     payload: &[u8],
 ) -> Result<Option<TxHash>, BroadcastError> {
-    info!("Decoding response with payload: {:?}", payload);
-
     let encrypted_resp: RpcResult = match serde_json::from_slice(payload) {
         Ok(resp) => resp,
         Err(e) => {
@@ -340,9 +398,8 @@ fn decode_response(
             return Ok(None);
         }
     };
-    let encrypted_resp = encrypted_resp.result;
-    info!("Deserialized encrypted response: {:#?}", encrypted_resp);
 
+    let encrypted_resp = encrypted_resp.result;
     let iv: [u8; 16] = encrypted_resp.0[..16]
         .try_into()
         .map_err(|e| BroadcastError::InvalidResponse(format!("Invalid IV length: {}", e)))?;
@@ -366,11 +423,9 @@ fn decode_response(
         }
     };
 
-    info!("Decrypted response: {:?}", decrypted_resp);
     //? Now that the decryption succeeded, we know that this message is a
     //? response to our request, since the shared decryption key is derived
     //? from our random request-specific key.
-
     let resp: Vec<u8> = decrypted_resp.into_iter().flatten().collect();
     let resp: TransactResponse = match serde_json::from_slice(&resp) {
         Ok(resp) => resp,
@@ -392,10 +447,6 @@ fn decode_response(
         ));
     };
 
-    info!(
-        "Broadcaster response indicates success with tx hash: {}",
-        tx_hash
-    );
     return Ok(Some(tx_hash));
 }
 
@@ -465,6 +516,18 @@ mod test {
         );
     }
 
+    #[test]
+    fn test_decode_response_ok() {
+        let shared_secret =
+            SharedKey::from_hex("0e55de7635f98fc8a740e2e23328540b04a95d9784ff61af4a509b598795865d")
+                .unwrap();
+        let payload = "7b226a736f6e727063223a22322e30222c22726573756c74223a5b22307834363639396533313465666432613932663637656333643266636563656533653139373665303136303638313865653036393032376137313239613161376165222c2230786361333232326233393362346332616638633763333736353664663861636462626664623039376164303735336436626231643366326439303962356562653962656434333537356263643739636332613162333263353033353465316138316232343662366330323638323366396164343866376561383265656433326138636661393164393235316437376365626263643131646666653765386435225d7d";
+        let payload = hex::decode(payload).unwrap();
+
+        let resp = decode_response(&shared_secret, &payload).unwrap();
+        insta::assert_debug_snapshot!(resp);
+    }
+
     fn test_params(broadcaster_viewing_key: ViewingPublicKey) -> BroadcastParamsRaw {
         let pre_transaction_pois_per_txid_leaf_per_list = HashMap::from([(
             "test_list_key".into(),
@@ -487,7 +550,7 @@ mod test {
                     },
                     txid_merkleroot: uint!(9_U256).into(),
                     poi_merkleroots: vec![uint!(10_U256).into(), uint!(11_U256).into()],
-                    blinded_commitments_out: vec![uint!(12_U256), uint!(13_U256)],
+                    blinded_commitments_out: vec![uint!(12_U256).into(), uint!(13_U256).into()],
                     railgun_txid_if_has_unshield: uint!(14_U256).into(),
                 },
             )]),

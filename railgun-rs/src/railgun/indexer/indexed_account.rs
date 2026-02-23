@@ -176,8 +176,7 @@ impl IndexedAccount {
             };
 
             info!(
-                "Decrypted Transact Note: index={}, value={}, asset={}",
-                index,
+                "Decrypted Transact Note: value={}, asset={}",
                 note.value(),
                 note.asset()
             );
@@ -207,7 +206,10 @@ impl IndexedAccount {
                 .or_default()
                 .nullify(U256::from_be_bytes(**nullifier), timestamp);
 
-            matched |= spent.is_some();
+            if spent.is_some() {
+                info!("Nullified note");
+                matched = true;
+            }
         }
 
         matched

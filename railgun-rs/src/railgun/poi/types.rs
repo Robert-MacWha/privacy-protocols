@@ -122,6 +122,7 @@ pub struct GetPoisPerListParams {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlindedCommitmentData {
+    #[serde(rename = "type")]
     pub commitment_type: BlindedCommitmentType,
     pub blinded_commitment: BlindedCommitment,
 }
@@ -177,7 +178,7 @@ pub struct PreTransactionPoi {
     #[serde(rename = "poiMerkleroots")]
     pub poi_merkleroots: Vec<MerkleRoot>,
     #[serde(rename = "blindedCommitmentsOut")]
-    pub blinded_commitments_out: Vec<U256>,
+    pub blinded_commitments_out: Vec<BlindedCommitment>,
     #[serde(rename = "railgunTxidIfHasUnshield")]
     pub railgun_txid_if_has_unshield: Txid,
 }
@@ -197,9 +198,16 @@ pub struct TransactProofData {
     #[serde(rename = "snarkProof")]
     pub proof: Proof,
     pub poi_merkleroots: Vec<MerkleRoot>,
+    /// Merkle root of the txid tree the inclusion proof was generated with
     pub txid_merkleroot: MerkleRoot,
+    /// Index of the txid tree the inclusion proof was generated with
+    ///
+    /// NOT the leaf index of the txid, but the index for the merkleroot of the
+    /// txid tree. If a single railgun transaction had multiple txids, this
+    /// would be the same for all of them since they're all being proven against
+    /// the same snapshot of the txid tree.
     pub txid_merkleroot_index: u64,
-    pub blinded_commitments_out: Vec<U256>,
+    pub blinded_commitments_out: Vec<BlindedCommitment>,
     pub railgun_txid_if_has_unshield: Txid,
 }
 

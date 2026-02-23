@@ -3,9 +3,11 @@ mod compat;
 mod decimal_bigint;
 mod rpc_syncer;
 mod subsquid_syncer;
-pub mod syncer;
+mod syncer;
 
 pub use chained_syncer::ChainedSyncer;
 pub use rpc_syncer::RpcSyncer;
 pub use subsquid_syncer::SubsquidSyncer;
-pub use syncer::{LegacyCommitment, NoteSyncer, Operation, SyncEvent, TransactionSyncer};
+#[cfg(feature = "poi")]
+pub use syncer::TransactionSyncer;
+pub use syncer::{LegacyCommitment, NoteSyncer, Operation, SyncEvent};

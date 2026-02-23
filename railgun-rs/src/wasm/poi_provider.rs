@@ -10,11 +10,12 @@ use crate::{
     chain_config::get_chain_config,
     railgun::{
         PoiProvider, PoiProviderState, address::RailgunAddress, broadcaster::broadcaster::Fee,
-        indexer::syncer::SubsquidSyncer, poi::PoiClient,
+        indexer::SubsquidSyncer, poi::PoiClient,
     },
     wasm::{
         JsFee, JsShieldBuilder,
         bindings::JsSigner,
+        broadcaster::JsBroadcaster,
         indexer::{JsBalanceMap, JsSyncer},
         poi_transaction_builder::{JsPoiProvedTx, JsPoiTransactionBuilder},
         prover::JsProver,
@@ -152,7 +153,7 @@ impl JsPoiProvider {
         let mut rng = rand::rng();
         let proved_tx = self
             .inner
-            .build(builder.into(), &mut rng)
+            .build(builder.inner, &mut rng)
             .await
             .map_err(|e| JsError::new(&format!("Build error: {}", e)))?;
 
@@ -169,11 +170,29 @@ impl JsPoiProvider {
         let fee: Fee = fee.into();
         let proved_tx = self
             .inner
-            .build_broadcast(builder.into(), fee_payer.inner(), &fee, &mut rng)
+            .build_broadcast(builder.inner, fee_payer.inner(), &fee, &mut rng)
             .await
             .map_err(|e| JsError::new(&format!("Build/broadcast error: {}", e)))?;
 
         Ok(proved_tx.into())
+    }
+
+    pub async fn broadcast(
+        &mut self,
+        broadcaster: &JsBroadcaster,
+        proved_tx: &JsPoiProvedTx,
+    ) -> Result<(), JsError> {
+        self.inner
+            .broadcast(&broadcaster.inner, &proved_tx.inner)
+            .await
+            .map_err(|e| JsError::new(&format!("Broadcast error: {}", e)))
+    }
+
+    pub async fn await_indexed(&mut self, tx: &JsPoiProvedTx) -> Result<(), JsError> {
+        self.inner
+            .await_indexed(&tx.inner)
+            .await
+            .map_err(|e| JsError::new(&format!("Await indexed error: {}", e)))
     }
 
     pub async fn sync(&mut self) -> Result<(), JsError> {

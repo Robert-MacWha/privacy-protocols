@@ -11,18 +11,18 @@ use crate::{
     circuit::prover::TransactProver,
     railgun::{
         address::RailgunAddress,
-        indexer::{UtxoIndexer, UtxoIndexerError, UtxoIndexerState, syncer::NoteSyncer},
+        indexer::{NoteSyncer, UtxoIndexer, UtxoIndexerError, UtxoIndexerState},
         merkle_tree::SmartWalletUtxoVerifier,
         signer::Signer,
-        transaction::{TransactionBuilderError, ProvedTx, ShieldBuilder, TransactionBuilder},
+        transaction::{ProvedTx, ShieldBuilder, TransactionBuilder, TransactionBuilderError},
     },
 };
 
 /// Provides access to Railgun interactions
 pub struct RailgunProvider {
     pub chain: ChainConfig,
-    utxo_indexer: UtxoIndexer,
-    prover: Arc<dyn TransactProver>,
+    pub(crate) utxo_indexer: UtxoIndexer,
+    pub(crate) prover: Arc<dyn TransactProver>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -155,12 +155,5 @@ impl RailgunProvider {
     /// Resets the provider's internal indexer state
     pub fn reset_indexer(&mut self) {
         self.utxo_indexer.reset();
-    }
-
-    pub(crate) fn utxo_indexer(&self) -> &UtxoIndexer {
-        &self.utxo_indexer
-    }
-    pub(crate) fn prover(&self) -> Arc<dyn TransactProver> {
-        self.prover.clone()
     }
 }

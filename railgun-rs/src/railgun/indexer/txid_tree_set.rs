@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::info;
 
 use crate::{
     crypto::railgun_txid::Txid,
@@ -15,16 +16,16 @@ use crate::{
 /// Manages the set of TXID Merkle trees, with a pending queue of operations
 /// not yet validated by the POI aggregator.
 pub struct TxidTreeSet {
-    trees: BTreeMap<u32, TxidMerkleTree>,
+    pub trees: BTreeMap<u32, TxidMerkleTree>,
+    /// Maps TxID to UTXO tree position (tree number, leaf index)
+    pub txid_to_utxo_pos: HashMap<Txid, (u32, u32)>,
+    /// Maps TxID to TXID tree position (tree number, leaf index)
+    pub txid_to_txid_pos: HashMap<Txid, (u32, u32)>,
+
     poi_client: PoiClient,
 
     /// Operations queued but not yet validated by the POI aggregator.
     pending: VecDeque<(Operation, u64)>,
-
-    /// Maps TxID to UTXO tree position (tree number, leaf index)
-    txid_to_utxo_pos: HashMap<Txid, (u32, u32)>,
-    /// Maps TxID to TXID tree position (tree number, leaf index)
-    txid_to_txid_pos: HashMap<Txid, (u32, u32)>,
 
     /// Packed validated txid index from the last successful `update()`.
     /// Format: `(tree_number << 16) | leaf_index_within_tree`.
@@ -94,31 +95,21 @@ impl TxidTreeSet {
         self.pending.push_back((op, block));
     }
 
-    /// Returns the start position of a given TxID in the UTXO tree.
-    pub fn utxo_position(&self, txid: &Txid) -> Option<(u32, u32)> {
-        self.txid_to_utxo_pos.get(txid).copied()
-    }
-
-    /// Returns the position of a given TxID in the TXID tree.
-    pub fn txid_position(&self, txid: &Txid) -> Option<(u32, u32)> {
-        self.txid_to_txid_pos.get(txid).copied()
-    }
-
-    /// Returns a reference to the validated TXID tree with the given number.
-    pub fn tree(&self, number: u32) -> Option<&TxidMerkleTree> {
-        self.trees.get(&number)
-    }
-
     /// Drains pending operations into the validated trees up to the POI aggregator's
     /// current `validated_txid`, then verifies the computed root matches.
     pub async fn update(&mut self) -> Result<(), TxidTreeError> {
         let validated = self.poi_client.validated_txid().await?;
+        info!(
+            "Latest validated txid index from POI: tree {}, leaf {}",
+            validated.tree(),
+            validated.leaf_index()
+        );
 
         let current_total: usize = self.trees.values().map(|t| t.leaves_len()).sum();
         let target_total =
             (validated.tree() as usize) * TOTAL_LEAVES + validated.leaf_index() as usize + 1;
-        let to_drain = target_total.saturating_sub(current_total);
 
+        let to_drain = target_total.saturating_sub(current_total);
         if to_drain == 0 {
             return Ok(());
         }
@@ -167,6 +158,11 @@ impl TxidTreeSet {
                     tree_number: *tree_number,
                 });
             }
+
+            info!(
+                "Validated TXID tree up to tree {}, leaf {} (total {})",
+                tree_number, index, total
+            );
         }
 
         self.validated_index = total as u64;

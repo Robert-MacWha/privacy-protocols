@@ -41,7 +41,7 @@ impl JsShieldBuilder {
     pub fn build(self) -> Result<JsTxData, JsError> {
         let tx = self
             .inner
-            .build()
+            .build(&mut rand::rng())
             .map_err(|e| JsError::new(&format!("Shield build error: {}", e)))?;
 
         Ok(tx.into())

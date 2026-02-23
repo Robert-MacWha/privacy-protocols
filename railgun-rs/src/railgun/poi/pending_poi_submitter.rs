@@ -18,7 +18,7 @@ use crate::{
         indexer::{TxidIndexer, UtxoIndexer},
         merkle_tree::{TOTAL_LEAVES, UtxoTreeIndex},
         note::utxo::UtxoNote,
-        poi::{ListKey, PoiClient, PoiClientError, types::TransactProofData},
+        poi::{BlindedCommitment, ListKey, PoiClient, PoiClientError, types::TransactProofData},
         transaction::PoiProvedOperation,
     },
 };
@@ -103,12 +103,7 @@ impl PendingPoiSubmitter {
         let out_notes = op.operation.out_notes();
         let encryptable_notes = op.operation.out_encryptable_notes();
 
-        info!(
-            "Registering pending POI submission for txid {:?}, with {} input notes and {} output notes",
-            txid,
-            in_notes.len(),
-            out_notes.len(),
-        );
+        info!("Registering pending POI submission for txid {:?}", txid,);
         self.pending.push(PendingPoiEntry {
             txid,
             spending_pubkey,
@@ -150,24 +145,26 @@ impl PendingPoiSubmitter {
         for i in (0..self.pending.len()).rev() {
             let entry = &self.pending[i];
 
-            let Some((utxo_tree_number, utxo_leaf_index)) =
-                txid_indexer.txid_set.utxo_position(&entry.txid)
-            else {
-                info!("Txid {:?} not yet found in UTXO tree, skipping", entry.txid);
+            let Some((txid_tree_number, _)) = txid_indexer.txid_position(&entry.txid) else {
+                info!(
+                    "Txid {:?} for note within bound params hash {:?} not yet found in TXID tree, skipping",
+                    entry.txid, entry.bound_params_hash
+                );
                 continue;
             };
 
-            let Some((txid_tree_number, txid_leaf_index)) =
-                txid_indexer.txid_set.txid_position(&entry.txid)
+            let Some((utxo_tree_number, utxo_leaf_index)) = txid_indexer.utxo_position(&entry.txid)
             else {
-                info!("Txid {:?} not yet found in TXID tree, skipping", entry.txid);
+                info!(
+                    "Txid {:?} for note within bound params hash {:?} not yet found in UTXO tree, skipping",
+                    entry.txid, entry.bound_params_hash
+                );
                 continue;
             };
 
             let txid_tree = txid_indexer
-                .txid_set
-                .tree(utxo_tree_number)
-                .ok_or(PendingPoiError::MissingTxidTree(utxo_tree_number))?;
+                .tree(txid_tree_number)
+                .ok_or(PendingPoiError::MissingTxidTree(txid_tree_number))?;
 
             let utxo_tree = utxo_indexer
                 .utxo_trees
@@ -177,9 +174,13 @@ impl PendingPoiSubmitter {
             let included = UtxoTreeIndex::included(utxo_tree_number, utxo_leaf_index);
 
             // Re-fetch fresh POI merkle proofs from the aggregator.
-            let fresh_poi_notes = poi_client
-                .note_to_poi_note(entry.in_notes.clone(), &entry.list_keys)
-                .await?;
+            let mut poi_notes = Vec::new();
+            for note in &entry.in_notes {
+                let poi_note = poi_client
+                    .note_to_poi_note(note.clone(), &entry.list_keys)
+                    .await?;
+                poi_notes.push(poi_note);
+            }
 
             // Build and submit a proof for each list key.
             let mut proof_data_map = HashMap::new();
@@ -190,7 +191,7 @@ impl PendingPoiSubmitter {
                     utxo_tree,
                     entry.utxo_tree_in,
                     entry.bound_params_hash,
-                    &fresh_poi_notes,
+                    &poi_notes,
                     &entry.out_commitments,
                     &entry.out_npks,
                     &entry.out_values,
@@ -206,10 +207,13 @@ impl PendingPoiSubmitter {
                     .await
                     .map_err(PendingPoiError::Prover)?;
 
-                let blinded_commitments_out = public_inputs[0..inputs.nullifiers.len()].to_vec();
-
-                let txid_merkleroot_index =
-                    txid_tree_number as u64 * TOTAL_LEAVES as u64 + txid_leaf_index as u64;
+                let blinded_commitments_out = public_inputs[0..inputs.commitments.len()]
+                    .iter()
+                    .copied()
+                    .map(BlindedCommitment::from)
+                    .collect();
+                let txid_merkleroot_index = txid_tree_number as u64 * TOTAL_LEAVES as u64
+                    + (txid_tree.leaves_len() as u64 - 1);
                 proof_data_map.insert(
                     list_key.clone(),
                     TransactProofData {
