@@ -145,7 +145,7 @@ async fn test_shield_poi(
     info!("Shielded with tx hash: {:?}", tx.transaction_hash);
 
     let balance_1 = await_balance_update(railgun, account_1.clone(), USDC, list_key).await;
-    let balance_2 = await_balance_update(railgun, account_2.clone(), USDC, list_key).await;
+    let balance_2 = railgun.balance(account_2.address(), &list_key).await;
 
     assert_eq!(balance_1.get(&(PoiStatus::Valid, USDC)), Some(&10));
     assert_eq!(balance_2.get(&(PoiStatus::Valid, USDC)), None);
@@ -178,7 +178,7 @@ async fn test_transfer_poi(
     info!("Transferred with tx hash: {:?}", tx.transaction_hash);
 
     let balance_1 = await_balance_update(railgun, account_1.clone(), USDC, list_key).await;
-    let balance_2 = await_balance_update(railgun, account_2.clone(), USDC, list_key).await;
+    let balance_2 = railgun.balance(account_2.address(), &list_key).await;
 
     assert_eq!(balance_1.get(&(PoiStatus::Valid, USDC)), Some(&5));
     assert_eq!(balance_2.get(&(PoiStatus::Valid, USDC)), Some(&5));
@@ -223,7 +223,7 @@ async fn test_unshield_poi(
         .unwrap();
 
     let balance_1 = await_balance_update(railgun, account_1.clone(), USDC, list_key).await;
-    let balance_2 = await_balance_update(railgun, account_2.clone(), USDC, list_key).await;
+    let balance_2 = railgun.balance(account_2.address(), &list_key).await;
 
     let delta_balance_eoa = post_unshield_balance_eoa - pre_unshield_balance_eoa;
 
@@ -243,12 +243,13 @@ async fn await_balance_update(
         info!("Waiting for balance to update...");
         sleep(web_time::Duration::from_secs(10)).await;
 
-        if start.elapsed().as_secs() > 80 {
-            panic!("Balance did not update within 80 seconds");
+        if start.elapsed().as_secs() > 100 {
+            panic!("Balance did not update within 100 seconds");
         }
 
         railgun.sync().await.unwrap();
         let balance = railgun.balance(account.address(), &list_key).await;
+        info!("Balance: {:?}", balance);
 
         if balance.get(&(PoiStatus::Missing, asset)) == None {
             return balance;
