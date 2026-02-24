@@ -56,6 +56,8 @@ pub struct BlindedKey([u8; 32]);
 pub enum KeyError {
     #[error("Failed to decompress public key")]
     DecompressionFailed,
+    #[error("Hex decoding error: {0}")]
+    HexDecodingError(#[from] hex::FromHexError),
 }
 
 pub trait ByteKey: Sized {
@@ -78,11 +80,13 @@ pub trait HexKey: ByteKey {
         hex::encode(self.as_bytes())
     }
 
-    fn from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
+    fn from_hex(hex: &str) -> Result<Self, KeyError> {
         let hex = hex.strip_prefix("0x").unwrap_or(hex);
 
         if hex.len() != 64 {
-            return Err(hex::FromHexError::InvalidStringLength);
+            return Err(KeyError::HexDecodingError(
+                hex::FromHexError::InvalidStringLength,
+            ));
         }
 
         let bytes = hex::decode(hex)?;

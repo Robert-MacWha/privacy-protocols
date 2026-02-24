@@ -82,10 +82,8 @@ impl PendingPoiSubmitter {
         }
     }
 
-    pub fn from_state(state: PendingPoiSubmitterState) -> Self {
-        Self {
-            pending: state.pending,
-        }
+    pub fn set_state(&mut self, state: PendingPoiSubmitterState) {
+        self.pending = state.pending;
     }
 
     pub fn state(&self) -> PendingPoiSubmitterState {

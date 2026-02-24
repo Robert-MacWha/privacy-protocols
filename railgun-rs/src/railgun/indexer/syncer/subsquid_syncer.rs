@@ -387,13 +387,23 @@ impl SubsquidSyncer {
             .unwrap_or("".to_string());
 
         let mut nullified_events = Vec::new();
+
         for n in nullifieds.into_iter() {
+            let bytes = n.nullifier.as_ref();
+
+            if bytes.len() > 32 {
+                return Err(SubsquidError::InvalidData(format!(
+                    "Invalid nullifier length {}: {}",
+                    bytes.len(),
+                    n.nullifier
+                )));
+            }
+
             let nullified = RailgunSmartWallet::Nullified {
                 treeNumber: n.tree_number as u16,
-                nullifier: vec![n.nullifier.as_ref().try_into().map_err(|e| {
-                    SubsquidError::InvalidData(format!("Invalid nullifier {}: {}", n.nullifier, e))
-                })?],
+                nullifier: vec![FixedBytes::<32>::left_padding_from(bytes)],
             };
+
             nullified_events.push((nullified, n.block_number.0.saturating_to::<u64>()));
         }
 

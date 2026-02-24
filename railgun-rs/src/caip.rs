@@ -3,23 +3,25 @@ use std::{fmt::Display, str::FromStr};
 use alloy::primitives::{Address, U256, Uint};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tsify::Tsify;
 
-use crate::{
-    abis::railgun::{TokenData, TokenType},
-    railgun::address::RailgunAddress,
-};
+use crate::abis::railgun::{TokenData, TokenType};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+/// CAIP-10 style Asset ID.  ERC721 and ERC1155 sub-id represented as hex strings.
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Tsify,
+)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
 pub enum AssetId {
-    Erc20(Address),
-    Erc721(Address, U256),
-    Erc1155(Address, U256),
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum AccountId {
-    Eip155(Address),
-    Railgun(RailgunAddress),
+    Erc20(#[tsify(type = "string")] Address),
+    Erc721(
+        #[tsify(type = "string")] Address,
+        #[tsify(type = "string")] U256,
+    ),
+    Erc1155(
+        #[tsify(type = "string")] Address,
+        #[tsify(type = "string")] U256,
+    ),
 }
 
 impl AssetId {

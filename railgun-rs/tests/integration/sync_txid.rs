@@ -24,16 +24,9 @@ async fn test_sync_txid() {
         .ok();
 
     info!("Setting up POI client");
-    let poi_client = PoiClient::new(CHAIN.poi_endpoint.unwrap(), CHAIN.id)
-        .await
-        .unwrap();
+    let poi_client = PoiClient::new(CHAIN.poi_endpoint, CHAIN.id).await.unwrap();
 
-    info!("Setting up indexer");
-    let endpoint = CHAIN
-        .subsquid_endpoint
-        .expect("Subsquid endpoint must be set");
-
-    let subsquid_syncer = Arc::new(SubsquidSyncer::new(endpoint));
+    let subsquid_syncer = Arc::new(SubsquidSyncer::new(CHAIN.subsquid_endpoint));
     let mut indexer = TxidIndexer::new(subsquid_syncer, poi_client);
 
     info!("Syncing indexer");

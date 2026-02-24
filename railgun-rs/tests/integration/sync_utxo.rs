@@ -35,11 +35,7 @@ async fn test_sync_utxo() {
         .erased();
 
     info!("Setting up indexer");
-    let endpoint = CHAIN
-        .subsquid_endpoint
-        .expect("Subsquid endpoint must be set");
-
-    let subsquid_syncer = Arc::new(SubsquidSyncer::new(endpoint));
+    let subsquid_syncer = Arc::new(SubsquidSyncer::new(CHAIN.subsquid_endpoint));
     let prover = Arc::new(Groth16Prover::new_native("./artifacts"));
     let mut railgun =
         RailgunProvider::new(CHAIN, provider.clone(), subsquid_syncer.clone(), prover);

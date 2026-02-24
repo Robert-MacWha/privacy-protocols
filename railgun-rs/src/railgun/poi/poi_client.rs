@@ -14,7 +14,7 @@ use tracing::info;
 
 use crate::railgun::{
     merkle_tree::{MerkleProof, MerkleRoot, MerkleTreeVerifier},
-    note::{IncludedNote, Note, utxo::UtxoNote},
+    note::{IncludedNote, utxo::UtxoNote},
     poi::{
         PoiStatus,
         poi_note::PoiNote,
@@ -165,7 +165,6 @@ impl PoiClient {
     ) -> Result<PoiNote<S>, PoiClientError> {
         let blinded_commitment = note.blinded_commitment();
 
-        let status = self.note_pois(&note, list_keys).await?;
         let mut proofs = self
             .merkle_proofs(&vec![blinded_commitment.into()], list_keys)
             .await?;
@@ -173,7 +172,7 @@ impl PoiClient {
             .remove(&blinded_commitment.into())
             .unwrap_or(HashMap::new());
 
-        Ok(PoiNote::new(note, status, proofs))
+        Ok(PoiNote::new(note, proofs))
     }
 
     /// Fetches the POI merkle proofs for the given blinded commitments and

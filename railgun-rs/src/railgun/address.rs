@@ -4,11 +4,17 @@ use bech32::Hrp;
 use serde::{self, Deserialize, Serialize};
 use thiserror::Error;
 use tracing::warn;
+use tsify::Tsify;
 
-use crate::crypto::keys::{HexKey, MasterPublicKey, SpendingKey, ViewingKey, ViewingPublicKey};
+use crate::crypto::keys::{
+    HexKey, KeyError, MasterPublicKey, SpendingKey, ViewingKey, ViewingPublicKey,
+};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Tsify,
+)]
 #[serde(try_from = "String", into = "String")]
+#[tsify(from_wasm_abi, into_wasm_abi, type = "String")]
 pub struct RailgunAddress {
     master_key: MasterPublicKey,
     viewing_pubkey: ViewingPublicKey,
@@ -24,17 +30,19 @@ pub enum ChainId {
 #[derive(Debug, Error)]
 pub enum RailgunAddressError {
     #[error("Bech32 decoding error: {0}")]
-    Bech32DecodeError(#[from] bech32::DecodeError),
+    Bech32Decode(#[from] bech32::DecodeError),
     #[error("Invalid Prefix: {0}")]
     InvalidPrefix(String),
     #[error("ParseInt Error: {0}")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("ParseHex Error: {0}")]
-    ParseHexError(#[from] hex::FromHexError),
+    ParseInt(#[from] std::num::ParseIntError),
+    #[error("Key Error: {0}")]
+    Key(#[from] KeyError),
     #[error("Invalid ChainId: {0}")]
     InvalidChainId(u8),
     #[error("Invalid Version: {0}")]
     InvalidVersion(u8),
+    #[error("Hex decoding error: {0}")]
+    HexDecode(#[from] hex::FromHexError),
 }
 
 const ADDRESS_LENGTH_LIMIT: usize = 127;
@@ -159,7 +167,7 @@ fn encode_evm_chain_id(chain_id: alloy::primitives::ChainId) -> String {
 }
 
 fn decode_network_id(encoded: &str) -> Result<ChainId, RailgunAddressError> {
-    let encoded = hex::decode(encoded).map_err(RailgunAddressError::ParseHexError)?;
+    let encoded = hex::decode(encoded).map_err(RailgunAddressError::HexDecode)?;
     match encoded[0] {
         0 => {
             let mut id_bytes = [0u8; 8];

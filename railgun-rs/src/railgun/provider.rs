@@ -61,27 +61,18 @@ impl RailgunProvider {
         }
     }
 
-    pub fn from_state(
-        state: RailgunProviderState,
-        provider: DynProvider,
-        utxo_syncer: Arc<dyn NoteSyncer>,
-        prover: Arc<dyn TransactProver>,
-    ) -> Result<Self, RailgunProviderError> {
-        let chain = get_chain_config(state.chain_id)
+    pub fn set_state(&mut self, state: RailgunProviderState) -> Result<(), RailgunProviderError> {
+        self.chain = get_chain_config(state.chain_id)
             .ok_or(RailgunProviderError::UnsupportedChainId(state.chain_id))?;
-
-        let utxo_verifier = Arc::new(SmartWalletUtxoVerifier::new(
-            chain.railgun_smart_wallet,
-            provider.clone(),
-        ));
-
-        Ok(Self {
-            chain,
-            utxo_indexer: UtxoIndexer::from_state(utxo_syncer, utxo_verifier, state.indexer),
-            prover,
-        })
+        self.utxo_indexer.set_state(state.indexer);
+        Ok(())
     }
 
+    /// Returns the provider's state as a serialized state object. Used to save state for
+    /// future restoration.
+    ///
+    /// State does NOT include registered accounts. Accounts must be re-registered
+    /// each time a provider is created.
     pub fn state(&self) -> RailgunProviderState {
         RailgunProviderState {
             chain_id: self.chain.id,
@@ -89,19 +80,23 @@ impl RailgunProvider {
         }
     }
 
-    /// Registers an account with the provider. The provider will track the balance
-    /// and transactions for this account as it syncs.
+    /// Register an account with the provider. The provider will index the account's
+    /// transactions and balance as it syncs.
+    ///
+    /// Providers will NOT retroactively index transactions for an account.
+    /// Providers will NOT save registered accounts in their state. Accounts
+    /// must be re-registered each time a provider is created.
     pub fn register(&mut self, account: Arc<dyn Signer>) {
         self.utxo_indexer.register(account);
     }
 
-    /// Registers an account and resyncs from the specified block. Resyncing is
-    /// necessary to initially populate an account's state. Resyncing can be skipped
-    ///
+    /// Register an account with the provider and trigger a provider re-sync
+    /// starting from the provided block number. The provider will index the
+    /// account's transactions and balance as it syncs.
     pub async fn register_resync(
         &mut self,
         account: Arc<dyn Signer>,
-        from_block: Option<u64>,
+        from_block: u64,
     ) -> Result<(), RailgunProviderError> {
         self.utxo_indexer
             .register_resync(account, from_block)
@@ -109,22 +104,22 @@ impl RailgunProvider {
         Ok(())
     }
 
-    /// Raw railgun balance
+    /// Returns the raw balance for the given address
     pub fn balance(&self, address: RailgunAddress) -> HashMap<AssetId, u128> {
         self.utxo_indexer.balance(address)
     }
 
-    /// Returns a shield builder
+    /// Helper to create a shield builder
     pub fn shield(&self) -> ShieldBuilder {
         ShieldBuilder::new(self.chain)
     }
 
-    /// Returns a transact builder
+    /// Helper to create a transaction builder
     pub fn transact(&self) -> TransactionBuilder {
         TransactionBuilder::new()
     }
 
-    /// Builds a transaction using the provider's internal state
+    /// Build a executable transaction from a transaction builder
     pub async fn build<R: Rng>(
         &self,
         builder: TransactionBuilder,
@@ -140,19 +135,16 @@ impl RailgunProvider {
             .await?)
     }
 
-    /// Syncs the provider to the specified block number.
     pub async fn sync_to(&mut self, block_number: u64) -> Result<(), RailgunProviderError> {
         self.utxo_indexer.sync_to(block_number).await?;
         Ok(())
     }
 
-    /// Syncs the provider to the latest block.
     pub async fn sync(&mut self) -> Result<(), RailgunProviderError> {
         self.utxo_indexer.sync().await?;
         Ok(())
     }
 
-    /// Resets the provider's internal indexer state
     pub fn reset_indexer(&mut self) {
         self.utxo_indexer.reset();
     }

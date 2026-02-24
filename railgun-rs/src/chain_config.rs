@@ -21,10 +21,10 @@ pub struct ChainConfig {
     ///
     /// Sourced from
     /// https://github.com/Railgun-Community/wallet/blob/3ee3364648d416aa055bb1d5f5a2c4961be00ed6/src/services/railgun/railgun-txids/graphql/index.ts#L3187
-    pub subsquid_endpoint: Option<&'static str>,
+    pub subsquid_endpoint: &'static str,
 
-    /// Optional POI endpoint for this chain, if available
-    pub poi_endpoint: Option<&'static str>,
+    /// Optional POI endpoint for this chain,
+    pub poi_endpoint: &'static str,
 }
 
 pub const CHAIN_CONFIGS: &[ChainConfig] = &[MAINNET_CONFIG, SEPOLIA_CONFIG];
@@ -34,10 +34,8 @@ pub const MAINNET_CONFIG: ChainConfig = ChainConfig {
     railgun_smart_wallet: address!("0xFA7093CDD9EE6932B4eb2c9e1cde7CE00B1FA4b9"),
     deployment_block: 14693013,
     poi_start_block: 18514200,
-    subsquid_endpoint: Some(
-        "https://rail-squid.squids.live/squid-railgun-ethereum-v2/v/v1/graphql",
-    ),
-    poi_endpoint: Some("https://ppoi-agg.horsewithsixlegs.xyz/"),
+    subsquid_endpoint: "https://rail-squid.squids.live/squid-railgun-ethereum-v2/v/v1/graphql",
+    poi_endpoint: "https://ppoi-agg.horsewithsixlegs.xyz/",
 };
 
 pub const SEPOLIA_CONFIG: ChainConfig = ChainConfig {
@@ -45,10 +43,8 @@ pub const SEPOLIA_CONFIG: ChainConfig = ChainConfig {
     railgun_smart_wallet: address!("0xeCFCf3b4eC647c4Ca6D49108b311b7a7C9543fea"),
     deployment_block: 5784774,
     poi_start_block: 5944700,
-    subsquid_endpoint: Some(
-        "https://rail-squid.squids.live/squid-railgun-eth-sepolia-v2/v/v1/graphql",
-    ),
-    poi_endpoint: Some("https://ppoi-agg.horsewithsixlegs.xyz/"),
+    subsquid_endpoint: "https://rail-squid.squids.live/squid-railgun-eth-sepolia-v2/v/v1/graphql",
+    poi_endpoint: "https://ppoi-agg.horsewithsixlegs.xyz/",
 };
 
 pub const fn get_chain_config(chain_id: ChainId) -> Option<ChainConfig> {

@@ -6,7 +6,7 @@ use alloy::primitives::Address;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 #[cfg(feature = "wasm")]
-use tsify_next::Tsify;
+use tsify::Tsify;
 
 use crate::railgun::{address::RailgunAddress, poi::ListKey};
 

@@ -29,7 +29,6 @@ use crate::{
             PoiProvedTx, PoiTransactionBuilder, PoiTransactionBuilderError, ShieldBuilder,
         },
     },
-    sleep::sleep,
 };
 
 pub struct PoiProvider {
@@ -85,34 +84,18 @@ impl PoiProvider {
         }
     }
 
-    pub fn from_state(
-        state: PoiProviderState,
-        provider: DynProvider,
-        utxo_syncer: Arc<dyn NoteSyncer>,
-        tx_prover: Arc<dyn TransactProver>,
-        txid_syncer: Arc<dyn TransactionSyncer>,
-        poi_client: PoiClient,
-        poi_prover: Arc<dyn PoiProver>,
-    ) -> Result<Self, PoiProviderError> {
-        Ok(Self {
-            inner: RailgunProvider::from_state(
-                state.inner,
-                provider.clone(),
-                utxo_syncer,
-                tx_prover,
-            )?,
-            provider,
-            txid_indexer: TxidIndexer::from_state(
-                txid_syncer,
-                poi_client.clone(),
-                state.txid_indexer,
-            ),
-            poi_client,
-            prover: poi_prover,
-            pending_submitter: PendingPoiSubmitter::from_state(state.pending_submitter),
-        })
+    pub fn set_state(&mut self, state: PoiProviderState) -> Result<(), PoiProviderError> {
+        self.inner.set_state(state.inner)?;
+        self.txid_indexer.set_state(state.txid_indexer);
+        self.pending_submitter.set_state(state.pending_submitter);
+        Ok(())
     }
 
+    /// Returns the provider's state as a serialized state object. Used to save state for
+    /// future restoration.
+    ///
+    /// State does NOT include registered accounts. Accounts must be re-registered
+    /// each time a provider is created.
     pub fn state(&self) -> PoiProviderState {
         PoiProviderState {
             inner: self.inner.state(),
@@ -121,6 +104,12 @@ impl PoiProvider {
         }
     }
 
+    /// Register an account with the provider. The provider will index the account's
+    /// transactions and balance as it syncs.
+    ///
+    /// Providers will NOT retroactively index transactions for an account.
+    /// Providers will NOT save registered accounts in their state. Accounts
+    /// must be re-registered each time a provider is created.
     pub fn register(&mut self, account: Arc<dyn Signer>) {
         self.inner.register(account);
     }
@@ -151,14 +140,18 @@ impl PoiProvider {
         bal_map
     }
 
+    /// Helper to create a shield builder
     pub fn shield(&self) -> ShieldBuilder {
         self.inner.shield()
     }
 
+    /// Helper to create a POI transaction builder
     pub fn transact(&self) -> PoiTransactionBuilder {
         PoiTransactionBuilder::new()
     }
 
+    /// Build a transaction from a POI transaction builder and register it in
+    /// the POI proving queue.
     pub async fn build<R: Rng>(
         &mut self,
         builder: PoiTransactionBuilder,
@@ -182,6 +175,8 @@ impl PoiProvider {
         Ok(tx)
     }
 
+    /// Build a broadcastable transaction from a POI transaction builder and
+    /// register it in the POI proving queue.
     pub async fn build_broadcast<R: Rng>(
         &mut self,
         builder: PoiTransactionBuilder,
@@ -210,10 +205,9 @@ impl PoiProvider {
         Ok(tx)
     }
 
-    /// Broadcasts a transaction and races the broadcaster response against
-    /// the UTXO commitment appearing on-chain. Whichever completes first
-    /// wins; the other future is dropped (cancelled). After the race,
-    /// runs a full sync (txid indexer + pending POI submission).
+    /// Broadcast a proved transaction using the given broadcaster, awaiting confirmation
+    /// via either the broadcaster's response or if the transaction's commitments
+    /// are indexed on-chain.
     pub async fn broadcast(
         &mut self,
         broadcaster: &Broadcaster,
@@ -256,28 +250,6 @@ impl PoiProvider {
         Ok(())
     }
 
-    pub async fn await_indexed(&mut self, tx: &PoiProvedTx) -> Result<(), PoiProviderError> {
-        let mut remaining_txids: Vec<_> = tx.operations.iter().filter_map(|op| op.txid).collect();
-
-        loop {
-            let Some(txid) = remaining_txids.last() else {
-                break;
-            };
-
-            if self.txid_indexer.txid_position(txid).is_some() {
-                remaining_txids.pop();
-            } else {
-                info!("Waiting for txid {:?} to be indexed...", txid);
-                sleep(web_time::Duration::from_secs(5)).await;
-            }
-
-            info!("Sycning...");
-            self.sync().await?;
-        }
-
-        Ok(())
-    }
-
     pub async fn sync(&mut self) -> Result<(), PoiProviderError> {
         self.inner.sync().await?;
         self.txid_indexer.sync().await?;
@@ -304,6 +276,10 @@ impl PoiProvider {
             )
             .await?;
         Ok(())
+    }
+
+    pub fn list_keys(&self) -> Vec<ListKey> {
+        self.poi_client.list_keys()
     }
 
     /// Resets the provider's internal indexer state

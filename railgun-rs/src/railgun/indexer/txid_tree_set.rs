@@ -62,21 +62,16 @@ impl TxidTreeSet {
         }
     }
 
-    pub fn from_state(poi_client: PoiClient, state: TxidTreeSetState) -> Self {
-        let trees = state
+    pub fn set_state(&mut self, state: TxidTreeSetState) {
+        self.trees = state
             .trees
             .into_iter()
             .map(|(k, v)| (k, TxidMerkleTree::from_state(v)))
             .collect();
-
-        TxidTreeSet {
-            trees,
-            pending: state.pending.into_iter().collect(),
-            poi_client,
-            txid_to_utxo_pos: state.txid_to_utxo_position,
-            txid_to_txid_pos: state.txid_to_txid_position,
-            validated_index: state.validated_index,
-        }
+        self.pending = state.pending.into_iter().collect();
+        self.txid_to_utxo_pos = state.txid_to_utxo_position;
+        self.txid_to_txid_pos = state.txid_to_txid_position;
+        self.validated_index = state.validated_index;
     }
 
     pub fn state(&self) -> TxidTreeSetState {

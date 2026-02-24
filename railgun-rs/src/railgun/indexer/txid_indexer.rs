@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::info;
 
 use crate::{
     crypto::railgun_txid::Txid,
@@ -14,7 +13,6 @@ use crate::{
         merkle_tree::TxidMerkleTree,
         poi::PoiClient,
     },
-    sleep::sleep,
 };
 
 /// TxID indexer that maintains the set of Txid merkle trees.
@@ -47,16 +45,9 @@ impl TxidIndexer {
         }
     }
 
-    pub fn from_state(
-        txid_syncer: Arc<dyn TransactionSyncer>,
-        poi_client: PoiClient,
-        state: TxidIndexerState,
-    ) -> Self {
-        TxidIndexer {
-            txid_set: TxidTreeSet::from_state(poi_client, state.txid_tree),
-            synced_block: state.synced_operations_block,
-            txid_syncer,
-        }
+    pub fn set_state(&mut self, state: TxidIndexerState) {
+        self.txid_set.set_state(state.txid_tree);
+        self.synced_block = state.synced_operations_block;
     }
 
     pub fn state(&self) -> TxidIndexerState {

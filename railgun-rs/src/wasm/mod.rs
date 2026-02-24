@@ -1,39 +1,33 @@
-mod bindings;
+mod balance;
+mod caip;
+mod chain;
+mod error;
 mod indexer;
+mod poi_balance;
 mod prover;
 mod provider;
-mod shield_builder;
-mod transaction_builder;
-mod tx_data;
+mod signer;
+mod transaction;
 
-pub use bindings::{JsChainConfig, JsSigner, erc20_asset, get_chain_config, init_panic_hook};
+pub use caip::erc20;
 pub use indexer::JsSyncer;
-pub use prover::{JsProofResponse, JsProver};
+pub use prover::JsProver;
 pub use provider::JsRailgunProvider;
-pub use shield_builder::JsShieldBuilder;
-pub use transaction_builder::JsTransactionBuilder;
-pub use tx_data::JsTxData;
+pub use signer::JsSigner;
+pub use transaction::{
+    JsPoiProvedTx, JsPoiTransactionBuilder, JsShieldBuilder, JsTransactionBuilder, JsTxData,
+};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[cfg(feature = "poi")]
 mod broadcaster;
 #[cfg(feature = "poi")]
-mod fee;
-#[cfg(feature = "poi")]
-mod poi_client;
-#[cfg(feature = "poi")]
 mod poi_provider;
-#[cfg(feature = "poi")]
-mod poi_transaction_builder;
 
 #[cfg(feature = "poi")]
-pub use broadcaster::JsBroadcasterManager;
-#[cfg(feature = "poi")]
-pub use fee::JsFee;
+pub use broadcaster::{JsBroadcaster, JsBroadcasterManager, JsFee, JsWakuAdapter};
 #[cfg(feature = "poi")]
 pub use poi_provider::JsPoiProvider;
-#[cfg(feature = "poi")]
-pub use poi_transaction_builder::{JsPoiProvedTx, JsPoiTransactionBuilder};
 
 #[wasm_bindgen(start)]
 pub fn wasm_start() {

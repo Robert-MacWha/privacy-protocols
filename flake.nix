@@ -67,10 +67,19 @@
               rustToolchain
               pkgs.just
               pkgs.foundry
+            ];
+          };
+
+          ci-js = pkgs.mkShell {
+            packages = [
+              rustToolchain
+              pkgs.just
+              pkgs.foundry
+              pkgs.binaryen
+              pkgs.wasm-pack
               pkgs.nodejs_22
               pkgs.pnpm
             ];
-          };
         };
       }
     );

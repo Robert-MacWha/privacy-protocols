@@ -1,9 +1,10 @@
 //! Types for the POI client
 
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
+use tsify::Tsify;
 
 use crate::{
     circuit::proof::Proof,
@@ -14,7 +15,8 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct ListKey(String);
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Eq, Hash)]
@@ -43,7 +45,8 @@ pub enum PoiEventType {
     LegacyTransact,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
 pub enum PoiStatus {
     Valid,
     ShieldBlocked,
@@ -278,6 +281,32 @@ impl From<UtxoType> for BlindedCommitmentType {
         match utxo_type {
             UtxoType::Shield => BlindedCommitmentType::Shield,
             UtxoType::Transact => BlindedCommitmentType::Transact,
+        }
+    }
+}
+
+impl Display for PoiStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            PoiStatus::Valid => "Valid",
+            PoiStatus::ShieldBlocked => "ShieldBlocked",
+            PoiStatus::ProofSubmitted => "ProofSubmitted",
+            PoiStatus::Missing => "Missing",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl FromStr for PoiStatus {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "valid" => Ok(PoiStatus::Valid),
+            "shieldblocked" => Ok(PoiStatus::ShieldBlocked),
+            "proofsubmitted" => Ok(PoiStatus::ProofSubmitted),
+            "missing" => Ok(PoiStatus::Missing),
+            _ => Err(()),
         }
     }
 }

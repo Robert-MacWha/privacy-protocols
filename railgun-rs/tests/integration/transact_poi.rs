@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 
 use alloy::{
     network::Ethereum,
@@ -54,16 +54,14 @@ async fn test_transact_poi() {
         .erased();
 
     info!("Setting up railgun");
-    let subsquid_syncer = Arc::new(SubsquidSyncer::new(CHAIN.subsquid_endpoint.unwrap()));
+    let subsquid_syncer = Arc::new(SubsquidSyncer::new(CHAIN.subsquid_endpoint));
     let rpc_syncer = Arc::new(RpcSyncer::new(provider.clone(), CHAIN).with_batch_size(10));
     let syncer = Arc::new(ChainedSyncer::new(vec![
         subsquid_syncer.clone(),
         rpc_syncer,
     ]));
 
-    let poi_client = PoiClient::new(CHAIN.poi_endpoint.unwrap(), CHAIN.id)
-        .await
-        .unwrap();
+    let poi_client = PoiClient::new(CHAIN.poi_endpoint, CHAIN.id).await.unwrap();
     let list_key = poi_client.list_keys().first().unwrap().clone();
 
     let mut railgun = PoiProvider::new(

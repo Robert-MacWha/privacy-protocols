@@ -21,7 +21,7 @@ use crate::{
         broadcaster::broadcaster::Fee,
         indexer::UtxoIndexer,
         merkle_tree::{MerkleRoot, UtxoMerkleTree},
-        note::{IncludedNote, Note, SignableNote, operation::Operation, utxo::UtxoNote},
+        note::{IncludedNote, Note, SignableNote, utxo::UtxoNote},
         poi::{ListKey, PoiClient, PoiClientError, PoiNote},
         transaction::{
             GasEstimator, PoiProvedOperation, PoiProvedOperationError, PoiProvedTx, ProvedTx,

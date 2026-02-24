@@ -81,28 +81,18 @@ impl UtxoIndexer {
         }
     }
 
-    pub fn from_state(
-        utxo_syncer: Arc<dyn NoteSyncer>,
-        utxo_verifier: Arc<dyn MerkleTreeVerifier>,
-        state: UtxoIndexerState,
-    ) -> Self {
+    pub fn set_state(&mut self, state: UtxoIndexerState) {
         let mut utxo_trees = BTreeMap::new();
         for (number, tree_state) in state.utxo_trees {
             utxo_trees.insert(
                 number,
-                UtxoMerkleTree::from_state(tree_state).with_verifier(utxo_verifier.clone()),
+                UtxoMerkleTree::from_state(tree_state).with_verifier(self.utxo_verifier.clone()),
             );
         }
 
-        UtxoIndexer {
-            utxo_trees,
-            synced_block: state.synced_block,
-            utxo_syncer,
-            utxo_verifier,
-            accounts: vec![],
-            matched_events: state.matched_events,
-            seen_commitments: HashSet::new(),
-        }
+        self.utxo_trees = utxo_trees;
+        self.synced_block = state.synced_block;
+        self.matched_events = state.matched_events;
     }
 
     pub fn state(&self) -> UtxoIndexerState {
@@ -145,7 +135,7 @@ impl UtxoIndexer {
     pub async fn register_resync(
         &mut self,
         _signer: Arc<dyn Signer>,
-        _from_block: Option<u64>,
+        _from_block: u64,
     ) -> Result<(), UtxoIndexerError> {
         todo!()
     }

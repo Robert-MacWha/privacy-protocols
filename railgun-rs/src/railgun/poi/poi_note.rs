@@ -8,7 +8,7 @@ use crate::{
     railgun::{
         merkle_tree::{MerkleProof, UtxoLeafHash},
         note::{IncludedNote, Note, SignableNote, utxo::UtxoNote},
-        poi::types::{ListKey, PoiStatus},
+        poi::types::ListKey,
         signer::Signer,
     },
 };
@@ -16,8 +16,6 @@ use crate::{
 #[derive(Clone)]
 pub struct PoiNote<S = Arc<dyn Signer>> {
     inner: UtxoNote<S>,
-
-    status: HashMap<ListKey, PoiStatus>,
 
     /// This note's POI Merkle proofs, keyed by ListKey
     ///
@@ -27,14 +25,9 @@ pub struct PoiNote<S = Arc<dyn Signer>> {
 }
 
 impl<S> PoiNote<S> {
-    pub fn new(
-        inner: UtxoNote<S>,
-        status: HashMap<ListKey, PoiStatus>,
-        poi_merkle_proofs: HashMap<ListKey, MerkleProof>,
-    ) -> Self {
+    pub fn new(inner: UtxoNote<S>, poi_merkle_proofs: HashMap<ListKey, MerkleProof>) -> Self {
         Self {
             inner,
-            status,
             poi_merkle_proofs,
         }
     }

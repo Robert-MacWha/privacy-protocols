@@ -56,8 +56,8 @@ async fn test_transact() {
     let rpc_syncer = Arc::new(RpcSyncer::new(provider.clone(), CHAIN).with_batch_size(10));
     let provider_state = std::fs::read("./tests/fixtures/provider_state.json").unwrap();
     let railgun_state = serde_json::from_slice(&provider_state).unwrap();
-    let mut railgun =
-        RailgunProvider::from_state(railgun_state, provider.clone(), rpc_syncer, prover).unwrap();
+    let mut railgun = RailgunProvider::new(CHAIN, provider.clone(), rpc_syncer, prover);
+    railgun.set_state(railgun_state).unwrap();
 
     info!("Setting up accounts");
     let account_1 =
