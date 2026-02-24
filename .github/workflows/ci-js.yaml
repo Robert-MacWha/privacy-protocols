@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-native:
+  test-js:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
@@ -34,6 +34,8 @@ jobs:
         purge-primary-key: never
 
     - uses: Swatinem/rust-cache@v2
+
+    - run: nix develop .#ci-js --command bash -c "cd sdk-js && pnpm install"
 
     - name: Pack wasm
       run: nix develop .#ci-js --command bash -c "cd sdk-js && just wasm"
