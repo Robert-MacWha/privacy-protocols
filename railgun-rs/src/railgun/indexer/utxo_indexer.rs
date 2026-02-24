@@ -4,6 +4,7 @@ use std::{
     u64,
 };
 
+use crypto::poseidon::poseidon_hash;
 use futures::StreamExt;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,6 @@ use thiserror::Error;
 use crate::{
     abis::railgun::RailgunSmartWallet,
     caip::AssetId,
-    crypto::poseidon::poseidon_hash,
     railgun::{
         address::RailgunAddress,
         indexer::{

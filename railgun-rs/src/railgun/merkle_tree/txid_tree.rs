@@ -1,8 +1,9 @@
+use crypto::poseidon::poseidon_hash;
 use ruint::aliases::U256;
 use serde::{Serialize, Serializer};
 
 use crate::{
-    crypto::{poseidon::poseidon_hash, railgun_txid::Txid},
+    crypto::railgun_txid::Txid,
     railgun::merkle_tree::{
         MerkleProof, MerkleRoot, MerkleTree, MerkleTreeError, MerkleTreeState, TOTAL_LEAVES,
     },

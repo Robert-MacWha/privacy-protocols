@@ -1,13 +1,11 @@
+use crypto::poseidon::poseidon_hash;
 use rand::RngCore;
 use ruint::aliases::U256;
 
 use crate::{
     abis::railgun::CommitmentCiphertext,
     caip::AssetId,
-    crypto::{
-        keys::{U256Key, ViewingKey},
-        poseidon::poseidon_hash,
-    },
+    crypto::keys::{U256Key, ViewingKey},
     railgun::{
         address::RailgunAddress,
         merkle_tree::UtxoLeafHash,

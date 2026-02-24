@@ -1,7 +1,8 @@
+use crypto::poseidon::poseidon_hash;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::{crypto::poseidon::poseidon_hash, railgun::merkle_tree::railgun_merkle_tree_zero};
+use crate::railgun::merkle_tree::MerkleTree;
 
 /// TxID uniquely identifies a Railgun Operation (`RailgunSmartWallet::Transaction`).
 /// Each TxID corresponds to a set of UTXO notes from a single Operation.
@@ -14,8 +15,8 @@ impl Txid {
         let max_commitments = 13; // Max circuit outputs
 
         // This is deeply unfortunate given the performance implications
-        let mut nullifiers_padded = [railgun_merkle_tree_zero(); 13];
-        let mut commitments_padded = [railgun_merkle_tree_zero(); 13];
+        let mut nullifiers_padded = [MerkleTree::zero(); 13];
+        let mut commitments_padded = [MerkleTree::zero(); 13];
 
         for (i, &nullifier) in nullifiers.iter().take(max_nullifiers).enumerate() {
             nullifiers_padded[i] = nullifier;

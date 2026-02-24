@@ -1,5 +1,6 @@
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField};
+use crypto::poseidon::poseidon_hash;
 use curve25519_dalek::{EdwardsPoint, Scalar, edwards::CompressedEdwardsY};
 use ed25519_dalek::SigningKey;
 use rand::Rng;
@@ -8,11 +9,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256, Sha512};
 use thiserror::Error;
 
-use crate::crypto::{
-    aes::{
-        AesError, Ciphertext, CiphertextCtr, decrypt_ctr, decrypt_gcm, encrypt_ctr, encrypt_gcm,
-    },
-    poseidon::poseidon_hash,
+use crate::crypto::aes::{
+    AesError, Ciphertext, CiphertextCtr, decrypt_ctr, decrypt_gcm, encrypt_ctr, encrypt_gcm,
 };
 
 /// Private key for signing transactions (BabyJubJub curve).
@@ -176,7 +174,7 @@ impl_byte_key!(MasterPublicKey);
 
 impl SpendingKey {
     pub fn public_key(&self) -> SpendingPublicKey {
-        let sk = crate::crypto::babyjubjub::PrivateKey::new(self.0);
+        let sk = crypto::babyjubjub::PrivateKey::new(self.0);
         let pk = sk.public();
 
         let x = pk.x.into_bigint().to_bytes_be();
@@ -192,7 +190,7 @@ impl SpendingKey {
     }
 
     pub fn sign(&self, message: U256) -> SpendingSignature {
-        let sk = crate::crypto::babyjubjub::PrivateKey::new(self.0);
+        let sk = crypto::babyjubjub::PrivateKey::new(self.0);
         let sig = sk.sign(message.into()).unwrap();
 
         SpendingSignature {

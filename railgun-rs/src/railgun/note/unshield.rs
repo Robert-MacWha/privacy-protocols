@@ -1,10 +1,10 @@
 use alloy::primitives::{Address, aliases::U120};
+use crypto::poseidon::poseidon_hash;
 use ruint::aliases::U256;
 
 use crate::{
     abis,
     caip::AssetId,
-    crypto::poseidon::poseidon_hash,
     railgun::{merkle_tree::UtxoLeafHash, note::Note},
 };
 

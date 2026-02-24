@@ -1,22 +1,16 @@
 use std::str::FromStr;
 
 use ark_bn254::Fr;
-use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
+use ark_ff::{AdditiveGroup, Field};
 use blake_hash::Digest;
 use num_bigint::{BigInt as NumBigInt, Sign};
 use num_traits::One;
 use poseidon_rust::poseidon_hash;
 use ruint::{aliases::U256, uint};
 
-use crate::crypto::railgun_zero::SNARK_PRIME;
-
-const Q: U256 = SNARK_PRIME;
-
-const ORDER: U256 =
-    uint!(21888242871839275222246405745257275088614511777268538073601725287587578984328_U256);
-
-const A: u64 = 168700;
-const D: u64 = 168696;
+use crate::common::{
+    A, D, ORDER, Q, fr_from_u64, fr_from_u256, fr_to_num_bigint, test_bit, u256_to_num_bigint,
+};
 
 const B8_X: U256 =
     uint!(5299619240641551281634865583518297030282874472190772894086521144482721001553_U256);
@@ -24,26 +18,6 @@ const B8_X: U256 =
 const B8_Y: U256 =
     uint!(16950150798460657717958625567821834550301663161624707787222815936182638968203_U256);
 
-fn fr_from_u64(x: u64) -> Fr {
-    Fr::from(x)
-}
-
-fn fr_from_u256(x: U256) -> Fr {
-    Fr::from_str(&x.to_string()).unwrap()
-}
-
-fn u256_to_num_bigint(x: U256) -> NumBigInt {
-    NumBigInt::from_bytes_le(Sign::Plus, &x.to_le_bytes::<32>())
-}
-
-fn fr_to_num_bigint(f: Fr) -> NumBigInt {
-    let le = f.into_bigint().to_bytes_le();
-    NumBigInt::from_bytes_le(Sign::Plus, &le)
-}
-
-fn test_bit(bytes: &[u8], i: usize) -> bool {
-    bytes[i / 8] & (1 << (i % 8)) != 0
-}
 pub struct PrivateKey {
     pub key: [u8; 32],
 }

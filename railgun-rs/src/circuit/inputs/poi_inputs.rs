@@ -13,8 +13,8 @@ use crate::{
     },
     railgun::{
         merkle_tree::{
-            MerkleProof, MerkleRoot, MerkleTreeError, TREE_DEPTH, TxidLeafHash, TxidMerkleTree,
-            UtxoMerkleTree, UtxoTreeIndex, railgun_merkle_tree_zero,
+            MerkleProof, MerkleRoot, MerkleTree, MerkleTreeError, TREE_DEPTH, TxidLeafHash,
+            TxidMerkleTree, UtxoMerkleTree, UtxoTreeIndex, merkle_proof::new_pre_inclusion,
         },
         note::{IncludedNote, Note},
         poi::{ListKey, PoiNote},
@@ -99,7 +99,7 @@ fn pad_with_zero_value<T>(vec: Vec<T>, target_len: usize) -> Vec<T>
 where
     T: FromU256,
 {
-    pad_with_value(vec, target_len, railgun_merkle_tree_zero())
+    pad_with_value(vec, target_len, MerkleTree::zero())
 }
 
 fn pad_with_zero<T>(vec: Vec<T>, target_len: usize) -> Vec<T>
@@ -123,7 +123,7 @@ fn pad_merkle_proof_paths<T>(mut vec: Vec<Vec<T>>, target_len: usize) -> Vec<Vec
 where
     T: FromU256 + Clone,
 {
-    let zero = T::from_u256(railgun_merkle_tree_zero());
+    let zero = T::from_u256(MerkleTree::zero());
     let empty_path: Vec<T> = vec![zero; TREE_DEPTH];
 
     while vec.len() < target_len {
@@ -155,7 +155,7 @@ impl PoiCircuitInputs {
         let txid = Txid::new(&nullifiers, out_commitments, bound_params_hash);
         let tree_index = UtxoTreeIndex::PreInclusion;
         let txid_leaf_hash = TxidLeafHash::new(txid, utxo_tree_in, tree_index);
-        let txid_proof = MerkleProof::new_pre_inclusion(txid_leaf_hash.into());
+        let txid_proof = new_pre_inclusion(txid_leaf_hash.into());
         Self::assemble(
             spending_pubkey,
             nullifying_key,

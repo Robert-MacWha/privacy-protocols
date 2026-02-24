@@ -1,14 +1,12 @@
 pub mod verifier;
 
-mod merkle_proof;
+pub mod merkle_proof;
 mod merkle_tree;
 mod smart_wallet_verifier;
 mod utxo_tree;
 
-pub use merkle_proof::{MerkleProof, MerkleRoot};
 pub use merkle_tree::{
-    MerkleTree, MerkleTreeError, MerkleTreeState, TOTAL_LEAVES, TREE_DEPTH,
-    railgun_merkle_tree_zero,
+    MerkleProof, MerkleRoot, MerkleTree, MerkleTreeError, MerkleTreeState, TOTAL_LEAVES, TREE_DEPTH,
 };
 pub use smart_wallet_verifier::SmartWalletUtxoVerifier;
 pub use utxo_tree::{UtxoLeafHash, UtxoMerkleTree};

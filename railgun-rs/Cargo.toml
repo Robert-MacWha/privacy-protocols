@@ -12,11 +12,6 @@ wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[[bench]]
-name = "merkle_tree"
-harness = false
-required-features = [""]
-
 [features]
 default = ["wasm", "poi"]
 native = ["wasmer", "ark-circom", "reqwest/rustls"]
@@ -49,6 +44,7 @@ bech32 = { workspace = true }
 blake-hash = { workspace = true, default-features = false }
 console_error_panic_hook = { workspace = true, optional = true }
 ctr = { workspace = true }
+crypto = { workspace = true }
 curve25519-dalek = { workspace = true }
 ed25519-dalek = { workspace = true }
 futures = { workspace = true }

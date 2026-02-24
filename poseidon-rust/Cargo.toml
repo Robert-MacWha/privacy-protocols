@@ -27,3 +27,6 @@ criterion = { workspace = true }
 [[bench]]
 name = "poseidon_hash"
 harness = false
+
+[lints]
+workspace = true
