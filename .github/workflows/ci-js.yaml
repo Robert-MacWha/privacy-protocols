@@ -39,10 +39,10 @@ jobs:
       run: nix develop .#ci-js --command bash -c "cd sdk-js && just wasm"
 
     - name: Run sync-utxo
-      run: nix develop .#ci-js --command bash -c "cd sdk-js && just sync-utxo"
+      run: nix develop .#ci-js --command bash -c "cd sdk-js && just integration-sync-utxo"
 
     - name: Run transact
-      run: nix develop .#ci-js --command bash -c "cd sdk-js && just transact"
+      run: nix develop .#ci-js --command bash -c "cd sdk-js && just integration-transact"
 
     - name: Run transact-poi
-      run: nix develop .#ci-js --command bash -c "cd sdk-js && just transact-poi"
+      run: nix develop .#ci-js --command bash -c "cd sdk-js && just integration-transact-poi"
