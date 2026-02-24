@@ -19,7 +19,7 @@ integration-transact:
     # Wait for anvil to be ready
     sleep 2
 
-    pnpm vitest run -t "transact"
+    pnpm vitest run -t "transact-utxo"
 
 integration-transact-poi:
     pnpm vitest run -t "transact-poi"

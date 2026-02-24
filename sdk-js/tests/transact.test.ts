@@ -16,7 +16,7 @@ const erc20Abi = parseAbi([
   "function balanceOf(address) view returns (uint256)",
 ]);
 
-test("transact", async () => {
+test("transact-utxo", async () => {
   const USDC = erc20(USDC_ADDRESS);
 
   console.log("Setup Railgun");
