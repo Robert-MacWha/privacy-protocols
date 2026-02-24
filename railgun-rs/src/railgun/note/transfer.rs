@@ -1,4 +1,4 @@
-use crypto::poseidon::poseidon_hash;
+use crypto::poseidon_hash;
 use rand::RngCore;
 use ruint::aliases::U256;
 

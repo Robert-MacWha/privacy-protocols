@@ -1,5 +1,5 @@
 use alloy::primitives::utils::keccak256_cached;
-use crypto::{merkle_tree::MerkleConfig, poseidon::poseidon_hash};
+use crypto::{merkle_tree::MerkleConfig, poseidon_hash};
 use ruint::aliases::U256;
 
 use crate::crypto::railgun_zero::SNARK_PRIME;

@@ -4,7 +4,7 @@ use std::{
     u64,
 };
 
-use crypto::poseidon::poseidon_hash;
+use crypto::poseidon_hash;
 use futures::StreamExt;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};

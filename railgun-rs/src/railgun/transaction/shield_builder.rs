@@ -1,6 +1,6 @@
 use alloy::primitives::U256;
 use alloy_sol_types::SolCall;
-use crypto::poseidon::poseidon_hash;
+use crypto::poseidon_hash;
 use rand::Rng;
 use ruint::Uint;
 use thiserror::Error;

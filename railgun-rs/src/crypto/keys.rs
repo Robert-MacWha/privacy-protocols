@@ -1,6 +1,6 @@
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField};
-use crypto::poseidon::poseidon_hash;
+use crypto::poseidon_hash;
 use curve25519_dalek::{EdwardsPoint, Scalar, edwards::CompressedEdwardsY};
 use ed25519_dalek::SigningKey;
 use rand::Rng;

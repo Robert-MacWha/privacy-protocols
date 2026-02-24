@@ -9,13 +9,13 @@ use crate::railgun::note::{IncludedNote, utxo::UtxoNote};
 #[derive(Debug, Clone, Default)]
 pub struct Notebook {
     pub unspent: BTreeMap<u32, UtxoNote>,
-    pub spent: BTreeMap<u32, SpentNote>,
+    pub spent: BTreeMap<u32, UtxoNote>,
 }
 
-#[derive(Debug, Clone)]
-pub struct SpentNote {
-    inner: UtxoNote,
-}
+// #[derive(Debug, Clone)]
+// pub struct SpentNote {
+//     inner: UtxoNote,
+// }
 
 impl Notebook {
     #[allow(dead_code)]
@@ -30,24 +30,6 @@ impl Notebook {
         &self.unspent
     }
 
-    pub fn spent(&self) -> &BTreeMap<u32, SpentNote> {
-        &self.spent
-    }
-
-    pub fn all(&self) -> BTreeMap<u32, UtxoNote> {
-        let mut all_notes = BTreeMap::new();
-
-        for (note_position, note) in &self.unspent {
-            all_notes.insert(*note_position, note.clone());
-        }
-
-        for (note_position, note) in &self.spent {
-            all_notes.insert(*note_position, note.inner.clone());
-        }
-
-        all_notes
-    }
-
     /// Adds an unspent note to the notebook.
     pub fn add(&mut self, note_position: u32, note: UtxoNote) {
         self.unspent.insert(note_position, note);
@@ -56,7 +38,7 @@ impl Notebook {
     /// Nullifies (spends) a note in the notebook based on its nullifier.
     ///
     /// Returns the spent note if found, otherwise returns None.
-    pub fn nullify(&mut self, nullifier: U256, _timestamp: u64) -> Option<SpentNote> {
+    pub fn nullify(&mut self, nullifier: U256, _timestamp: u64) -> Option<UtxoNote> {
         let Some((&leaf_index, _)) = self
             .unspent
             .iter()
@@ -66,8 +48,7 @@ impl Notebook {
         };
         let note = self.unspent.remove(&leaf_index).unwrap();
 
-        let spent_note = SpentNote { inner: note };
-        self.spent.insert(leaf_index, spent_note.clone());
-        Some(spent_note)
+        self.spent.insert(leaf_index, note.clone());
+        Some(note)
     }
 }

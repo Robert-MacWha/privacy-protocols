@@ -1,5 +1,5 @@
 use alloy::primitives::{Address, aliases::U120};
-use crypto::poseidon::poseidon_hash;
+use crypto::poseidon_hash;
 use ruint::aliases::U256;
 
 use crate::{

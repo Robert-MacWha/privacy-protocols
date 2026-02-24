@@ -44,10 +44,6 @@ impl IndexedAccount {
         self.signer.address()
     }
 
-    pub fn notebooks(&self) -> BTreeMap<u32, Notebook> {
-        self.notebooks.clone()
-    }
-
     pub fn unspent(&self) -> Vec<UtxoNote> {
         let mut unspent = Vec::new();
         for notebook in self.notebooks.values() {
