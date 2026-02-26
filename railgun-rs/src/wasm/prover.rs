@@ -11,7 +11,6 @@ use wasm_bindgen::prelude::*;
 use crate::circuit::{inputs::PoiCircuitInputs, prover::PoiProver};
 use crate::circuit::{
     inputs::TransactCircuitInputs,
-    proof::Proof,
     prover::{PublicInputs, TransactProver},
 };
 
@@ -60,7 +59,7 @@ struct JsCircuitInputs {
 #[tsify(from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
 struct JsProofResponse {
-    proof: Proof,
+    proof: prover::Proof,
     // Public input hex strings
     #[tsify(type = "string[]")]
     public_inputs: Vec<U256>,
@@ -87,7 +86,7 @@ impl TransactProver for JsProver {
     async fn prove_transact(
         &self,
         inputs: &TransactCircuitInputs,
-    ) -> Result<(Proof, PublicInputs), Box<dyn std::error::Error>> {
+    ) -> Result<(prover::Proof, PublicInputs), Box<dyn std::error::Error>> {
         let circuit_name = format!(
             "transact/{:02}x{:02}",
             inputs.nullifiers.len(),
@@ -114,7 +113,7 @@ impl PoiProver for JsProver {
     async fn prove_poi(
         &self,
         inputs: &PoiCircuitInputs,
-    ) -> Result<(Proof, PublicInputs), Box<dyn std::error::Error>> {
+    ) -> Result<(prover::Proof, PublicInputs), Box<dyn std::error::Error>> {
         let circuit_name = format!(
             "poi/{:02}x{:02}",
             inputs.nullifiers.len(),

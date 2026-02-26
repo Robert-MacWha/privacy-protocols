@@ -1,5 +1,5 @@
 [workspace]
-members = ["crypto", "poseidon-rust", "railgun-rs", "tc-rs"]
+members = ["crypto", "poseidon-rust", "prover", "railgun-rs", "tc-rs"]
 resolver = "3"
 
 [workspace.lints.clippy]
@@ -58,6 +58,7 @@ wasm-bindgen = "0.2.108"
 wasm-bindgen-futures = "0.4"
 wasmer = "4.4.0"
 web-time = "1.1.0"
+prover = { path = "./prover" }
 
 [profile.release]
 debug = true

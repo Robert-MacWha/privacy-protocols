@@ -1,15 +1,10 @@
-use std::collections::HashMap;
-
+use prover::circuit_inputs;
 use ruint::aliases::U256;
 use thiserror::Error;
 
-use crate::{
-    circuit::inputs::circuit_input::IntoSignalVec,
-    circuit_inputs,
-    railgun::{
-        merkle_tree::{MerkleRoot, MerkleTreeError, UtxoMerkleTree},
-        note::{IncludedNote, Note, SignableNote},
-    },
+use crate::railgun::{
+    merkle_tree::{MerkleRoot, MerkleTreeError, UtxoMerkleTree},
+    note::{IncludedNote, Note, SignableNote},
 };
 
 #[derive(Debug, Clone)]

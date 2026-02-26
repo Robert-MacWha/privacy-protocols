@@ -1965,6 +1965,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "poseidon-rust",
+ "prover",
  "rand 0.9.2",
  "ruint",
  "serde",
@@ -4428,6 +4429,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "prover"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-ff 0.5.0",
+ "ark-groth16",
+ "async-trait",
+ "insta",
+ "num-bigint",
+ "ruint",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing-test",
+ "tsify",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "ptr_meta"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4558,7 +4578,6 @@ dependencies = [
  "ark-std 0.5.0",
  "async-trait",
  "bech32",
- "blake-hash",
  "console_error_panic_hook",
  "criterion",
  "crypto",
@@ -4576,6 +4595,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "poseidon-rust",
+ "prover",
  "rand 0.9.2",
  "rand_chacha 0.9.0",
  "reqwest 0.13.2",
@@ -5892,7 +5912,39 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 name = "tc-rs"
 version = "0.1.0"
 dependencies = [
+ "alloy",
+ "alloy-contract",
+ "alloy-sol-types",
+ "ark-bn254",
+ "ark-ff 0.5.0",
+ "ark-relations",
+ "async-trait",
+ "console_error_panic_hook",
  "crypto",
+ "futures",
+ "getrandom 0.2.17",
+ "getrandom 0.3.4",
+ "gloo-timers",
+ "hex",
+ "insta",
+ "js-sys",
+ "num-bigint",
+ "prover",
+ "rand 0.9.2",
+ "rand_chacha 0.9.0",
+ "ruint",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.22",
+ "tracing-test",
+ "tracing-wasm",
+ "tsify",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]

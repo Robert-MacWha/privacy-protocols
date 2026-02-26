@@ -1,7 +1,7 @@
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main};
-use crypto::pedersen::pedersen_hash;
+use crypto::pedersen_hash;
 use rand::random;
 
 fn benchmark_pedersen(c: &mut criterion::Criterion) {

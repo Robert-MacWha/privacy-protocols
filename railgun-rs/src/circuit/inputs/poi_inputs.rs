@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-
+use prover::{circuit_input::FromU256, circuit_inputs};
 use ruint::aliases::U256;
 use thiserror::Error;
 use tracing::info;
 
 use crate::{
-    circuit::inputs::circuit_input::{FromU256, IntoSignalVec},
-    circuit_inputs,
     crypto::{
         keys::{NullifyingKey, SpendingPublicKey, U256Key},
         railgun_txid::Txid,

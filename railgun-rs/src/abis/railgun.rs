@@ -4,6 +4,7 @@
 
 use alloy::primitives::{Address, ChainId, aliases::U72, utils::keccak256_cached};
 use alloy_sol_types::{SolValue, sol};
+use prover::Proof;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -71,6 +72,26 @@ impl TokenData {
         let result_bytes = hash.to_be_bytes::<32>();
         bytes[32 - result_bytes.len()..].copy_from_slice(&result_bytes);
         ruint::aliases::U256::from_be_bytes(bytes)
+    }
+}
+
+impl From<Proof> for SnarkProof {
+    fn from(proof: Proof) -> Self {
+        SnarkProof {
+            a: G1Point {
+                x: proof.a.x,
+                y: proof.a.y,
+            },
+            //? Reversal of x and y for G2 points is required to match the expected format in Solidity
+            b: G2Point {
+                x: [proof.b.x[1], proof.b.x[0]],
+                y: [proof.b.y[1], proof.b.y[0]],
+            },
+            c: G1Point {
+                x: proof.c.x,
+                y: proof.c.y,
+            },
+        }
     }
 }
 

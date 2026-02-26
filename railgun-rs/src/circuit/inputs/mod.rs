@@ -1,4 +1,3 @@
-mod circuit_input;
 pub mod transact_inputs;
 
 pub use transact_inputs::{TransactCircuitInputs, TransactCircuitInputsError};

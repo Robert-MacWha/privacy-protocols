@@ -16,7 +16,6 @@ use crate::circuit::{
     artifact_loader::ArtifactLoader,
     inputs::TransactCircuitInputs,
     native::{FsArtifactLoader, WasmerWitnessCalculator},
-    proof::Proof,
     prover::{PublicInputs, TransactProver},
     witness::{CircuitType, WitnessCalculator},
 };
@@ -49,7 +48,7 @@ impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> TransactProver for G
     async fn prove_transact(
         &self,
         inputs: &TransactCircuitInputs,
-    ) -> Result<(Proof, PublicInputs), Box<dyn std::error::Error>> {
+    ) -> Result<(prover::Proof, PublicInputs), Box<dyn std::error::Error>> {
         let circuit_type = CircuitType::Transact {
             nullifiers: inputs.nullifiers.len(),
             commitments: inputs.commitments_out.len(),
@@ -66,7 +65,7 @@ impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> PoiProver for Groth1
     async fn prove_poi(
         &self,
         inputs: &PoiCircuitInputs,
-    ) -> Result<(Proof, PublicInputs), Box<dyn std::error::Error>> {
+    ) -> Result<(prover::Proof, PublicInputs), Box<dyn std::error::Error>> {
         let circuit_type = CircuitType::Poi {
             nullifiers: inputs.nullifiers.len(),
             commitments: inputs.commitments.len(),
@@ -81,7 +80,7 @@ impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> Groth16Prover<W, A> 
         &self,
         circuit_type: CircuitType,
         inputs: HashMap<String, Vec<U256>>,
-    ) -> Result<(Proof, PublicInputs), Box<dyn std::error::Error>> {
+    ) -> Result<(prover::Proof, PublicInputs), Box<dyn std::error::Error>> {
         info!("Loading artifacts");
         let pk = self.artifact_loader.load_proving_key(circuit_type).await?;
         let matrices = self.artifact_loader.load_matrices(circuit_type).await?;

@@ -459,7 +459,6 @@ mod test {
 
     use super::*;
     use crate::{
-        circuit::proof::{G1Affine, G2Affine, Proof},
         crypto::keys::{ByteKey, HexKey},
         railgun::poi::PreTransactionPoi,
     };
@@ -534,16 +533,16 @@ mod test {
             HashMap::from([(
                 uint!(20_U256).into(),
                 PreTransactionPoi {
-                    proof: Proof {
-                        a: G1Affine {
+                    proof: prover::Proof {
+                        a: prover::G1Affine {
                             x: uint!(10_U256),
                             y: uint!(20_U256),
                         },
-                        b: G2Affine {
+                        b: prover::G2Affine {
                             x: [uint!(30_U256), uint!(40_U256)],
                             y: [uint!(50_U256), uint!(60_U256)],
                         },
-                        c: G1Affine {
+                        c: prover::G1Affine {
                             x: uint!(70_U256),
                             y: uint!(80_U256),
                         },

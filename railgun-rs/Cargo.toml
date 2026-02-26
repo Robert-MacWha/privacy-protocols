@@ -13,7 +13,7 @@ wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["wasm", "poi"]
+default = ["native", "poi"]
 native = ["wasmer", "ark-circom", "reqwest/rustls"]
 wasm = [
     "wasm-bindgen-futures",
@@ -41,7 +41,6 @@ ark-relations = { workspace = true }
 ark-std = { workspace = true }
 async-trait = { workspace = true }
 bech32 = { workspace = true }
-blake-hash = { workspace = true, default-features = false }
 console_error_panic_hook = { workspace = true, optional = true }
 ctr = { workspace = true }
 crypto = { workspace = true }
@@ -78,6 +77,7 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 wasmer = { workspace = true, optional = true }
 web-time = { workspace = true }
+prover = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
