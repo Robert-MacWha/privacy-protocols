@@ -1,9 +1,9 @@
-import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
-import { expect, test } from "vitest";
+import { createPublicClient, createWalletClient, http } from "viem";
+import { test } from "vitest";
 import { createProver } from "../src/prover-adapter.js";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import { JsPool, JsSyncer, JsTornadoProvider } from "../src/pkg/tc_rs.js";
+import { JsPool, JsSyncer, JsTornadoProvider, JsVerifier } from "../src/pkg/tc_rs.js";
 import { readFile } from "node:fs/promises";
 
 const RPC_URL = "http://localhost:8545";
@@ -11,15 +11,16 @@ const CACHE_PATH = "../tc-rs/tests/fixtures";
 
 test("transact-tc", async () => {
   console.log("Setup Railgun");
-  const pool = JsPool.eth1;
+  const pool = JsPool.sepoliaEther1;
   const prover = createProver();
   const cache_syncer = JsSyncer.newCache(
-    await readFile(`${CACHE_PATH}/deposits_eth_1.json`, "utf-8"),
-    await readFile(`${CACHE_PATH}/withdrawals_eth_1.json`, "utf-8")
+    await readFile(`${CACHE_PATH}/cache_sepolia_eth_1.json`, "utf-8")
   );
-  const rpc_syncer = await JsSyncer.newRpc(RPC_URL, pool.address, 10000n);
+  const rpc_syncer = await JsSyncer.newRpc(RPC_URL, 10000n);
   const syncer = JsSyncer.newChained([cache_syncer, rpc_syncer]);
-  const tornado = await JsTornadoProvider.new(pool, RPC_URL, syncer, prover);
+  const verifier = await JsVerifier.newRpc(RPC_URL);
+  const tornado = JsTornadoProvider.new(syncer, verifier, prover);
+  tornado.add_pool(pool);
 
   console.log("Setup viem");
   const publicClient = createPublicClient({

@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
+use alloy::primitives::Address;
 use futures::{StreamExt, stream};
 
-use crate::indexer::{
-    Syncer, SyncerError,
-    syncer::{BoxedCommitmentStream, BoxedNullifierStream},
+use crate::{
+    indexer::{
+        Syncer, SyncerError,
+        syncer::{BoxedCommitmentStream, BoxedNullifierStream},
+    },
 };
 
 /// A syncer that chains multiple syncers in priority order
@@ -36,6 +39,7 @@ impl Syncer for ChainedSyncer {
 
     async fn sync_commitments(
         &self,
+        contract: Address,
         from_block: u64,
         to_block: u64,
     ) -> Result<BoxedCommitmentStream<'_>, SyncerError> {
@@ -53,7 +57,10 @@ impl Syncer for ChainedSyncer {
             }
 
             let range_end = syncer_latest.min(to_block);
-            match syncer.sync_commitments(current_from, range_end).await {
+            match syncer
+                .sync_commitments(contract, current_from, range_end)
+                .await
+            {
                 Ok(stream) => streams.push(stream),
                 Err(e) => {
                     tracing::warn!("Syncer {} failed: {}", i, e);
@@ -68,6 +75,7 @@ impl Syncer for ChainedSyncer {
 
     async fn sync_nullifiers(
         &self,
+        contract: Address,
         from_block: u64,
         to_block: u64,
     ) -> Result<BoxedNullifierStream<'_>, SyncerError> {
@@ -85,7 +93,10 @@ impl Syncer for ChainedSyncer {
             }
 
             let range_end = syncer_latest.min(to_block);
-            match syncer.sync_nullifiers(current_from, range_end).await {
+            match syncer
+                .sync_nullifiers(contract, current_from, range_end)
+                .await
+            {
                 Ok(stream) => streams.push(stream),
                 Err(e) => {
                     tracing::warn!("Syncer {} failed: {}", i, e);

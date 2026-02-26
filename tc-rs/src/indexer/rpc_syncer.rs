@@ -19,17 +19,16 @@ use crate::{
     merkle::MerkleRoot,
 };
 
+/// A syncer and verifier that reads from an Ethereum JSON-RPC provider
 pub struct RpcSyncer {
     provider: DynProvider,
-    contract_address: Address,
     batch_size: u64,
 }
 
 impl RpcSyncer {
-    pub fn new(provider: DynProvider, contract_address: Address) -> Self {
+    pub fn new(provider: DynProvider) -> Self {
         Self {
             provider,
-            contract_address,
             batch_size: 2000,
         }
     }
@@ -52,11 +51,12 @@ impl Syncer for RpcSyncer {
 
     async fn sync_commitments(
         &self,
+        contract: Address,
         from_block: u64,
         to_block: u64,
     ) -> Result<BoxedCommitmentStream<'_>, SyncerError> {
         let batch_size = self.batch_size;
-        let contract_address = self.contract_address;
+        let contract_address = contract;
         let provider = &self.provider;
 
         let stream = stream::unfold(from_block, move |current_block| async move {
@@ -123,11 +123,12 @@ impl Syncer for RpcSyncer {
 
     async fn sync_nullifiers(
         &self,
+        contract: Address,
         from_block: u64,
         to_block: u64,
     ) -> Result<BoxedNullifierStream<'_>, SyncerError> {
         let batch_size = self.batch_size;
-        let contract_address = self.contract_address;
+        let contract_address = contract;
         let provider = &self.provider;
 
         let stream = stream::unfold(from_block, move |current_block| async move {
@@ -197,8 +198,8 @@ impl Syncer for RpcSyncer {
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 impl Verifier for RpcSyncer {
-    async fn verify(&self, root: MerkleRoot) -> Result<(), VerifierError> {
-        let contract = MerkleTreeWithHistory::new(self.contract_address, &self.provider);
+    async fn verify(&self, contract: Address, root: MerkleRoot) -> Result<(), VerifierError> {
+        let contract = MerkleTreeWithHistory::new(contract, &self.provider);
         let root_b256 = alloy::primitives::FixedBytes::<32>::from(root);
         let result = contract
             .isKnownRoot(root_b256)

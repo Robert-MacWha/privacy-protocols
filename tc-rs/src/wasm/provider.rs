@@ -1,21 +1,14 @@
 use std::sync::Arc;
 
 use alloy::primitives::Address;
-use prover::Prover;
 use rand::rng;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
-    indexer::{Indexer, RpcSyncer},
-    note::Note,
-    provider::{TornadoProvider, TornadoProviderState},
-    tx_data::TxData,
+    provider::{PoolProviderState, TornadoProvider},
     wasm::{
-        JsProver,
-        note::JsNote,
-        pool::JsPool,
-        syncer::{JsSyncer, new_dyn_provider},
-        tx_data::JsTxData,
+        JsProver, note::JsNote, pool::JsPool, syncer::JsSyncer, tx_data::JsTxData,
+        verifier::JsVerifier,
     },
 };
 
@@ -48,29 +41,22 @@ impl JsDepositResult {
 impl JsTornadoProvider {
     /// Creates a new TornadoProvider
     ///
-    /// @param pool Pool config (address, chain_id, etc.)
-    /// @param rpc_url RPC URL used to create a Verifier (RpcSyncer) for on-chain root verification
     /// @param syncer Syncer used to index deposits/withdrawals
+    /// @param verifier Verifier used for on-chain root verification
     /// @param prover Prover used to generate proofs
-    pub async fn new(
-        pool: &JsPool,
-        rpc_url: &str,
-        syncer: JsSyncer,
-        prover: JsProver,
-    ) -> Result<JsTornadoProvider, JsValue> {
-        let provider = new_dyn_provider(rpc_url).await?;
-        let verifier = Arc::new(RpcSyncer::new(provider, pool.inner.address()));
-        let indexer = Indexer::new(syncer.inner(), verifier);
-        let prover = Arc::new(prover);
-        let inner = TornadoProvider::new(pool.chain_id(), indexer, prover);
-
-        Ok(inner.into())
+    pub fn new(syncer: JsSyncer, verifier: JsVerifier, prover: JsProver) -> JsTornadoProvider {
+        let inner = TornadoProvider::new(syncer.inner(), verifier.inner(), Arc::new(prover));
+        inner.into()
     }
 
-    pub fn set_state(&mut self, state: &[u8]) -> Result<(), JsValue> {
-        let state: TornadoProviderState = serde_json::from_slice(state)
+    pub fn add_pool(&mut self, pool: &JsPool) {
+        self.inner.add_pool(pool.inner.clone());
+    }
+
+    pub fn add_pool_from_state(&mut self, state: &[u8]) -> Result<(), JsValue> {
+        let state: PoolProviderState = serde_json::from_slice(state)
             .map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))?;
-        self.inner.set_state(state);
+        self.inner.add_pool_from_state(state);
         Ok(())
     }
 
@@ -79,13 +65,13 @@ impl JsTornadoProvider {
         serde_json::to_vec(&state).map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))
     }
 
-    pub fn deposit(&self, pool: &JsPool) -> JsDepositResult {
+    pub fn deposit(&self, pool: &JsPool) -> Result<JsDepositResult, JsValue> {
         let mut rng = rng();
-        let (tx_data, note) = self.inner.deposit(pool.inner.as_ref(), &mut rng);
-        JsDepositResult {
+        let (tx_data, note) = self.inner.deposit(&pool.inner, &mut rng)?;
+        Ok(JsDepositResult {
             tx_data: tx_data.into(),
             note: note.into(),
-        }
+        })
     }
 
     pub async fn withdraw(
@@ -110,14 +96,7 @@ impl JsTornadoProvider {
 
         let tx_data = self
             .inner
-            .withdraw(
-                pool.inner.as_ref(),
-                &note.inner,
-                recipient,
-                relayer,
-                fee,
-                refund,
-            )
+            .withdraw(&pool.inner, &note.inner, recipient, relayer, fee, refund)
             .await?;
 
         Ok(tx_data.into())

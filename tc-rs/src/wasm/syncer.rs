@@ -16,26 +16,14 @@ pub struct JsSyncer {
 #[wasm_bindgen]
 impl JsSyncer {
     #[wasm_bindgen(js_name = "newRpc")]
-    pub async fn new_rpc(
-        rpc_url: &str,
-        contract_address: &str,
-        batch_size: u64,
-    ) -> Result<JsSyncer, JsValue> {
+    pub async fn new_rpc(rpc_url: &str, batch_size: u64) -> Result<JsSyncer, JsValue> {
         let provider = new_dyn_provider(rpc_url).await?;
-        let address = contract_address
-            .parse()
-            .map_err(|e| JsValue::from_str(&format!("Invalid contract address: {}", e)))?;
-        Ok(RpcSyncer::new(provider, address)
-            .with_batch_size(batch_size)
-            .into())
+        Ok(RpcSyncer::new(provider).with_batch_size(batch_size).into())
     }
 
     #[wasm_bindgen(js_name = "newCache")]
-    pub fn new_cache(
-        deposits_json: &str,
-        nullifiers_json: &str,
-    ) -> Result<JsSyncer, JsValue> {
-        CacheSyncer::from_json(deposits_json, nullifiers_json)
+    pub fn new_cache(cache_json: &str) -> Result<JsSyncer, JsValue> {
+        CacheSyncer::from_str(cache_json)
             .map(Into::into)
             .map_err(|e| JsValue::from_str(&format!("Cache syncer error: {}", e)))
     }

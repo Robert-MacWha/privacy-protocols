@@ -1,6 +1,6 @@
 use wasm_bindgen::JsValue;
 
-use crate::{indexer::IndexerError, provider::TornadoProviderError};
+use crate::provider::TornadoProviderError;
 
 impl From<TornadoProviderError> for JsValue {
     fn from(error: TornadoProviderError) -> Self {

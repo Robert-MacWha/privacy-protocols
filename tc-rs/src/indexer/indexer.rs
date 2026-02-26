@@ -8,6 +8,7 @@ use thiserror::Error;
 use tracing::info;
 
 use crate::{
+    Pool,
     indexer::{
         syncer::{Syncer, SyncerError},
         verifier::{Verifier, VerifierError},
@@ -20,6 +21,7 @@ pub struct Indexer {
     verifier: Arc<dyn Verifier>,
     synced_block: u64,
     tree: TornadoMerkleTree,
+    pool: Pool,
 }
 
 #[derive(Debug, Error)]
@@ -34,32 +36,18 @@ pub enum IndexerError {
 pub struct IndexerState {
     pub synced_block: u64,
     pub tree_state: MerkleTreeState<TornadoMerkleConfig>,
+    pub pool: Pool,
 }
 
 impl Indexer {
-    pub fn new(syncer: Arc<dyn Syncer>, verifier: Arc<dyn Verifier>) -> Self {
+    pub fn new(syncer: Arc<dyn Syncer>, verifier: Arc<dyn Verifier>, pool: Pool) -> Self {
         Self {
             syncer,
             verifier,
             synced_block: 0,
             tree: TornadoMerkleTree::new(0),
+            pool,
         }
-    }
-
-    pub fn tree(&self) -> &TornadoMerkleTree {
-        &self.tree
-    }
-
-    pub fn state(&self) -> IndexerState {
-        IndexerState {
-            synced_block: self.synced_block,
-            tree_state: self.tree.state(),
-        }
-    }
-
-    pub fn set_state(&mut self, state: IndexerState) {
-        self.synced_block = state.synced_block;
-        self.tree = TornadoMerkleTree::from_state(state.tree_state);
     }
 
     pub fn from_state(
@@ -67,14 +55,37 @@ impl Indexer {
         verifier: Arc<dyn Verifier>,
         state: IndexerState,
     ) -> Self {
-        let mut indexer = Self::new(syncer, verifier);
-        indexer.set_state(state);
-        indexer
+        Self {
+            syncer,
+            verifier,
+            synced_block: state.synced_block,
+            tree: TornadoMerkleTree::from_state(state.tree_state),
+            pool: state.pool,
+        }
+    }
+
+    pub fn tree(&self) -> &TornadoMerkleTree {
+        &self.tree
+    }
+
+    pub fn pool(&self) -> &Pool {
+        &self.pool
+    }
+
+    pub fn state(&self) -> IndexerState {
+        IndexerState {
+            synced_block: self.synced_block,
+            tree_state: self.tree.state(),
+            pool: self.pool.clone(),
+        }
     }
 
     /// Verifies that the current root is known on-chain
     pub async fn verify(&self) -> Result<(), IndexerError> {
-        Ok(self.verifier.verify(self.tree.root()).await?)
+        Ok(self
+            .verifier
+            .verify(self.pool.address, self.tree.root())
+            .await?)
     }
 
     pub async fn sync(&mut self) -> Result<(), IndexerError> {
@@ -92,7 +103,9 @@ impl Indexer {
 
         let leaves = {
             let syncer = Arc::clone(&self.syncer);
-            let mut stream = syncer.sync_commitments(from_block, to_block).await?;
+            let mut stream = syncer
+                .sync_commitments(self.pool.address, from_block, to_block)
+                .await?;
             let mut leaves: Vec<(u32, U256)> = Vec::new();
             while let Some(c) = stream.next().await {
                 let val = U256::from_be_bytes(*c.commitment);

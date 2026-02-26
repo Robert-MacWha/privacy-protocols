@@ -3,79 +3,91 @@ use std::sync::Arc;
 use alloy::primitives::{Address, Bytes};
 use alloy_sol_types::SolCall;
 use prover::{Proof, Prover};
-use rand::Rng;
+use rand::RngCore;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use tracing::info;
 
 use crate::{
-    abis::tornado::Tornado::{self},
+    abis::tornado::Tornado,
     circuit::{WithdrawCircuitInputs, WithdrawCircuitInputsError},
-    indexer::{Indexer, IndexerError, IndexerState},
+    indexer::{Indexer, IndexerError, IndexerState, Syncer, Verifier},
     note::Note,
-    pool::{Asset, Pool},
+    provider::pool::{Asset, Pool},
     tx_data::TxData,
 };
 
-pub struct TornadoProvider {
-    chain_id: u64,
-    pub indexer: Indexer,
+/// A provider for a single tornadocash pool
+pub struct PoolProvider {
+    indexer: Indexer,
     prover: Arc<dyn Prover>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TornadoProviderState {
-    pub chain_id: u64,
+pub struct PoolProviderState {
     pub indexer_state: IndexerState,
 }
 
-#[derive(Debug, Error)]
-pub enum TornadoProviderError {
-    #[error("Indexer error: {0}")]
+#[derive(Debug, thiserror::Error)]
+pub enum PoolProviderError {
+    #[error("Indexer: {0}")]
     Indexer(#[from] IndexerError),
-    #[error("Withdraw circuit inputs error: {0}")]
-    WithdrawCircuitInputs(#[from] WithdrawCircuitInputsError),
-    #[error("Prover error: {0}")]
+    #[error("Prover: {0}")]
     Prover(#[from] prover::ProverError),
+    #[error("Withdraw Circuit: {0}")]
+    WithdrawCircuit(#[from] WithdrawCircuitInputsError),
 }
 
-impl TornadoProvider {
-    pub fn new(chain_id: u64, indexer: Indexer, prover: Arc<dyn Prover>) -> Self {
-        Self {
-            chain_id,
-            indexer,
-            prover,
-        }
+impl PoolProvider {
+    pub fn new(
+        syncer: Arc<dyn Syncer>,
+        verifier: Arc<dyn Verifier>,
+        prover: Arc<dyn Prover>,
+        pool: Pool,
+    ) -> Self {
+        let indexer = Indexer::new(syncer, verifier, pool);
+        Self { indexer, prover }
     }
 
-    pub fn state(&self) -> TornadoProviderState {
-        TornadoProviderState {
-            chain_id: self.chain_id,
+    pub fn from_state(
+        syncer: Arc<dyn Syncer>,
+        verifier: Arc<dyn Verifier>,
+        prover: Arc<dyn Prover>,
+        state: PoolProviderState,
+    ) -> Self {
+        let indexer = Indexer::from_state(syncer, verifier, state.indexer_state);
+        Self { indexer, prover }
+    }
+
+    pub fn pool(&self) -> &Pool {
+        self.indexer.pool()
+    }
+
+    pub fn state(&self) -> PoolProviderState {
+        PoolProviderState {
             indexer_state: self.indexer.state(),
         }
     }
 
-    pub fn set_state(&mut self, state: TornadoProviderState) {
-        self.chain_id = state.chain_id;
-        self.indexer.set_state(state.indexer_state);
-    }
-
-    pub fn deposit<R: Rng>(&self, pool: &dyn Pool, rng: &mut R) -> (TxData, Note) {
-        let note = Note::random(rng, &pool.symbol(), &pool.amount(), self.chain_id);
+    pub fn deposit<R: RngCore>(&self, rng: &mut R) -> (TxData, Note) {
+        let note = Note::random(
+            rng,
+            &self.pool().symbol(),
+            &self.pool().amount(),
+            self.pool().chain_id,
+        );
 
         let call = Tornado::depositCall {
             _commitment: note.commitment().into(),
         };
         let calldata = call.abi_encode();
 
-        let value = match pool.asset() {
-            Asset::Native { .. } => pool.amount_wei(),
+        let value = match self.pool().asset {
+            Asset::Native { .. } => self.pool().amount_wei,
             Asset::Erc20 { .. } => 0,
         };
 
         let tx_data = TxData {
-            to: pool.address(),
+            to: self.pool().address,
             data: calldata,
             value: U256::from(value),
         };
@@ -84,13 +96,12 @@ impl TornadoProvider {
 
     pub async fn withdraw(
         &self,
-        pool: &dyn Pool,
         note: &Note,
         recipient: Address,
         relayer: Address,
         fee: U256,
         refund: U256,
-    ) -> Result<TxData, TornadoProviderError> {
+    ) -> Result<TxData, PoolProviderError> {
         let merkle_tree = self.indexer.tree();
         let circuit_inputs =
             WithdrawCircuitInputs::new(merkle_tree, note, recipient, relayer, fee, refund)?;
@@ -112,22 +123,22 @@ impl TornadoProvider {
         };
 
         Ok(TxData {
-            to: pool.address(),
+            to: self.pool().address,
             data: call.abi_encode(),
             value: refund,
         })
     }
 
-    pub async fn sync(&mut self) -> Result<(), TornadoProviderError> {
+    pub async fn sync(&mut self) -> Result<(), PoolProviderError> {
         self.indexer.sync().await?;
         self.verify().await
     }
 
-    pub async fn sync_to(&mut self, block: u64) -> Result<(), TornadoProviderError> {
+    pub async fn sync_to(&mut self, block: u64) -> Result<(), PoolProviderError> {
         Ok(self.indexer.sync_to(block).await?)
     }
 
-    pub async fn verify(&self) -> Result<(), TornadoProviderError> {
+    pub async fn verify(&self) -> Result<(), PoolProviderError> {
         Ok(self.indexer.verify().await?)
     }
 }

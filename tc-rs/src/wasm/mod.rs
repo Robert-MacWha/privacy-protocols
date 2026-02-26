@@ -5,12 +5,14 @@ mod prover;
 mod provider;
 mod syncer;
 mod tx_data;
+mod verifier;
 
 pub use pool::JsPool;
 pub use prover::JsProver;
 pub use provider::{JsDepositResult, JsTornadoProvider};
 pub use syncer::JsSyncer;
 pub use tx_data::JsTxData;
+pub use verifier::JsVerifier;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen(start)]

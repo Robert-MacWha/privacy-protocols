@@ -2,13 +2,13 @@ use std::{path::Path, sync::Arc};
 
 use alloy::{
     network::Ethereum,
-    primitives::{Address, address},
     providers::{Provider, ProviderBuilder},
 };
-use tc_rs::indexer::{CacheSyncer, ChainedSyncer, Indexer, RpcSyncer};
+use tc_rs::{
+    Pool,
+    indexer::{CacheSyncer, ChainedSyncer, Indexer, RpcSyncer},
+};
 use tracing::info;
-
-const TORNADO_ADDRESS: Address = address!("0x8cc930096b4df705a007c4a039bdfa1320ed2508");
 
 #[tokio::test]
 #[ignore]
@@ -19,9 +19,9 @@ async fn test_sync() {
         .try_init()
         .ok();
 
-    let deposits_path = Path::new("./tests/fixtures/deposits_eth_1.json");
-    let withdrawals_path = Path::new("./tests/fixtures/withdrawals_eth_1.json");
-    let cache_syncer = Arc::new(CacheSyncer::from_files(deposits_path, withdrawals_path).unwrap());
+    let cache_path = Path::new("./tests/fixtures/cache_sepolia_eth_1.json");
+    let cache_json = std::fs::read_to_string(cache_path).unwrap();
+    let cache_syncer = Arc::new(CacheSyncer::from_str(&cache_json).unwrap());
 
     // let rpc_url = std::env::var("FORK_URL_SEPOLIA").expect("FORK_URL_SEPOLIA must be set");
     let rpc_url = "http://localhost:8545";
@@ -32,10 +32,10 @@ async fn test_sync() {
         .unwrap()
         .erased();
 
-    let rpc_syncer = Arc::new(RpcSyncer::new(provider, TORNADO_ADDRESS).with_batch_size(10000));
+    let rpc_syncer = Arc::new(RpcSyncer::new(provider).with_batch_size(10000));
     let syncer: Arc<ChainedSyncer> =
         Arc::new(ChainedSyncer::new(vec![cache_syncer, rpc_syncer.clone()]));
-    let mut indexer = Indexer::new(syncer.clone(), rpc_syncer.clone());
+    let mut indexer = Indexer::new(syncer.clone(), rpc_syncer.clone(), Pool::sepolia_ether_1());
 
     info!("Syncing indexer...");
     indexer.sync().await.unwrap();

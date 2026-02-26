@@ -8,6 +8,8 @@ use thiserror::Error;
 pub enum SyncerError {
     #[error("Syncer error: {0}")]
     Syncer(#[from] Box<dyn std::error::Error>),
+    #[error("Invalid contract {contract}: {reason}")]
+    InvalidContract { contract: Address, reason: String },
 }
 
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
@@ -17,12 +19,14 @@ pub trait Syncer: Send + Sync {
 
     async fn sync_commitments(
         &self,
+        contract: Address,
         from_block: u64,
         to_block: u64,
     ) -> Result<BoxedCommitmentStream<'_>, SyncerError>;
 
     async fn sync_nullifiers(
         &self,
+        contract: Address,
         from_block: u64,
         to_block: u64,
     ) -> Result<BoxedNullifierStream<'_>, SyncerError>;

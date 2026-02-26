@@ -25,10 +25,18 @@
 - [x] Switch to serde_json for state, so it's self-describing.
 - [x] Split POI into a feature flag
 - [ ] Add a func to wait for a note to be POI submittable, useful for testing
-- [ ] Update the balance func for the PoiProvider to return annotated balances
-- [ ] Add JS workflow tests
-  - [ ] Mirror rust sync / transact tests
-  - [ ] Perform real-world workflow on sepolia to test broadcaster + POI end-to-end. I can't think of a way to mock this properly since I don't understand the POI process well enough. Should be pretty cheap - about 0.0001 ETH.
+- [x] Update the balance func for the PoiProvider to return annotated balances
+- [x] Add JS workflow tests
+  - [x] Mirror rust sync / transact tests
+  - [x] Perform real-world workflow on sepolia to test broadcaster + POI end-to-end. I can't think of a way to mock this properly since I don't understand the POI process well enough. Should be pretty cheap - about 0.0001 ETH.
+
+- [x] Clean up tc classic API
+- [ ] Impl broadcasters for tc classic
+
+- [ ] Create common creates & re-structure repo, with a focus on multiple privacy protocols
+
+- [ ] Impl tc nova
+
 - [ ] Smarter artifact loader that fetches from remote & caches in memory.
   - Consider whether we ought to integrate the artifact loader into the JS SDK, or just leave it seperate.
 - [ ] Update poi builder so input POIs are pre-fetched, so invalid notes aren't used as inputs.

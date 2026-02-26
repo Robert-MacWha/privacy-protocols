@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use prover::{Proof, Prover, ProverError};
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 
