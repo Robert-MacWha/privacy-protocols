@@ -35,10 +35,10 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - run: nix develop .#ci-js --command bash -c "cd packages/ts-js && pnpm install"
+    - run: nix develop .#ci-js --command bash -c "cd packages/tc-js && pnpm install"
 
     - name: Pack wasm
-      run: nix develop .#ci-js --command bash -c "cd packages/ts-js && just wasm"
+      run: nix develop .#ci-js --command bash -c "cd packages/tc-js && just wasm"
 
     - name: Run transact
-      run: nix develop .#ci-js --command bash -c "cd packages/ts-js && just integration-transact"
+      run: nix develop .#ci-js --command bash -c "cd packages/tc-js && just integration-transact"
