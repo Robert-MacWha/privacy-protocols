@@ -76,9 +76,3 @@ opt-level = "z"
 codegen-units = 12
 # lto = true
 # panic = "abort"
-
-[profile.dev.package."*"]
-debug = true
-strip = false
-opt-level = "z"
-codegen-units = 12
