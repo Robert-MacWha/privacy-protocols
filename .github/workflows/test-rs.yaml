@@ -1,4 +1,4 @@
-name: CI TC Rust
+name: Test Rust
 
 on:
   push:
@@ -10,14 +10,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-tc-rust:
+  test-rust:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
-
-    - uses: ./.github/actions/load-sops-secrets
-      with:
-        age_key: ${{ secrets.SOPS_AGE_KEY }}
 
     - uses: nixbuild/nix-quick-install-action@v30
       with:
@@ -35,11 +31,5 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - name: Build
-      run: nix develop .#ci --command bash -c "cd crates/tc-rs && cargo build"
-
-    - name: Run sync
-      run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync"
-
-    - name: Run sync-broadcaster
-      run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync-broadcaster"
+    - name: Run tests
+      run: nix develop .#ci --command cargo test

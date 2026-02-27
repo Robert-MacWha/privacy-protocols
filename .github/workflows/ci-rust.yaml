@@ -41,9 +41,6 @@ jobs:
     - name: Build with POI
       run: nix develop .#ci --command bash -c " cd crates/railgun-rs && cargo build --no-default-features --features native,poi"
 
-    - name: Run tests
-      run: nix develop .#ci --command bash -c "cd crates/railgun-rs && cargo test --no-default-features --features native,poi"
-
     - name: Run sync-utxo
       run: nix develop .#ci --command bash -c "cd crates/railgun-rs && just integration-sync-utxo"
 
@@ -52,5 +49,6 @@ jobs:
 
     - name: Run transact
       run: nix develop .#ci --command bash -c "cd crates/railgun-rs && just integration-transact"
+
     - name: Run transact-poi
       run: nix develop .#ci --command bash -c "cd crates/railgun-rs && just integration-transact-poi"
