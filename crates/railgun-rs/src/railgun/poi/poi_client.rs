@@ -10,7 +10,6 @@ use alloy::primitives::ChainId;
 use reqwest::Client;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use thiserror::Error;
-use tracing::info;
 
 use crate::railgun::{
     merkle_tree::{MerkleProof, MerkleRoot, MerkleTreeVerifier},
@@ -319,7 +318,7 @@ async fn call<P: Serialize, R: DeserializeOwned>(
         params,
     };
 
-    info!("Request: {}", serde_json::to_string(&req).unwrap());
+    // info!("Request: {}", serde_json::to_string(&req).unwrap());
 
     let resp: JsonRpcResponse<R> = http
         .post(url)
