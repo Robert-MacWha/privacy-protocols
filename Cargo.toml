@@ -70,9 +70,8 @@ web-time = "1.1.0"
 prover = { path = "./crates/prover" }
 
 [profile.release]
-debug = true
-strip = false
 opt-level = "z"
-codegen-units = 12
-# lto = true
-# panic = "abort"
+lto = true
+codegen-units = 6
+panic = "abort"
+# strip = true

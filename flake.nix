@@ -51,6 +51,7 @@
               pkgs.wasm-pack
               pkgs.nodejs_22
               pkgs.pnpm
+              pkgs.twiggy
 
               # Cargo tools
               pkgs.cargo-bloat
