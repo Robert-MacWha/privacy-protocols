@@ -12,7 +12,7 @@ pub struct JsTxData {
 impl JsTxData {
     #[wasm_bindgen(getter)]
     pub fn to(&self) -> String {
-        format!("{:?}", self.inner.to)
+        format!("{}", self.inner.to)
     }
 
     #[wasm_bindgen(getter, js_name = "dataHex")]

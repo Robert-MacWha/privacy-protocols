@@ -4,17 +4,17 @@ import { createProver } from "../src/prover-adapter.js";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { JsPool, JsSyncer, JsTornadoProvider, JsVerifier } from "../src/pkg/tc_rs.js";
-import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 
 const RPC_URL = "http://localhost:8545";
 const CACHE_PATH = "../tc-rs/tests/fixtures";
 
-test("transact-tc", async () => {
+test("transact", async () => {
   console.log("Setup Railgun");
   const pool = JsPool.sepoliaEther1;
   const prover = createProver();
   const cache_syncer = JsSyncer.newCache(
-    await readFile(`${CACHE_PATH}/cache_sepolia_eth_1.json`, "utf-8")
+    readFileSync(`${CACHE_PATH}/cache_sepolia_eth_1.json`, "utf-8")
   );
   const rpc_syncer = await JsSyncer.newRpc(RPC_URL, 10000n);
   const syncer = JsSyncer.newChained([cache_syncer, rpc_syncer]);
@@ -54,8 +54,7 @@ test("transact-tc", async () => {
   await tornado.sync();
 
   console.log("Testing Withdraw");
-  const toAddress = "0x1122334455667788990011223344556677889900";
-  const withdrawTx = await tornado.withdraw(pool, note, account.address, toAddress, 0n, 0n);
+  const withdrawTx = await tornado.withdraw(pool, note, account.address);
 
   console.log("Sending withdraw transaction");
   const withdrawHash = await walletClient.sendTransaction({

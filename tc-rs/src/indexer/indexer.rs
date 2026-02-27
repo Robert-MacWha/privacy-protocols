@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crypto::merkle_tree::MerkleTreeState;
-use futures::StreamExt;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -103,11 +102,12 @@ impl Indexer {
 
         let leaves = {
             let syncer = Arc::clone(&self.syncer);
-            let mut stream = syncer
+            let commitments = syncer
                 .sync_commitments(self.pool.address, from_block, to_block)
                 .await?;
+
             let mut leaves: Vec<(u32, U256)> = Vec::new();
-            while let Some(c) = stream.next().await {
+            for c in commitments {
                 let val = U256::from_be_bytes(*c.commitment);
                 leaves.push((c.leaf_index, val));
             }

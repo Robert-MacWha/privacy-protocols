@@ -7,8 +7,9 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["wasm"]
+default = ["wasm", "broadcaster"]
 native = []
+broadcaster = ["dep:reqwest", "dep:tokio"]
 wasm = [
     "wasm-bindgen-futures",
     "js-sys",
@@ -45,19 +46,21 @@ js-sys = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
 console_error_panic_hook = { workspace = true, optional = true }
 tracing-wasm = { workspace = true, optional = true }
-gloo-timers = { workspace = true, optional = true }
+gloo-timers = { workspace = true, features = ["futures"], optional = true }
 tsify = { workspace = true }
 wasm-bindgen = { workspace = true }
 getrandom = { version = "0.3", features = ["wasm_js"], optional = true }
 getrandom_02 = { package = "getrandom", version = "0.2", features = [
     "js",
 ], optional = true }
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["time"] }
+web-time = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true
 
 [dev-dependencies]
-tokio = { workspace = true }
 tracing-test = { workspace = true }
 tracing-subscriber = { workspace = true }
 insta = { workspace = true }

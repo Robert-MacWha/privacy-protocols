@@ -1,14 +1,8 @@
 use std::sync::Arc;
 
 use alloy::primitives::Address;
-use futures::{StreamExt, stream};
 
-use crate::{
-    indexer::{
-        Syncer, SyncerError,
-        syncer::{BoxedCommitmentStream, BoxedNullifierStream},
-    },
-};
+use crate::indexer::{Commitment, Nullifier, Syncer, SyncerError};
 
 /// A syncer that chains multiple syncers in priority order
 pub struct ChainedSyncer {
@@ -42,10 +36,10 @@ impl Syncer for ChainedSyncer {
         contract: Address,
         from_block: u64,
         to_block: u64,
-    ) -> Result<BoxedCommitmentStream<'_>, SyncerError> {
-        let mut streams: Vec<BoxedCommitmentStream<'_>> = Vec::new();
+    ) -> Result<Vec<Commitment>, SyncerError> {
         let mut current_from = from_block;
 
+        let mut all_commitments = Vec::new();
         for (i, syncer) in self.syncers.iter().enumerate() {
             if current_from > to_block {
                 break;
@@ -61,7 +55,7 @@ impl Syncer for ChainedSyncer {
                 .sync_commitments(contract, current_from, range_end)
                 .await
             {
-                Ok(stream) => streams.push(stream),
+                Ok(commitments) => all_commitments.extend(commitments),
                 Err(e) => {
                     tracing::warn!("Syncer {} failed: {}", i, e);
                 }
@@ -69,8 +63,8 @@ impl Syncer for ChainedSyncer {
 
             current_from = range_end + 1;
         }
-        let combined = stream::iter(streams).flatten();
-        Ok(Box::pin(combined))
+
+        Ok(all_commitments)
     }
 
     async fn sync_nullifiers(
@@ -78,10 +72,10 @@ impl Syncer for ChainedSyncer {
         contract: Address,
         from_block: u64,
         to_block: u64,
-    ) -> Result<BoxedNullifierStream<'_>, SyncerError> {
-        let mut streams: Vec<BoxedNullifierStream<'_>> = Vec::new();
+    ) -> Result<Vec<Nullifier>, SyncerError> {
         let mut current_from = from_block;
 
+        let mut all_nullifiers = Vec::new();
         for (i, syncer) in self.syncers.iter().enumerate() {
             if current_from > to_block {
                 break;
@@ -97,7 +91,7 @@ impl Syncer for ChainedSyncer {
                 .sync_nullifiers(contract, current_from, range_end)
                 .await
             {
-                Ok(stream) => streams.push(stream),
+                Ok(nullifiers) => all_nullifiers.extend(nullifiers),
                 Err(e) => {
                     tracing::warn!("Syncer {} failed: {}", i, e);
                 }
@@ -105,7 +99,7 @@ impl Syncer for ChainedSyncer {
 
             current_from = range_end + 1;
         }
-        let combined = stream::iter(streams).flatten();
-        Ok(Box::pin(combined))
+
+        Ok(all_nullifiers)
     }
 }

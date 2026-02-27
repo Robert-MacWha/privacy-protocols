@@ -1,51 +1,48 @@
 use std::sync::Arc;
 
 use alloy::primitives::Address;
-use rand::rng;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
-    provider::{PoolProviderState, TornadoProvider},
+    PoolProviderState,
+    broadcaster::BroadcastProvider,
     wasm::{
-        JsPool, JsProver, note::JsNote, syncer::JsSyncer, tx_data::JsTxData, verifier::JsVerifier,
+        JsDepositResult, JsPool, JsProver, JsSyncer, JsVerifier, note::JsNote,
+        provider::bigint_to_u256, relayer_syncer::JsRelayerSyncer, syncer::new_dyn_provider,
     },
 };
 
 #[wasm_bindgen]
-pub struct JsTornadoProvider {
-    inner: TornadoProvider,
+pub struct JsBroadcastProvider {
+    inner: BroadcastProvider,
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
-pub struct JsDepositResult {
-    pub(crate) tx_data: JsTxData,
-    pub(crate) note: JsNote,
-}
-
-#[wasm_bindgen]
-impl JsDepositResult {
-    #[wasm_bindgen(getter, js_name = "txData")]
-    pub fn tx_data(&self) -> JsTxData {
-        self.tx_data.clone()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn note(&self) -> JsNote {
-        self.note.clone()
-    }
-}
-
-#[wasm_bindgen]
-impl JsTornadoProvider {
-    /// Creates a new TornadoProvider
+impl JsBroadcastProvider {
+    /// Creates a new BroadcastProvider
     ///
     /// @param syncer Syncer used to index deposits/withdrawals
     /// @param verifier Verifier used for on-chain root verification
     /// @param prover Prover used to generate proofs
-    pub fn new(syncer: JsSyncer, verifier: JsVerifier, prover: JsProver) -> JsTornadoProvider {
-        let inner = TornadoProvider::new(syncer.inner(), verifier.inner(), Arc::new(prover));
-        inner.into()
+    /// @param relayer_syncer Syncer used to index relayers
+    /// @param rpc_url RPC URL for ethereum mainnet (used for relayer syncing)
+    pub async fn new(
+        syncer: JsSyncer,
+        verifier: JsVerifier,
+        prover: JsProver,
+        relayer_syncer: JsRelayerSyncer,
+        mainnet_rpc_url: &str,
+    ) -> Result<JsBroadcastProvider, JsValue> {
+        let mainnet_provider = new_dyn_provider(mainnet_rpc_url).await?;
+
+        let inner = BroadcastProvider::new(
+            syncer.inner(),
+            verifier.inner(),
+            Arc::new(prover),
+            relayer_syncer.inner(),
+            mainnet_provider,
+        );
+        Ok(inner.into())
     }
 
     pub fn add_pool(&mut self, pool: &JsPool) {
@@ -65,7 +62,7 @@ impl JsTornadoProvider {
     }
 
     pub fn deposit(&self, pool: &JsPool) -> Result<JsDepositResult, JsValue> {
-        let mut rng = rng();
+        let mut rng = rand::rng();
         let (tx_data, note) = self.inner.deposit(&pool.inner, &mut rng)?;
         Ok(JsDepositResult {
             tx_data: tx_data.into(),
@@ -73,22 +70,23 @@ impl JsTornadoProvider {
         })
     }
 
-    /// Creates a withdrawal transaction for the given note
+    /// Broadcast a withdrawal transaction to the network
     ///
     /// @param pool The pool to withdraw from
     /// @param note The note to withdraw
+    /// @param rpc_url RPC URL for the target network (used for gas estimation)
     /// @param recipient The address to receive the withdrawn funds
     /// @param refund Optional
     ///
-    /// @returns The transaction data for the withdrawal transaction, which can
-    /// be signed and broadcast by the caller
-    pub async fn withdraw(
+    /// @return The txhash for the broadcasted transaction (0x...)
+    pub async fn broadcast(
         &self,
         pool: &JsPool,
         note: &JsNote,
+        rpc_url: &str,
         recipient: String,
         refund: Option<js_sys::BigInt>,
-    ) -> Result<JsTxData, JsValue> {
+    ) -> Result<String, JsValue> {
         let recipient: Address = recipient
             .parse()
             .map_err(|e| JsValue::from_str(&format!("Invalid recipient address: {}", e)))?;
@@ -98,12 +96,22 @@ impl JsTornadoProvider {
             None => None,
         };
 
-        let tx_data = self
+        let provider = new_dyn_provider(rpc_url).await?;
+
+        let mut rng = rand::rng();
+        let tx_hash = self
             .inner
-            .withdraw(&pool.inner, &note.inner, recipient, None, None, refund)
+            .broadcast(
+                &pool.inner,
+                &note.inner,
+                &provider,
+                recipient,
+                refund,
+                &mut rng,
+            )
             .await?;
 
-        Ok(tx_data.into())
+        Ok(tx_hash.to_string())
     }
 
     pub async fn sync(&mut self) -> Result<(), JsValue> {
@@ -112,27 +120,10 @@ impl JsTornadoProvider {
             .await
             .map_err(|e| JsValue::from_str(&format!("Sync error: {}", e)))
     }
-
-    pub async fn sync_to(&mut self, block: u64) -> Result<(), JsValue> {
-        self.inner
-            .sync_to(block)
-            .await
-            .map_err(|e| JsValue::from_str(&format!("Sync error: {}", e)))
-    }
 }
 
-impl From<TornadoProvider> for JsTornadoProvider {
-    fn from(inner: TornadoProvider) -> Self {
-        Self { inner }
+impl From<BroadcastProvider> for JsBroadcastProvider {
+    fn from(inner: BroadcastProvider) -> Self {
+        JsBroadcastProvider { inner }
     }
-}
-
-pub fn bigint_to_u256(val: js_sys::BigInt) -> Result<ruint::aliases::U256, JsValue> {
-    let s = val
-        .to_string(10)
-        .map_err(|e| JsValue::from_str(&format!("BigInt to string error: {:?}", e)))?
-        .as_string()
-        .ok_or_else(|| JsValue::from_str("BigInt to string returned non-string"))?;
-    ruint::aliases::U256::from_str_radix(&s, 10)
-        .map_err(|e| JsValue::from_str(&format!("U256 parse error: {}", e)))
 }

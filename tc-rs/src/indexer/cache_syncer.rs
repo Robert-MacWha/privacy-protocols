@@ -1,12 +1,9 @@
 use alloy::primitives::{Address, FixedBytes, TxHash, map::HashMap};
-use futures::stream;
 use serde::Deserialize;
 use thiserror::Error;
 use tracing::info;
 
-use crate::indexer::syncer::{
-    BoxedCommitmentStream, BoxedNullifierStream, Commitment, Nullifier, Syncer, SyncerError,
-};
+use crate::indexer::syncer::{Commitment, Nullifier, Syncer, SyncerError};
 
 /// A syncer that reads from a pre-generated cache of commitments and nullifiers
 pub struct CacheSyncer {
@@ -89,7 +86,7 @@ impl Syncer for CacheSyncer {
         contract: Address,
         from_block: u64,
         to_block: u64,
-    ) -> Result<BoxedCommitmentStream<'_>, SyncerError> {
+    ) -> Result<Vec<Commitment>, SyncerError> {
         info!(
             "CacheSyncer syncing commitments from block {} to {}",
             from_block, to_block
@@ -105,18 +102,11 @@ impl Syncer for CacheSyncer {
             })?;
 
         let commitments: Vec<Commitment> = cache.deposits.iter().map(|c| c.into()).collect();
-        let items: Vec<Commitment> = commitments
-            .iter()
+        let commitments = commitments
+            .into_iter()
             .filter(|c| c.block_number >= from_block && c.block_number <= to_block)
-            .map(|c| Commitment {
-                block_number: c.block_number,
-                tx_hash: c.tx_hash,
-                commitment: c.commitment,
-                leaf_index: c.leaf_index,
-                timestamp: c.timestamp,
-            })
             .collect();
-        Ok(Box::pin(stream::iter(items)))
+        Ok(commitments)
     }
 
     async fn sync_nullifiers(
@@ -124,7 +114,7 @@ impl Syncer for CacheSyncer {
         contract: Address,
         from_block: u64,
         to_block: u64,
-    ) -> Result<BoxedNullifierStream<'_>, SyncerError> {
+    ) -> Result<Vec<Nullifier>, SyncerError> {
         info!(
             "CacheSyncer syncing nullifiers from block {} to {}",
             from_block, to_block
@@ -140,19 +130,11 @@ impl Syncer for CacheSyncer {
             })?;
 
         let nullifiers: Vec<Nullifier> = cache.withdrawals.iter().map(|w| w.into()).collect();
-        let items: Vec<Nullifier> = nullifiers
-            .iter()
+        let nullifiers = nullifiers
+            .into_iter()
             .filter(|n| n.block_number >= from_block && n.block_number <= to_block)
-            .map(|n| Nullifier {
-                block_number: n.block_number,
-                tx_hash: n.tx_hash,
-                nullifier: n.nullifier,
-                to: n.to,
-                fee: n.fee,
-                timestamp: n.timestamp,
-            })
             .collect();
-        Ok(Box::pin(stream::iter(items)))
+        Ok(nullifiers)
     }
 }
 

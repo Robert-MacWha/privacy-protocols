@@ -9,6 +9,7 @@ use thiserror::Error;
 use tracing::warn;
 
 use crate::{
+    abis::tornado::Tornado,
     indexer::{Syncer, Verifier},
     note::Note,
     provider::{
@@ -124,6 +125,7 @@ impl TornadoProvider {
         TornadoProviderState { pool_states }
     }
 
+    /// Create a deposit transaction
     pub fn deposit<R: Rng>(
         &self,
         pool: &Pool,
@@ -133,18 +135,35 @@ impl TornadoProvider {
         Ok(provider.deposit(rng))
     }
 
+    /// Create a withdrawal transaction
     pub async fn withdraw(
         &self,
         pool: &Pool,
         note: &Note,
         recipient: Address,
-        relayer: Address,
-        fee: U256,
-        refund: U256,
+        relayer: Option<Address>,
+        fee: Option<U256>,
+        refund: Option<U256>,
     ) -> Result<TxData, TornadoProviderError> {
         let provider = self.pool(pool)?;
         Ok(provider
             .withdraw(note, recipient, relayer, fee, refund)
+            .await?)
+    }
+
+    /// Create the calldata for a withdrawal transaction
+    pub async fn withdraw_calldata(
+        &self,
+        pool: &Pool,
+        note: &Note,
+        recipient: Address,
+        relayer: Option<Address>,
+        fee: Option<U256>,
+        refund: Option<U256>,
+    ) -> Result<Tornado::withdrawCall, TornadoProviderError> {
+        let provider = self.pool(pool)?;
+        Ok(provider
+            .withdraw_calldata(note, recipient, relayer, fee, refund)
             .await?)
     }
 

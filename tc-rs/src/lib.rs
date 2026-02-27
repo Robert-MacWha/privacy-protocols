@@ -6,6 +6,9 @@ pub mod note;
 mod provider;
 pub mod tx_data;
 
+#[cfg(feature = "broadcaster")]
+pub mod broadcaster;
+
 #[cfg(feature = "wasm")]
 pub mod wasm;
 

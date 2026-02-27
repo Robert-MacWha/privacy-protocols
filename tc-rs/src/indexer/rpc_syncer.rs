@@ -4,16 +4,13 @@ use alloy::{
     rpc::types::Filter,
 };
 use alloy_sol_types::SolEvent;
-use futures::{StreamExt, stream};
 use ruint::aliases::U256;
 use tracing::{info, warn};
 
 use crate::{
     abis::tornado::{MerkleTreeWithHistory, Tornado},
     indexer::{
-        syncer::{
-            BoxedCommitmentStream, BoxedNullifierStream, Commitment, Nullifier, Syncer, SyncerError,
-        },
+        syncer::{Commitment, Nullifier, Syncer, SyncerError},
         verifier::{Verifier, VerifierError},
     },
     merkle::MerkleRoot,
@@ -54,22 +51,26 @@ impl Syncer for RpcSyncer {
         contract: Address,
         from_block: u64,
         to_block: u64,
-    ) -> Result<BoxedCommitmentStream<'_>, SyncerError> {
+    ) -> Result<Vec<Commitment>, SyncerError> {
         let batch_size = self.batch_size;
         let contract_address = contract;
         let provider = &self.provider;
 
-        let stream = stream::unfold(from_block, move |current_block| async move {
+        let mut all_commitments = Vec::new();
+        let mut current_block = from_block;
+        loop {
             if current_block > to_block {
-                return None;
+                break;
             }
 
-            let batch_end = current_block
-                .saturating_add(batch_size.saturating_sub(1))
-                .min(to_block);
+            let batch_start = current_block;
+            let batch_end = to_block.min(current_block + batch_size - 1);
+            current_block = batch_end + 1;
+
             let filter = Filter::new()
                 .address(contract_address)
-                .from_block(current_block)
+                .event_signature(Tornado::Deposit::SIGNATURE_HASH)
+                .from_block(batch_start)
                 .to_block(batch_end);
 
             let logs = match provider.get_logs(&filter).await {
@@ -77,32 +78,19 @@ impl Syncer for RpcSyncer {
                 Err(e) => {
                     warn!(
                         "Failed to fetch logs for commitments {}-{}: {}",
-                        current_block, batch_end, e
+                        batch_start, batch_end, e
                     );
-                    return None;
+                    continue;
                 }
             };
 
             let commitments: Vec<Commitment> = logs
                 .into_iter()
-                .filter_map(|log| {
-                    if log.topics().first().copied() != Some(Tornado::Deposit::SIGNATURE_HASH) {
-                        return None;
-                    }
-                    let block_number = log.block_number.unwrap_or(0);
-                    let tx_hash = log.transaction_hash.unwrap_or_default();
-                    match Tornado::Deposit::decode_log(&log.inner) {
-                        Ok(event) => Some(Commitment {
-                            block_number,
-                            tx_hash,
-                            commitment: event.data.commitment,
-                            leaf_index: event.data.leafIndex,
-                            timestamp: event.data.timestamp.saturating_to::<u64>(),
-                        }),
-                        Err(e) => {
-                            warn!("Failed to decode Deposit event: {}", e);
-                            None
-                        }
+                .filter_map(|log| match log.try_into() {
+                    Ok(commitment) => Some(commitment),
+                    Err(e) => {
+                        warn!("Failed to parse log into Commitment: {}", e);
+                        None
                     }
                 })
                 .collect();
@@ -110,15 +98,13 @@ impl Syncer for RpcSyncer {
             info!(
                 "Fetched {} commitments from blocks {}-{}",
                 commitments.len(),
-                current_block,
+                batch_start,
                 batch_end
             );
-            let next_block = batch_end + 1;
-            Some((stream::iter(commitments), next_block))
-        })
-        .flatten();
+            all_commitments.extend(commitments);
+        }
 
-        Ok(Box::pin(stream))
+        Ok(all_commitments)
     }
 
     async fn sync_nullifiers(
@@ -126,22 +112,26 @@ impl Syncer for RpcSyncer {
         contract: Address,
         from_block: u64,
         to_block: u64,
-    ) -> Result<BoxedNullifierStream<'_>, SyncerError> {
+    ) -> Result<Vec<Nullifier>, SyncerError> {
         let batch_size = self.batch_size;
         let contract_address = contract;
         let provider = &self.provider;
 
-        let stream = stream::unfold(from_block, move |current_block| async move {
+        let mut all_nullifiers = Vec::new();
+        let mut current_block = from_block;
+        loop {
             if current_block > to_block {
-                return None;
+                break;
             }
 
-            let batch_end = current_block
-                .saturating_add(batch_size.saturating_sub(1))
-                .min(to_block);
+            let batch_start = current_block;
+            let batch_end = to_block.min(current_block + batch_size - 1);
+            current_block = batch_end + 1;
+
             let filter = Filter::new()
                 .address(contract_address)
-                .from_block(current_block)
+                .event_signature(Tornado::Withdrawal::SIGNATURE_HASH)
+                .from_block(batch_start)
                 .to_block(batch_end);
 
             let logs = match provider.get_logs(&filter).await {
@@ -149,33 +139,19 @@ impl Syncer for RpcSyncer {
                 Err(e) => {
                     warn!(
                         "Failed to fetch logs for nullifiers {}-{}: {}",
-                        current_block, batch_end, e
+                        batch_start, batch_end, e
                     );
-                    return None;
+                    continue;
                 }
             };
 
             let nullifiers: Vec<Nullifier> = logs
                 .into_iter()
-                .filter_map(|log| {
-                    if log.topics().first().copied() != Some(Tornado::Withdrawal::SIGNATURE_HASH) {
-                        return None;
-                    }
-                    let block_number = log.block_number.unwrap_or(0);
-                    let tx_hash = log.transaction_hash.unwrap_or_default();
-                    match Tornado::Withdrawal::decode_log(&log.inner) {
-                        Ok(event) => Some(Nullifier {
-                            block_number,
-                            tx_hash,
-                            nullifier: event.data.nullifierHash,
-                            to: event.data.to,
-                            fee: event.data.fee.saturating_to::<u128>(),
-                            timestamp: 0,
-                        }),
-                        Err(e) => {
-                            warn!("Failed to decode Withdrawal event: {}", e);
-                            None
-                        }
+                .filter_map(|log| match log.try_into() {
+                    Ok(nullifier) => Some(nullifier),
+                    Err(e) => {
+                        warn!("Failed to parse log into Nullifier: {}", e);
+                        None
                     }
                 })
                 .collect();
@@ -183,15 +159,13 @@ impl Syncer for RpcSyncer {
             info!(
                 "Fetched {} nullifiers from blocks {}-{}",
                 nullifiers.len(),
-                current_block,
+                batch_start,
                 batch_end
             );
-            let next_block = batch_end + 1;
-            Some((stream::iter(nullifiers), next_block))
-        })
-        .flatten();
+            all_nullifiers.extend(nullifiers);
+        }
 
-        Ok(Box::pin(stream))
+        Ok(all_nullifiers)
     }
 }
 

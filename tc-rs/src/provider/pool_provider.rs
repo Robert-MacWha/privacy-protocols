@@ -68,6 +68,7 @@ impl PoolProvider {
         }
     }
 
+    /// Create a deposit transaction
     pub fn deposit<R: RngCore>(&self, rng: &mut R) -> (TxData, Note) {
         let note = Note::random(
             rng,
@@ -94,14 +95,39 @@ impl PoolProvider {
         (tx_data, note)
     }
 
+    /// Create a withdrawal transaction
     pub async fn withdraw(
         &self,
         note: &Note,
         recipient: Address,
-        relayer: Address,
-        fee: U256,
-        refund: U256,
+        relayer: Option<Address>,
+        fee: Option<U256>,
+        refund: Option<U256>,
     ) -> Result<TxData, PoolProviderError> {
+        let call = self
+            .withdraw_calldata(note, recipient, relayer, fee, refund)
+            .await?;
+
+        Ok(TxData {
+            to: self.pool().address,
+            data: call.abi_encode(),
+            value: refund.unwrap_or_default(),
+        })
+    }
+
+    /// Create the calldata for a withdrawal transaction
+    pub async fn withdraw_calldata(
+        &self,
+        note: &Note,
+        recipient: Address,
+        relayer: Option<Address>,
+        fee: Option<U256>,
+        refund: Option<U256>,
+    ) -> Result<Tornado::withdrawCall, PoolProviderError> {
+        let relayer = relayer.unwrap_or_default();
+        let fee = fee.unwrap_or_default();
+        let refund = refund.unwrap_or_default();
+
         let merkle_tree = self.indexer.tree();
         let circuit_inputs =
             WithdrawCircuitInputs::new(merkle_tree, note, recipient, relayer, fee, refund)?;
@@ -122,11 +148,7 @@ impl PoolProvider {
             _refund: refund,
         };
 
-        Ok(TxData {
-            to: self.pool().address,
-            data: call.abi_encode(),
-            value: refund,
-        })
+        Ok(call)
     }
 
     pub async fn sync(&mut self) -> Result<(), PoolProviderError> {

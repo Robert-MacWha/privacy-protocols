@@ -18,18 +18,7 @@ integration-sync:
     # Wait for anvil to be ready
     sleep 2
 
-    RUST_LOG=info cargo test -- test_sync --ignored --nocapture
+    RUST_LOG=info cargo test -- test_sync_indexer --ignored --nocapture
 
-integration-transact:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # Start anvil in background
-    anvil --fork-url {{fork_url}} --fork-block-number {{fork_block}} --port 8545 &
-    ANVIL_PID=$!
-    trap "kill $ANVIL_PID" EXIT
-
-    # Wait for anvil to be ready
-    sleep 2
-
-    RUST_LOG=info cargo test -- test_transact --ignored --nocapture
+integration-sync-broadcaster:
+    RUST_LOG=info cargo test -- test_sync_broadcaster --ignored --nocapture

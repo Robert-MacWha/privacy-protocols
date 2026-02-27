@@ -15,6 +15,16 @@ pub use tx_data::JsTxData;
 pub use verifier::JsVerifier;
 use wasm_bindgen::prelude::wasm_bindgen;
 
+#[cfg(feature = "broadcaster")]
+mod broadcaster;
+#[cfg(feature = "broadcaster")]
+mod relayer_syncer;
+
+#[cfg(feature = "broadcaster")]
+pub use broadcaster::JsBroadcastProvider;
+#[cfg(feature = "broadcaster")]
+pub use relayer_syncer::JsRelayerSyncer;
+
 #[wasm_bindgen(start)]
 pub fn wasm_start() {
     console_error_panic_hook::set_once();
