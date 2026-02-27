@@ -1,4 +1,4 @@
-name: CI Rust
+name: CI Railgun Rust
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-rust:
+  ci-railgun-rust:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5

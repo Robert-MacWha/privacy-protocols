@@ -1,4 +1,4 @@
-name: CI JS
+name: CI Railgun JS
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-js:
+  ci-railgun-js:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5

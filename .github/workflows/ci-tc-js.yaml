@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-tc-js:
+  ci-tc-js:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
