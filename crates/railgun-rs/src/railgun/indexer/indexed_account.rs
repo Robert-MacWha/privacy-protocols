@@ -3,16 +3,13 @@ use std::{
     sync::Arc,
 };
 
-use ruint::aliases::U256;
 use tracing::{info, warn};
 
 use crate::{
-    abis::railgun::{RailgunSmartWallet, ShieldRequest},
     caip::AssetId,
     railgun::{
         address::RailgunAddress,
-        indexer::notebook::Notebook,
-        merkle_tree::TOTAL_LEAVES,
+        indexer::{self, notebook::Notebook, syncer},
         note::{
             Note,
             utxo::{NoteError, UtxoNote},
@@ -74,131 +71,70 @@ impl IndexedAccount {
     }
 
     /// Handles a Shield event for this account. Returns true if any new notes were added.
-    pub fn handle_shield_event(
-        &mut self,
-        event: &RailgunSmartWallet::Shield,
-    ) -> Result<bool, NoteError> {
-        let tree_number: u32 = event.treeNumber.saturating_to();
-        let start_position: u32 = event.startPosition.saturating_to();
+    pub fn handle_shield_event(&mut self, event: &indexer::Shield) -> Result<bool, NoteError> {
+        let note = UtxoNote::decrypt_shield(self.signer.clone(), event);
+        let note = match note {
+            Err(NoteError::Aes(_)) => {
+                return Ok(false);
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to decrypt Shield note at tree {}, leaf {}: {}",
+                    event.tree_number, event.leaf_index, e
+                );
+                return Ok(false);
+            }
+            Ok(n) => n,
+        };
 
-        let mut added = false;
-        for (index, ciphertext) in event.shieldCiphertext.iter().enumerate() {
-            let shield_request = ShieldRequest {
-                preimage: event.commitments[index].clone(),
-                ciphertext: ciphertext.clone(),
-            };
+        info!(?note, "Decrypted Shield Note");
+        self.notebooks
+            .entry(event.tree_number)
+            .or_default()
+            .add(event.leaf_index, note);
 
-            let is_crossing_tree = start_position as usize + index >= TOTAL_LEAVES;
-            let index = index as u32;
-            let (tree_number, leaf_index) = if is_crossing_tree {
-                (
-                    tree_number + 1,
-                    start_position + index - TOTAL_LEAVES as u32,
-                )
-            } else {
-                (tree_number, start_position + index)
-            };
-
-            let note = UtxoNote::decrypt_shield_request(
-                self.signer.clone(),
-                tree_number,
-                leaf_index,
-                shield_request,
-            );
-
-            let note = match note {
-                Err(NoteError::Aes(_e)) => {
-                    continue;
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to decrypt Shield note at tree {}, leaf {}: {}",
-                        tree_number, leaf_index, e
-                    );
-                    continue;
-                }
-                Ok(n) => n,
-            };
-
-            info!(?note, "Decrypted Shield Note");
-            self.notebooks
-                .entry(tree_number)
-                .or_default()
-                .add(leaf_index, note);
-            added = true;
-        }
-
-        Ok(added)
+        Ok(true)
     }
 
     /// Handles a Transact event for this account. Returns true if any new notes were added.
-    pub fn handle_transact_event(
-        &mut self,
-        event: &RailgunSmartWallet::Transact,
-    ) -> Result<bool, NoteError> {
-        let tree_number: u32 = event.treeNumber.saturating_to();
-        let start_position: u32 = event.startPosition.saturating_to();
+    pub fn handle_transact_event(&mut self, event: &syncer::Transact) -> Result<bool, NoteError> {
+        let note = UtxoNote::decrypt_transact(self.signer.clone(), &event);
 
-        let mut added = false;
-        for (index, ciphertext) in event.ciphertext.iter().enumerate() {
-            let is_crossing_tree = start_position as usize + index >= TOTAL_LEAVES;
-            let index = index as u32;
-            let (tree_number, leaf_index) = if is_crossing_tree {
-                (
-                    tree_number + 1,
-                    start_position + index - TOTAL_LEAVES as u32,
-                )
-            } else {
-                (tree_number, start_position + index)
-            };
+        let note = match note {
+            Err(NoteError::Aes(_)) => {
+                return Ok(false);
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to decrypt Transact note at tree {}, leaf {}: {}",
+                    event.tree_number, event.leaf_index, e
+                );
+                return Ok(false);
+            }
+            Ok(n) => n,
+        };
 
-            let note = UtxoNote::decrypt(self.signer.clone(), tree_number, leaf_index, ciphertext);
+        info!(?note, "Decrypted Transact Note");
+        self.notebooks
+            .entry(event.tree_number)
+            .or_default()
+            .add(event.leaf_index, note);
 
-            let note = match note {
-                Err(NoteError::Aes(_)) => continue,
-                Err(e) => {
-                    warn!(
-                        "Failed to decrypt Transact note at tree {}, leaf {}: {}",
-                        tree_number, leaf_index, e
-                    );
-                    continue;
-                }
-                Ok(n) => n,
-            };
-
-            info!(?note, "Decrypted Transact Note");
-            self.notebooks
-                .entry(tree_number)
-                .or_default()
-                .add(leaf_index, note);
-            added = true;
-        }
-
-        Ok(added)
+        Ok(true)
     }
 
     /// Handles a nullified event for this account. Returns true if any notes were nullified.
-    pub fn handle_nullified_event(
-        &mut self,
-        event: &RailgunSmartWallet::Nullified,
-        timestamp: u64,
-    ) -> bool {
-        let tree_number: u32 = event.treeNumber as u32;
+    pub fn handle_nullified_event(&mut self, event: &syncer::Nullified, timestamp: u64) -> bool {
+        let spent = self
+            .notebooks
+            .entry(event.tree_number)
+            .or_default()
+            .nullify(event.nullifier.into(), timestamp);
 
-        let mut matched = false;
-        for nullifier in event.nullifier.iter() {
-            let spent = self
-                .notebooks
-                .entry(tree_number)
-                .or_default()
-                .nullify(U256::from_be_bytes(**nullifier), timestamp);
-
-            if spent.is_some() {
-                info!("Nullified note");
-                matched = true;
-            }
+        if spent.is_some() {
+            info!("Nullified note");
+            return true;
         }
-
-        matched
+        false
     }
 }

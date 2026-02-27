@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use futures::{StreamExt, stream};
-
-use super::{compat::BoxedSyncStream, syncer::NoteSyncer};
+use super::syncer::NoteSyncer;
+use crate::railgun::indexer::syncer::{SyncEvent, syncer::SyncerError};
 
 /// A syncer that chains multiple syncers in priority order.
 pub struct ChainedSyncer {
@@ -21,7 +20,7 @@ impl ChainedSyncer {
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 impl NoteSyncer for ChainedSyncer {
-    async fn latest_block(&self) -> Result<u64, Box<dyn std::error::Error>> {
+    async fn latest_block(&self) -> Result<u64, SyncerError> {
         let mut max_block = 0u64;
         for syncer in &self.syncers {
             if let Ok(block) = syncer.latest_block().await {
@@ -31,14 +30,10 @@ impl NoteSyncer for ChainedSyncer {
         Ok(max_block)
     }
 
-    async fn sync(
-        &self,
-        from_block: u64,
-        to_block: u64,
-    ) -> Result<BoxedSyncStream<'_>, Box<dyn std::error::Error>> {
-        let mut streams: Vec<BoxedSyncStream<'_>> = Vec::new();
+    async fn sync(&self, from_block: u64, to_block: u64) -> Result<Vec<SyncEvent>, SyncerError> {
         let mut current_from = from_block;
 
+        let mut all_events = Vec::new();
         for (i, syncer) in self.syncers.iter().enumerate() {
             if current_from > to_block {
                 break;
@@ -51,7 +46,7 @@ impl NoteSyncer for ChainedSyncer {
 
             let range_end = syncer_latest.min(to_block);
             match syncer.sync(current_from, range_end).await {
-                Ok(stream) => streams.push(stream),
+                Ok(events) => all_events.extend(events),
                 Err(e) => {
                     tracing::warn!("Syncer {} failed: {}", i, e);
                 }
@@ -60,7 +55,6 @@ impl NoteSyncer for ChainedSyncer {
             current_from = range_end + 1;
         }
 
-        let combined = stream::iter(streams).flatten();
-        Ok(Box::pin(combined))
+        Ok(all_events)
     }
 }

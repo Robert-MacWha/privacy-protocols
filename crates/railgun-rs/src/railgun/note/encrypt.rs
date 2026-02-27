@@ -1,8 +1,10 @@
+use crypto::poseidon_hash;
 use rand::Rng;
+use ruint::{Uint, aliases::U256};
 use thiserror::Error;
 
 use crate::{
-    abis::railgun::CommitmentCiphertext,
+    abis::railgun::{CommitmentCiphertext, CommitmentPreimage, ShieldCiphertext, ShieldRequest},
     caip::AssetId,
     crypto::{
         aes::{AesError, encrypt_ctr},
@@ -92,9 +94,55 @@ pub fn encrypt_note<R: Rng + ?Sized>(
     })
 }
 
+pub fn encrypt_shield<R: Rng>(
+    recipient: RailgunAddress,
+    asset: AssetId,
+    value: u128,
+    rng: &mut R,
+) -> Result<ShieldRequest, EncryptError> {
+    let shield_private_key: ViewingKey = rng.random();
+    let shared_key = shield_private_key
+        .derive_shared_key(recipient.viewing_pubkey())
+        .unwrap();
+
+    let random_seed: [u8; 16] = rng.random();
+    let mut npk: [u8; 32] = poseidon_hash(&[
+        recipient.master_key().to_u256(),
+        U256::from_be_slice(&random_seed),
+    ])
+    .unwrap()
+    .to_le_bytes();
+    npk.reverse();
+
+    let gcm = shared_key.encrypt_gcm(&[&random_seed], rng).unwrap();
+    let ctr = shield_private_key.encrypt_ctr(&[recipient.viewing_pubkey().as_bytes()], rng);
+
+    let gcm_random: [u8; 16] = gcm.data[0].clone().try_into().unwrap();
+    let ctr_key: [u8; 32] = ctr.data[0].clone().try_into().unwrap();
+
+    Ok(ShieldRequest {
+        preimage: CommitmentPreimage {
+            npk: npk.into(),
+            token: asset.into(),
+            value: Uint::from(value),
+        },
+        ciphertext: ShieldCiphertext {
+            // iv (16) | tag (16)
+            // random (16) | ctr iv (16)
+            // receiver_viewing_key (32)
+            encryptedBundle: [
+                concat_arrays(&gcm.iv, &gcm.tag).into(),
+                concat_arrays(&gcm_random, &ctr.iv).into(),
+                ctr_key.into(),
+            ],
+            shieldKey: shield_private_key.public_key().to_u256().into(),
+        },
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::address;
+    use alloy::primitives::{Address, address};
     use rand_chacha::{ChaChaRng, rand_core::SeedableRng};
     use tracing_test::traced_test;
 
@@ -102,7 +150,7 @@ mod tests {
     use crate::{
         crypto::keys::SpendingKey,
         railgun::{
-            note::utxo::{UtxoNote, UtxoType},
+            address::ChainId,
             signer::{PrivateKeySigner, Signer},
         },
     };
@@ -144,50 +192,18 @@ mod tests {
 
     #[test]
     #[traced_test]
-    fn test_encrypt_decrypt_note() {
-        let mut rand = ChaChaRng::seed_from_u64(0);
-        let chain_id = 1;
+    fn test_encrypt_shield_snap() {
+        let mut rng = ChaChaRng::seed_from_u64(0);
 
-        // Sender keys
-        let sender_viewing_key = ViewingKey::from_bytes([2u8; 32]);
+        let spending_key: SpendingKey = rng.random();
+        let viewing_key: ViewingKey = rng.random();
 
-        // Receiver keys
-        let receiver_spending_key = SpendingKey::from_bytes([3u8; 32]);
-        let receiver_viewing_key = ViewingKey::from_bytes([4u8; 32]);
-        let signer =
-            PrivateKeySigner::new_evm(receiver_spending_key, receiver_viewing_key, chain_id);
-        let receiver = signer.address();
+        let recipient =
+            RailgunAddress::from_private_keys(spending_key, viewing_key, ChainId::EVM(1));
+        let asset: AssetId = AssetId::Erc20(Address::from([0u8; 20]));
+        let value: u128 = 1_000_000;
 
-        let shared_random = [5u8; 16];
-        let value = 1000u128;
-        let asset = AssetId::Erc20(address!("0x1234567890123456789012345678901234567890"));
-        let memo = "test memo";
-
-        let encrypted = encrypt_note(
-            &receiver,
-            &shared_random,
-            value,
-            &asset,
-            memo,
-            sender_viewing_key,
-            false,
-            &mut rand,
-        )
-        .unwrap();
-
-        // Receiver decrypts with their own keys
-        let decrypted = UtxoNote::decrypt(signer.clone(), 1, 0, &encrypted).unwrap();
-        let expected = UtxoNote::new(
-            1,
-            0,
-            signer,
-            asset,
-            value,
-            shared_random,
-            memo,
-            UtxoType::Transact,
-        );
-
-        assert_eq!(expected, decrypted);
+        let shield_request = encrypt_shield(recipient, asset, value, &mut rng).unwrap();
+        insta::assert_debug_snapshot!(shield_request);
     }
 }

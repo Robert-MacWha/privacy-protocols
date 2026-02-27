@@ -170,7 +170,6 @@ impl<C: MerkleConfig> MerkleTree<C> {
             return;
         }
 
-        info!("Rebuilding Merkle tree {}", self.number);
         let mut dirty = std::mem::take(&mut self.dirty_parents);
 
         for level in 0..C::DEPTH {

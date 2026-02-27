@@ -55,7 +55,7 @@ async fn test_transact_poi() {
 
     info!("Setting up railgun");
     let subsquid_syncer = Arc::new(SubsquidSyncer::new(CHAIN.subsquid_endpoint));
-    let rpc_syncer = Arc::new(RpcSyncer::new(provider.clone(), CHAIN).with_batch_size(10));
+    let rpc_syncer = Arc::new(RpcSyncer::new(provider.clone(), CHAIN).with_batch_size(1000));
     let syncer = Arc::new(ChainedSyncer::new(vec![
         subsquid_syncer.clone(),
         rpc_syncer,

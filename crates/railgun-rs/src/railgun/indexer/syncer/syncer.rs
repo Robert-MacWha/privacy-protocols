@@ -1,21 +1,52 @@
+use alloy::primitives::FixedBytes;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
-use super::compat::BoxedSyncStream;
-use crate::abis::railgun::RailgunSmartWallet;
+use crate::{caip::AssetId, crypto::aes::Ciphertext};
 
-/// TODO: Consider making types for shield, transact, and nullified so we don't need to use the anvil
-/// types if it's more convenient.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncEvent {
-    Shield(RailgunSmartWallet::Shield, u64),
-    Transact(RailgunSmartWallet::Transact, u64),
-    Nullified(RailgunSmartWallet::Nullified, u64),
+    Shield(Shield, u64),
+    Transact(Transact, u64),
+    Nullified(Nullified, u64),
     Legacy(LegacyCommitment, u64),
+}
+
+/// A single Shield commitment event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Shield {
+    pub tree_number: u32,
+    pub leaf_index: u32,
+    pub npk: U256,
+    pub token: AssetId,
+    pub value: U256,
+    pub ciphertext: Ciphertext,
+    pub shield_key: [u8; 32],
+}
+
+/// A single transact commitment event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Transact {
+    pub tree_number: u32,
+    pub leaf_index: u32,
+    pub hash: U256,
+    pub ciphertext: Ciphertext,
+    pub blinded_sender_viewing_key: [u8; 32],
+    pub blinded_receiver_viewing_key: [u8; 32],
+    pub annotation_data: Vec<u8>,
+}
+
+/// A single nullified event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Nullified {
+    pub tree_number: u32,
+    pub nullifier: FixedBytes<32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Operation {
+    pub block_number: u64,
     pub nullifiers: Vec<U256>,
     pub commitment_hashes: Vec<U256>,
     pub bound_params_hash: U256,
@@ -31,16 +62,18 @@ pub struct LegacyCommitment {
     pub leaf_index: u32,
 }
 
+#[derive(Debug, Error)]
+pub enum SyncerError {
+    #[error("Syncer error: {0}")]
+    Syncer(#[from] Box<dyn std::error::Error>),
+}
+
 /// Trait for syncers that emit note-level blockchain events (Shield, Transact, Nullified).
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 pub trait NoteSyncer: Send + Sync {
-    async fn latest_block(&self) -> Result<u64, Box<dyn std::error::Error>>;
-    async fn sync(
-        &self,
-        from_block: u64,
-        to_block: u64,
-    ) -> Result<BoxedSyncStream<'_>, Box<dyn std::error::Error>>;
+    async fn latest_block(&self) -> Result<u64, SyncerError>;
+    async fn sync(&self, from_block: u64, to_block: u64) -> Result<Vec<SyncEvent>, SyncerError>;
 }
 
 /// Trait for syncers that fetch full operation data (nullifiers + commitments + tree positions).
@@ -49,10 +82,6 @@ pub trait NoteSyncer: Send + Sync {
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 pub trait TransactionSyncer: Send + Sync {
-    async fn latest_block(&self) -> Result<u64, Box<dyn std::error::Error>>;
-    async fn sync(
-        &self,
-        from_block: u64,
-        to_block: u64,
-    ) -> Result<Vec<(Operation, u64)>, Box<dyn std::error::Error>>;
+    async fn latest_block(&self) -> Result<u64, SyncerError>;
+    async fn sync(&self, from_block: u64, to_block: u64) -> Result<Vec<Operation>, SyncerError>;
 }

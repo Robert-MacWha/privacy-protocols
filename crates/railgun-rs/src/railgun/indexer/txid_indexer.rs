@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::info;
 
 use crate::{
     crypto::railgun_txid::Txid,
     railgun::{
         indexer::{
-            syncer::TransactionSyncer,
+            syncer::{SyncerError, TransactionSyncer},
             txid_tree_set::{TxidTreeError, TxidTreeSet, TxidTreeSetState},
         },
         merkle_tree::TxidMerkleTree,
@@ -31,7 +32,7 @@ pub struct TxidIndexerState {
 #[derive(Debug, Error)]
 pub enum TxidIndexerError {
     #[error("Syncer error: {0}")]
-    SyncerError(Box<dyn std::error::Error>),
+    SyncerError(#[from] SyncerError),
     #[error("TXID tree error: {0}")]
     TxidTreeError(#[from] TxidTreeError),
 }
@@ -80,19 +81,14 @@ impl TxidIndexer {
         let from_block = self.synced_block + 1;
 
         let syncer = self.txid_syncer.clone();
-        let latest_block = syncer
-            .latest_block()
-            .await
-            .map_err(TxidIndexerError::SyncerError)?;
+        let latest_block = syncer.latest_block().await?;
         let to_block = to_block.min(latest_block);
 
         // Sync
-        let ops = syncer
-            .sync(from_block, to_block)
-            .await
-            .map_err(TxidIndexerError::SyncerError)?;
-        for (op, block) in ops {
-            self.txid_set.enqueue(op, block);
+        let ops = syncer.sync(from_block, to_block).await?;
+        info!("Fetched {} operations from syncer", ops.len());
+        for op in ops {
+            self.txid_set.enqueue(op);
         }
         self.synced_block = to_block;
 

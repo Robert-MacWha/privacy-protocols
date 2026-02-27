@@ -26,6 +26,8 @@ snapshot:
 test: 
     cargo test
 
+# Release enabled for integration tests since the txid syncing is *very* slow in 
+# debug mode.
 integration: integration-sync-txid integration-sync-utxo integration-transact
 
 integration-sync-utxo:

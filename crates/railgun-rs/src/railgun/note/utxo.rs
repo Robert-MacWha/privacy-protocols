@@ -7,7 +7,7 @@ use thiserror::Error;
 use tracing::info;
 
 use crate::{
-    abis::railgun::{CommitmentCiphertext, ShieldRequest, TokenData, TokenDataError},
+    abis::railgun::{ShieldRequest, TokenData, TokenDataError},
     caip::AssetId,
     crypto::{
         aes::{AesError, Ciphertext},
@@ -17,6 +17,7 @@ use crate::{
         },
     },
     railgun::{
+        indexer,
         merkle_tree::UtxoLeafHash,
         note::{IncludedNote, Note, SignableNote},
         signer::{Signer, SpendingKeyProvider, ViewingKeyProvider},
@@ -77,11 +78,6 @@ impl UtxoNote<Arc<dyn Signer>> {
         let npk = note_public_key(signer.as_ref(), signer.as_ref(), &random);
         let nullifying_key = nullifying_key(signer.as_ref());
         let blinded_commitment = blinded_commitment(note_hash.into(), npk, tree_number, leaf_index);
-        info!(
-            "Creating note: tree_number={}, leaf_index={}, hash={:?}, npk={}, blinded_commitment={}",
-            tree_number, leaf_index, note_hash, npk, blinded_commitment
-        );
-
         UtxoNote {
             tree_number,
             leaf_index,
@@ -100,39 +96,21 @@ impl UtxoNote<Arc<dyn Signer>> {
         }
     }
 
-    /// Decrypt a note
-    pub fn decrypt(
+    /// Decrypt a transact note into a Note
+    pub fn decrypt_transact(
         signer: Arc<dyn Signer>,
-        tree_number: u32,
-        leaf_index: u32,
-        encrypted: &CommitmentCiphertext,
+        transact: &indexer::Transact,
     ) -> Result<Self, NoteError> {
-        let blinded_sender = BlindedKey::from_bytes(encrypted.blindedSenderViewingKey.into());
+        let blinded_sender = BlindedKey::from_bytes(transact.blinded_sender_viewing_key);
         let shared_key = signer
             .viewing_key()
             .derive_shared_key_blinded(blinded_sender)?;
 
-        let data: Vec<Vec<u8>> = vec![
-            encrypted.ciphertext[1].to_vec(),
-            encrypted.ciphertext[2].to_vec(),
-            encrypted.ciphertext[3].to_vec(),
-            encrypted.memo.to_vec(),
-        ];
-
-        let mut iv = [0u8; 16];
-        let mut tag = [0u8; 16];
-
-        iv.copy_from_slice(&encrypted.ciphertext[0][..16]);
-        tag.copy_from_slice(&encrypted.ciphertext[0][16..]);
-
-        let ciphertext = Ciphertext { iv, tag, data };
-
         // iv (16) | tag (16)
-        // master_public_key (32)
         // token_hash (32)
         // random (16) | value (16)
-        let bundle = shared_key.decrypt_gcm(&ciphertext)?;
-
+        // memo (optional)
+        let bundle = shared_key.decrypt_gcm(&transact.ciphertext)?;
         let token_data = TokenData::from_hash(&bundle[1])?;
         let asset_id = AssetId::from(token_data);
 
@@ -150,8 +128,8 @@ impl UtxoNote<Arc<dyn Signer>> {
         };
 
         Ok(UtxoNote::new(
-            tree_number,
-            leaf_index,
+            transact.tree_number,
+            transact.leaf_index,
             signer,
             asset_id,
             value,
@@ -162,49 +140,60 @@ impl UtxoNote<Arc<dyn Signer>> {
     }
 
     /// Decrypts a shield note into a Note
+    pub fn decrypt_shield(
+        signer: Arc<dyn Signer>,
+        shield: &indexer::Shield,
+    ) -> Result<Self, NoteError> {
+        let shield_key = ViewingPublicKey::from_bytes(shield.shield_key);
+        let shared_key = signer.viewing_key().derive_shared_key(shield_key)?;
+
+        let decrypted = shared_key.decrypt_gcm(&shield.ciphertext)?;
+        let asset_id = shield.token;
+        let value = shield.value;
+
+        let mut random = [0u8; 16];
+        random.copy_from_slice(&decrypted[0][..16]);
+
+        Ok(UtxoNote::new(
+            shield.tree_number,
+            shield.leaf_index,
+            signer,
+            asset_id,
+            value.saturating_to(),
+            random,
+            "",
+            UtxoType::Shield,
+        ))
+    }
+
+    /// Decrypts a shield note into a Note
     pub fn decrypt_shield_request(
         signer: Arc<dyn Signer>,
         tree_number: u32,
         leaf_index: u32,
         req: ShieldRequest,
     ) -> Result<Self, NoteError> {
-        let encrypted_bundle: [[u8; 32]; 3] = [
-            req.ciphertext.encryptedBundle[0].into(),
-            req.ciphertext.encryptedBundle[1].into(),
-            req.ciphertext.encryptedBundle[2].into(),
-        ];
-
-        let shield_key = ViewingPublicKey::from_bytes(req.ciphertext.shieldKey.into());
-        let shared_key = signer.viewing_key().derive_shared_key(shield_key)?;
-
         let mut iv = [0u8; 16];
         let mut tag = [0u8; 16];
-        iv.copy_from_slice(&encrypted_bundle[0][..16]);
-        tag.copy_from_slice(&encrypted_bundle[0][16..]);
+        iv.copy_from_slice(&req.ciphertext.encryptedBundle[0][..16]);
+        tag.copy_from_slice(&req.ciphertext.encryptedBundle[0][16..]);
 
-        let ciphertext = Ciphertext {
-            iv,
-            tag,
-            data: vec![encrypted_bundle[1][..16].to_vec()],
-        };
-        let decrypted = shared_key.decrypt_gcm(&ciphertext)?;
-
-        let asset_id = AssetId::from(req.preimage.token.clone());
-        let value = req.preimage.value.saturating_to();
-
-        let mut random = [0u8; 16];
-        random.copy_from_slice(&decrypted[0][..16]);
-
-        Ok(UtxoNote::new(
-            tree_number,
-            leaf_index,
+        Self::decrypt_shield(
             signer,
-            asset_id,
-            value,
-            random,
-            "",
-            UtxoType::Shield,
-        ))
+            &indexer::Shield {
+                tree_number,
+                leaf_index,
+                npk: req.preimage.npk.into(),
+                token: req.preimage.token.into(),
+                value: req.preimage.value.saturating_to(),
+                ciphertext: Ciphertext {
+                    iv,
+                    tag,
+                    data: vec![req.ciphertext.encryptedBundle[1][..16].to_vec()],
+                },
+                shield_key: req.ciphertext.shieldKey.into(),
+            },
+        )
     }
 
     pub fn without_signer(&self) -> UtxoNote<()> {

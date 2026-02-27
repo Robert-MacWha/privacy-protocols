@@ -1,17 +1,19 @@
 use alloy::{
     providers::{DynProvider, Provider},
-    rpc::types::Filter,
+    rpc::types::{Filter, Log},
+    transports::{RpcError, TransportErrorKind},
 };
 use alloy_sol_types::SolEvent;
-use futures::{Stream, StreamExt, stream};
 use tracing::{info, warn};
 
 use crate::{
     abis::railgun::RailgunSmartWallet,
     chain_config::ChainConfig,
+    crypto::aes::Ciphertext,
     railgun::indexer::syncer::{
-        compat::BoxedSyncStream,
-        syncer::{NoteSyncer, SyncEvent},
+        self,
+        normalize_tree_position::normalize_tree_position,
+        syncer::{NoteSyncer, SyncEvent, SyncerError},
     },
     sleep::sleep,
 };
@@ -27,6 +29,10 @@ pub struct RpcSyncer {
 pub enum RpcSyncerError {
     #[error("Error decoding log: {0}")]
     LogDecodeError(#[from] alloy_sol_types::Error),
+    #[error("Error parsing log: {0}")]
+    LogParseError(String),
+    #[error("RPC error: {0}")]
+    RpcError(#[from] RpcError<TransportErrorKind>),
 }
 
 impl RpcSyncer {
@@ -53,130 +59,189 @@ impl RpcSyncer {
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 impl NoteSyncer for RpcSyncer {
-    async fn latest_block(&self) -> Result<u64, Box<dyn std::error::Error>> {
-        let block_number = self.provider.get_block_number().await?;
-        Ok(block_number)
+    async fn latest_block(&self) -> Result<u64, SyncerError> {
+        Ok(self.latest_block().await?)
     }
 
-    async fn sync(
-        &self,
-        from_block: u64,
-        to_block: u64,
-    ) -> Result<BoxedSyncStream<'_>, Box<dyn std::error::Error>> {
-        info!(
-            "Starting RPC sync from block {} to block {}",
-            from_block, to_block
-        );
-
-        Ok(Box::pin(self.event_stream(from_block, to_block)))
+    async fn sync(&self, from_block: u64, to_block: u64) -> Result<Vec<SyncEvent>, SyncerError> {
+        info!("Starting RPC sync {}-{}", from_block, to_block);
+        Ok(self.events(from_block, to_block).await?)
     }
 }
 
 impl RpcSyncer {
-    #[cfg(not(feature = "wasm"))]
-    fn event_stream(
+    async fn latest_block(&self) -> Result<u64, RpcSyncerError> {
+        Ok(self.provider.get_block_number().await?)
+    }
+
+    async fn events(
         &self,
         from_block: u64,
         to_block: u64,
-    ) -> impl Stream<Item = SyncEvent> + Send + '_ {
-        self.event_stream_inner(from_block, to_block)
-    }
+    ) -> Result<Vec<SyncEvent>, RpcSyncerError> {
+        let mut all_events = Vec::new();
+        let mut current_from = from_block;
+        loop {
+            let batch_start = current_from;
+            let batch_end = to_block.min(current_from + self.batch_size - 1);
 
-    #[cfg(feature = "wasm")]
-    fn event_stream(&self, from_block: u64, to_block: u64) -> impl Stream<Item = SyncEvent> + '_ {
-        self.event_stream_inner(from_block, to_block)
-    }
-
-    fn event_stream_inner(
-        &self,
-        from_block: u64,
-        to_block: u64,
-    ) -> impl Stream<Item = SyncEvent> + '_ {
-        stream::unfold(from_block, move |current_block| async move {
-            if current_block > to_block {
-                return None;
+            if batch_start > to_block {
+                break;
             }
 
-            // Fetch the next batch of logs
-            let batch_end = std::cmp::min(current_block + self.batch_size - 1, to_block);
             let filter = Filter::new()
                 .address(self.chain.railgun_smart_wallet)
-                .from_block(current_block)
+                .from_block(batch_start)
                 .to_block(batch_end);
 
-            let start = web_time::Instant::now();
-            let logs = match self.provider.get_logs(&filter).await {
-                Ok(logs) => logs,
-                Err(e) => {
-                    warn!(
-                        "Failed to fetch logs from blocks {} to {}: {}",
-                        current_block, batch_end, e
-                    );
-                    return None;
-                }
-            };
-            let duration = start.elapsed();
-            let sleep_duration = self.timeout.saturating_sub(duration);
-            if sleep_duration > web_time::Duration::from_secs(0) {
-                sleep(sleep_duration).await;
-            }
+            let logs = self.provider.get_logs(&filter).await?;
+            sleep(self.timeout).await;
 
-            if logs.len() != 0 {
-                info!(
-                    "Fetched {} logs from blocks {} to {}",
-                    logs.len(),
-                    current_block,
-                    batch_end
-                );
-            }
-
-            // Decode logs into events
-            let mut events = Vec::new();
             for log in logs {
-                let topic0 = log.topics()[0];
-                let block_number = log.block_number.unwrap_or(0);
-                let block_timestamp = log.block_timestamp.unwrap_or(0);
-
-                match topic0 {
-                    RailgunSmartWallet::Shield::SIGNATURE_HASH => {
-                        match RailgunSmartWallet::Shield::decode_log(&log.inner) {
-                            Ok(event) => events.push(SyncEvent::Shield(event.data, block_number)),
-                            Err(e) => warn!("Failed to decode Shield event: {}", e),
-                        }
-                    }
-                    RailgunSmartWallet::Transact::SIGNATURE_HASH => {
-                        match RailgunSmartWallet::Transact::decode_log(&log.inner) {
-                            Ok(event) => {
-                                events.push(SyncEvent::Transact(event.data, block_timestamp))
-                            }
-                            Err(e) => warn!("Failed to decode Transact event: {}", e),
-                        }
-                    }
-                    RailgunSmartWallet::Nullified::SIGNATURE_HASH => {
-                        match RailgunSmartWallet::Nullified::decode_log(&log.inner) {
-                            Ok(event) => {
-                                events.push(SyncEvent::Nullified(event.data, block_timestamp))
-                            }
-                            Err(e) => warn!("Failed to decode Nullified event: {}", e),
-                        }
-                    }
-                    RailgunSmartWallet::Unshield::SIGNATURE_HASH => {
-                        // Unshield events not needed. Spent notes are already
-                        // tracked via Nullified events.
-                    }
-                    _ => {
-                        warn!("Unknown event with topic0: {:?}", topic0);
-                    }
+                match log_to_sync_events(log) {
+                    Ok(events) => all_events.extend(events),
+                    Err(e) => warn!("Failed to parse log into SyncEvent: {}", e),
                 }
             }
+            current_from = batch_end + 1;
+            info!("{}/{} ({} events)", batch_end, to_block, all_events.len());
+        }
 
-            // TODO: Operation events are not implemented for RPC syncer.
-            // Constructing Operations requires call tracing to correlate which events
-            // belong to which Railgun transaction within a block.
+        Ok(all_events)
+    }
+}
 
-            let next_block = batch_end + 1;
-            Some((stream::iter(events), next_block))
-        })
-        .flatten()
+fn log_to_sync_events(log: Log) -> Result<Vec<SyncEvent>, RpcSyncerError> {
+    let Some(topic0) = log.topic0().cloned() else {
+        return Err(RpcSyncerError::LogParseError(format!(
+            "Log missing topic0: {:?}",
+            log
+        )));
+    };
+    let block_number = log.block_number.unwrap_or(0);
+    let block_timestamp = log.block_timestamp.unwrap_or(0);
+
+    match topic0 {
+        RailgunSmartWallet::Shield::SIGNATURE_HASH => decode_shield_event(&log, block_number),
+        RailgunSmartWallet::Transact::SIGNATURE_HASH => {
+            handle_transact_event(&log, block_timestamp)
+        }
+        RailgunSmartWallet::Nullified::SIGNATURE_HASH => {
+            handle_nullified_event(log, block_timestamp)
+        }
+        RailgunSmartWallet::Unshield::SIGNATURE_HASH => {
+            // Unshield events not needed. Spent notes are already
+            // tracked via Nullified events.
+            return Ok(vec![]);
+        }
+        _ => {
+            return Err(RpcSyncerError::LogParseError(format!(
+                "Unknown event with topic0: {:?}",
+                topic0
+            )));
+        }
+    }
+}
+
+fn decode_shield_event(log: &Log, block_number: u64) -> Result<Vec<SyncEvent>, RpcSyncerError> {
+    let event = RailgunSmartWallet::Shield::decode_log(&log.inner)?;
+
+    let tree_number = event.treeNumber.saturating_to();
+    let start_position = event.startPosition.saturating_to::<u32>();
+
+    let mut events = Vec::new();
+    for (i, commitment) in event.commitments.clone().into_iter().enumerate() {
+        let shield_ciphertext = event.shieldCiphertext[i].clone();
+        let (tree_number, leaf_index) =
+            normalize_tree_position(tree_number, start_position + i as u32);
+
+        events.push(SyncEvent::Shield(
+            syncer::Shield {
+                tree_number,
+                leaf_index,
+                npk: commitment.npk.into(),
+                token: commitment.token.into(),
+                value: commitment.value.saturating_to(),
+                ciphertext: Ciphertext {
+                    iv: shield_ciphertext.encryptedBundle[0][..16]
+                        .try_into()
+                        .unwrap(),
+                    tag: shield_ciphertext.encryptedBundle[0][16..]
+                        .try_into()
+                        .unwrap(),
+                    data: vec![shield_ciphertext.encryptedBundle[1][..16].to_vec()],
+                },
+                shield_key: shield_ciphertext.shieldKey.into(),
+            },
+            block_number,
+        ));
+    }
+
+    Ok(events)
+}
+
+fn handle_transact_event(
+    log: &Log,
+    block_timestamp: u64,
+) -> Result<Vec<SyncEvent>, RpcSyncerError> {
+    let event = RailgunSmartWallet::Transact::decode_log(&log.inner)?;
+
+    let tree_number = event.treeNumber.saturating_to();
+    let start_position = event.startPosition.saturating_to::<u32>();
+
+    let mut events = Vec::new();
+    for (i, ciphertext) in event.ciphertext.clone().into_iter().enumerate() {
+        let hash = event.hash[i].clone();
+        let (tree_number, leaf_index) =
+            normalize_tree_position(tree_number, start_position + i as u32);
+
+        let mut data: Vec<Vec<u8>> = ciphertext.ciphertext[1..]
+            .iter()
+            .map(|chunk| chunk.to_vec())
+            .collect();
+        data.push(ciphertext.memo.to_vec());
+        events.push(SyncEvent::Transact(
+            syncer::Transact {
+                tree_number,
+                leaf_index,
+                hash: hash.into(),
+                ciphertext: Ciphertext {
+                    iv: ciphertext.ciphertext[0][0..16].try_into().unwrap(),
+                    tag: ciphertext.ciphertext[0][16..32].try_into().unwrap(),
+                    data,
+                },
+                blinded_receiver_viewing_key: ciphertext.blindedReceiverViewingKey.into(),
+                blinded_sender_viewing_key: ciphertext.blindedSenderViewingKey.into(),
+                annotation_data: ciphertext.annotationData.into(),
+            },
+            block_timestamp,
+        ));
+    }
+
+    Ok(events)
+}
+
+fn handle_nullified_event(
+    log: Log,
+    block_timestamp: u64,
+) -> Result<Vec<SyncEvent>, RpcSyncerError> {
+    let event = RailgunSmartWallet::Nullified::decode_log(&log.inner)?;
+    let tree_number = event.treeNumber as u32;
+    let mut events = Vec::new();
+    for nullifier in event.nullifier.clone().into_iter() {
+        events.push(SyncEvent::Nullified(
+            syncer::Nullified {
+                tree_number: tree_number,
+                nullifier: nullifier,
+            },
+            block_timestamp,
+        ));
+    }
+    Ok(events)
+}
+
+impl From<RpcSyncerError> for SyncerError {
+    fn from(e: RpcSyncerError) -> Self {
+        SyncerError::Syncer(Box::new(e))
     }
 }

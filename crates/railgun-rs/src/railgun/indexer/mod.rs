@@ -3,7 +3,7 @@ mod notebook;
 mod syncer;
 mod utxo_indexer;
 
-pub use syncer::{ChainedSyncer, NoteSyncer, RpcSyncer, SubsquidSyncer};
+pub use syncer::{ChainedSyncer, NoteSyncer, RpcSyncer, Shield, SubsquidSyncer, Transact};
 pub use utxo_indexer::{UtxoIndexer, UtxoIndexerError, UtxoIndexerState};
 
 #[cfg(feature = "poi")]

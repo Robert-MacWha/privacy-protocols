@@ -101,7 +101,7 @@ impl PendingPoiSubmitter {
         let out_notes = op.operation.out_notes();
         let encryptable_notes = op.operation.out_encryptable_notes();
 
-        info!("Registering pending POI submission for txid {:?}", txid,);
+        info!("Registered POI for {:?}", txid,);
         self.pending.push(PendingPoiEntry {
             txid,
             spending_pubkey,

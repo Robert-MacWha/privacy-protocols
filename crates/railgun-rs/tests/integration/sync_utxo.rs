@@ -15,6 +15,8 @@ use tracing_subscriber::EnvFilter;
 const CHAIN: ChainConfig = MAINNET_CONFIG;
 const FORK_BLOCK: u64 = 24379760;
 
+/// Integration test for syncing the UTXO indexer's state from subsquid. Also
+/// caches the provider state after syncing, which is used in subsequent tests.
 #[tokio::test]
 #[serial_test::serial]
 #[ignore]

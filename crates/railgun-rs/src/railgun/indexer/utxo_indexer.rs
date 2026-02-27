@@ -5,23 +5,21 @@ use std::{
 };
 
 use crypto::poseidon_hash;
-use futures::StreamExt;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::info;
 
 use crate::{
-    abis::railgun::RailgunSmartWallet,
     caip::AssetId,
     railgun::{
         address::RailgunAddress,
         indexer::{
             indexed_account::IndexedAccount,
-            syncer::{LegacyCommitment, NoteSyncer, SyncEvent},
+            syncer::{self, NoteSyncer, SyncEvent, SyncerError},
         },
         merkle_tree::{
-            MerkleTreeState, MerkleTreeVerifier, TOTAL_LEAVES, UtxoLeafHash, UtxoMerkleTree,
-            VerificationError,
+            MerkleTreeState, MerkleTreeVerifier, UtxoLeafHash, UtxoMerkleTree, VerificationError,
         },
         note::utxo::{NoteError, UtxoNote},
         signer::Signer,
@@ -56,7 +54,7 @@ pub struct UtxoIndexerState {
 #[derive(Debug, Error)]
 pub enum UtxoIndexerError {
     #[error("Syncer error: {0}")]
-    SyncerError(Box<dyn std::error::Error>),
+    SyncerError(#[from] SyncerError),
     #[error("Verification error: {0}")]
     VerificationError(#[from] VerificationError),
     #[error("Note error: {0}")]
@@ -182,10 +180,7 @@ impl UtxoIndexer {
         let from_block = self.synced_block + 1;
 
         let syncer = self.utxo_syncer.clone();
-        let latest_block = syncer
-            .latest_block()
-            .await
-            .map_err(UtxoIndexerError::SyncerError)?;
+        let latest_block = syncer.latest_block().await?;
         let to_block = to_block.min(latest_block);
 
         if from_block > to_block {
@@ -193,12 +188,9 @@ impl UtxoIndexer {
         }
 
         // Sync
-        let mut stream = syncer
-            .sync(from_block, to_block)
-            .await
-            .map_err(UtxoIndexerError::SyncerError)?;
-
-        while let Some(event) = stream.next().await {
+        let events = syncer.sync(from_block, to_block).await?;
+        info!("Fetched {} events from syncer", events.len());
+        for event in events {
             let matched = self.handle_event(&event)?;
             if matched {
                 self.matched_events.push(event);
@@ -206,11 +198,13 @@ impl UtxoIndexer {
         }
 
         // Rebuild
+        info!("Rebuilding UTXO trees");
         for tree in self.utxo_trees.values_mut() {
             tree.rebuild();
         }
 
         // Verify
+        info!("Verifying UTXO trees");
         self.verify().await?;
 
         self.synced_block = to_block;
@@ -271,30 +265,12 @@ impl UtxoIndexer {
     }
 
     /// Handles a shield event. Returns true if the event was matched to any account.
-    fn handle_shield(
-        &mut self,
-        event: &RailgunSmartWallet::Shield,
-    ) -> Result<bool, UtxoIndexerError> {
-        let leaves: Vec<UtxoLeafHash> = event
-            .commitments
-            .iter()
-            .map(|c| {
-                let npk = U256::from_be_bytes(*c.npk);
-                let token_id: AssetId = c.token.clone().into();
-                let token_id = token_id.hash();
-                let value = U256::from(c.value);
-
-                poseidon_hash(&[npk, token_id, value]).unwrap().into()
-            })
-            .collect();
-
-        insert_utxo_leaves(
-            &mut self.utxo_trees,
-            event.treeNumber.saturating_to(),
-            event.startPosition.saturating_to(),
-            &leaves,
-            self.utxo_verifier.clone(),
-        );
+    fn handle_shield(&mut self, event: &syncer::Shield) -> Result<bool, UtxoIndexerError> {
+        let leaf: UtxoLeafHash =
+            poseidon_hash(&[event.npk, event.token.hash(), U256::from(event.value)])
+                .unwrap()
+                .into();
+        self.insert_utxo_leaf(event.tree_number, event.leaf_index, leaf);
 
         let mut matched = false;
         for account in self.accounts.iter_mut() {
@@ -305,28 +281,9 @@ impl UtxoIndexer {
     }
 
     /// Handles a transact event. Returns true if the event was matched to any account.
-    fn handle_transact(
-        &mut self,
-        event: &RailgunSmartWallet::Transact,
-    ) -> Result<bool, UtxoIndexerError> {
-        let leaves: Vec<UtxoLeafHash> = event
-            .hash
-            .iter()
-            .map(|h| U256::from_be_bytes(**h).into())
-            .collect();
-
-        // Track commitment hashes for await_commitments
-        for h in &event.hash {
-            self.seen_commitments.insert(U256::from_be_bytes(**h));
-        }
-
-        insert_utxo_leaves(
-            &mut self.utxo_trees,
-            event.treeNumber.saturating_to(),
-            event.startPosition.saturating_to(),
-            &leaves,
-            self.utxo_verifier.clone(),
-        );
+    fn handle_transact(&mut self, event: &syncer::Transact) -> Result<bool, UtxoIndexerError> {
+        self.insert_utxo_leaf(event.tree_number, event.leaf_index, event.hash.into());
+        self.seen_commitments.insert(event.hash);
 
         let mut matched = false;
         for account in self.accounts.iter_mut() {
@@ -337,7 +294,7 @@ impl UtxoIndexer {
     }
 
     /// Handles a nullified event. Returns true if the event was matched to any account.
-    fn handle_nullified(&mut self, event: &RailgunSmartWallet::Nullified, timestamp: u64) -> bool {
+    fn handle_nullified(&mut self, event: &syncer::Nullified, timestamp: u64) -> bool {
         let mut matched = false;
         for account in self.accounts.iter_mut() {
             matched |= account.handle_nullified_event(event, timestamp);
@@ -346,14 +303,8 @@ impl UtxoIndexer {
     }
 
     /// Handles a legacy commitment event. Returns true if the event was matched to any account.
-    fn handle_legacy(&mut self, event: &LegacyCommitment) -> bool {
-        insert_utxo_leaves(
-            &mut self.utxo_trees,
-            event.tree_number,
-            event.leaf_index as usize,
-            &[event.hash.into()],
-            self.utxo_verifier.clone(),
-        );
+    fn handle_legacy(&mut self, event: &syncer::LegacyCommitment) -> bool {
+        self.insert_utxo_leaf(event.tree_number, event.leaf_index, event.hash.into());
 
         // TODO: Handle legacy events for accounts.
         false
@@ -365,34 +316,14 @@ impl UtxoIndexer {
         }
         Ok(())
     }
-}
 
-/// Inserts UTXO leaves into the appropriate tree, handling tree boundaries.
-///
-/// If the leaves cross a tree boundary, it will fill the first tree, then
-/// insert the remaining leaves into the next tree.
-fn insert_utxo_leaves(
-    trees: &mut BTreeMap<u32, UtxoMerkleTree>,
-    tree_number: u32,
-    start_position: usize,
-    leaves: &[UtxoLeafHash],
-    verifier: Arc<dyn MerkleTreeVerifier>,
-) {
-    let mut remaining = leaves;
-    let mut current_tree = tree_number + (start_position / TOTAL_LEAVES) as u32;
-    let mut position = start_position % TOTAL_LEAVES;
-
-    while !remaining.is_empty() {
-        let space_in_tree = TOTAL_LEAVES - position;
-        let to_insert = remaining.len().min(space_in_tree);
-
-        trees
-            .entry(current_tree)
-            .or_insert_with(|| UtxoMerkleTree::new(current_tree).with_verifier(verifier.clone()))
-            .insert_leaves_raw(&remaining[..to_insert], position);
-
-        remaining = &remaining[to_insert..];
-        current_tree += 1;
-        position = 0;
+    /// Insert a leaf into the appropriate UTXO tree, creating the tree if necessary
+    fn insert_utxo_leaf(&mut self, tree_number: u32, leaf_index: u32, leaf: UtxoLeafHash) {
+        self.utxo_trees
+            .entry(tree_number)
+            .or_insert_with(|| {
+                UtxoMerkleTree::new(tree_number).with_verifier(self.utxo_verifier.clone())
+            })
+            .insert_leaves_raw(&[leaf], leaf_index as usize);
     }
 }

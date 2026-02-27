@@ -3,9 +3,6 @@ name = "railgun-rs"
 version = "0.1.0"
 edition = "2024"
 
-[package.metadata.graphql]
-scalars = { "BigInt" = "U256", "Bytes" = "Bytes" }
-
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 
@@ -52,7 +49,6 @@ getrandom_02 = { package = "getrandom", version = "0.2", features = [
     "js",
 ], optional = true }
 gloo-timers = { workspace = true, features = ["futures"], optional = true }
-graphql_client = { workspace = true }
 hex = { workspace = true }
 js-sys = { workspace = true, optional = true }
 num-bigint = { workspace = true, features = ["serde"] }

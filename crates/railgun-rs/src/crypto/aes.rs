@@ -9,8 +9,9 @@ use aes_gcm::{
     aead::{Aead, Payload, consts::U16},
 };
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ciphertext {
     pub iv: [u8; 16],
     pub tag: [u8; 16],

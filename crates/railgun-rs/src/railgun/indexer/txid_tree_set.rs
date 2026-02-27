@@ -25,7 +25,7 @@ pub struct TxidTreeSet {
     poi_client: PoiClient,
 
     /// Operations queued but not yet validated by the POI aggregator.
-    pending: VecDeque<(Operation, u64)>,
+    pending: VecDeque<Operation>,
 
     /// Packed validated txid index from the last successful `update()`.
     /// Format: `(tree_number << 16) | leaf_index_within_tree`.
@@ -36,7 +36,7 @@ pub struct TxidTreeSet {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TxidTreeSetState {
     pub trees: BTreeMap<u32, MerkleTreeState>,
-    pub pending: Vec<(Operation, u64)>,
+    pub pending: Vec<Operation>,
     pub txid_to_utxo_position: HashMap<Txid, (u32, u32)>,
     pub txid_to_txid_position: HashMap<Txid, (u32, u32)>,
     pub validated_index: u64,
@@ -86,8 +86,8 @@ impl TxidTreeSet {
     }
 
     /// Enqueue an operation to be validated and inserted into the TXID tree.
-    pub fn enqueue(&mut self, op: Operation, block: u64) {
-        self.pending.push_back((op, block));
+    pub fn enqueue(&mut self, op: Operation) {
+        self.pending.push_back(op);
     }
 
     /// Drains pending operations into the validated trees up to the POI aggregator's
@@ -113,7 +113,7 @@ impl TxidTreeSet {
         let drained: Vec<_> = self.pending.drain(..drain_count).collect();
 
         let mut total = current_total;
-        for (op, _block) in drained {
+        for op in drained {
             let txid = Txid::new(&op.nullifiers, &op.commitment_hashes, op.bound_params_hash);
             let included = UtxoTreeIndex::included(op.utxo_tree_out, op.utxo_out_start_index);
             let leaf = TxidLeafHash::new(txid, op.utxo_tree_in, included);
@@ -131,15 +131,25 @@ impl TxidTreeSet {
 
             let utxo_pos = (op.utxo_tree_out, op.utxo_out_start_index);
             self.txid_to_utxo_pos.insert(txid, utxo_pos);
+
+            if total % 10000 == 0 {
+                info!(
+                    "Drained {}/{} operations",
+                    total - current_total,
+                    target_total
+                );
+            }
             total += 1;
         }
 
         // Rebuild
+        info!("Rebuilding TXID trees");
         for tree in self.trees.values_mut() {
             tree.rebuild();
         }
 
         // Validate
+        info!("Validating TXID trees");
         if let Some((tree_number, tree)) = self.trees.last_key_value() {
             let index = tree.leaves_len() as u64 - 1;
             let merkleroot = tree.root();
