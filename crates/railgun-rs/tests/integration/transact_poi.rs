@@ -39,7 +39,7 @@ async fn test_transact_poi() {
         .ok();
 
     info!("Setting up prover");
-    let prover = Arc::new(Groth16Prover::new_native("./artifacts"));
+    let prover = Arc::new(Groth16Prover::new_native("../../artifacts/railgun"));
 
     info!("Setting up alloy provider");
     let signer_key = std::env::var("DEV_KEY").expect("DEV_KEY must be set");

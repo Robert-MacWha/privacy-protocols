@@ -9,7 +9,7 @@ const USDC_ADDRESS = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238";
 const CHAIN_ID = 11155111n;
 const RPC_URL = process.env.RPC_URL_SEPOLIA!;
 const SIGNER_KEY = `0x${process.env.DEV_KEY!}` as `0x${string}`;
-const ARTIFACTS_PATH = "../railgun-rs/artifacts";
+const ARTIFACTS_PATH = "../../artifacts/railgun";
 
 const erc20Abi = parseAbi([
   "function balanceOf(address) view returns (uint256)",

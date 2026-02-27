@@ -21,6 +21,13 @@
       3. Re-write witness generation in rust.  Probably the most certain way to get it working, but annoying. Claude seems to think creating the ~50k witnesses won't be so bad, I struggle to believe.
 - TC Nova
   - [ ] Implementation
+- Repo
+  - [ ] Add proper documentation explaining the architecture and design decisions. Especially important for the shared design expectations we're trying to create between the different privacy providers.
+  - [ ] Clean up rust, abstracting out common code into shared crates. Probably:
+    - Native prover + associate architecture
+    - tx_data
+    - CAIP-style asset primitives
+    - Gas estimation trait (impl by DynProvider)
 
 ---
 - [x] Implement unshielding

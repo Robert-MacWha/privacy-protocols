@@ -36,7 +36,7 @@ async fn test_sync_utxo() {
 
     info!("Setting up indexer");
     let subsquid_syncer = Arc::new(SubsquidSyncer::new(CHAIN.subsquid_endpoint));
-    let prover = Arc::new(Groth16Prover::new_native("./artifacts"));
+    let prover = Arc::new(Groth16Prover::new_native("../../artifacts/railgun"));
     let mut railgun =
         RailgunProvider::new(CHAIN, provider.clone(), subsquid_syncer.clone(), prover);
 

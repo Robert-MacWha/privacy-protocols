@@ -5,7 +5,7 @@ import { writeFileSync } from "node:fs";
 
 const CHAIN_ID = 1n;
 const RPC_URL = process.env.RPC_URL_MAINNET!;
-const ARTIFACTS_PATH = "../railgun-rs/artifacts";
+const ARTIFACTS_PATH = "../../artifacts/railgun";
 const FORK_BLOCK = 24379760n;
 
 test("sync-utxo", async () => {

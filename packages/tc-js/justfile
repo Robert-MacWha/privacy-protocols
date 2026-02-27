@@ -2,7 +2,7 @@ fork_url := env_var("RPC_URL_MAINNET")
 fork_block := "22300000"
 
 wasm:
-    wasm-pack build --target nodejs ../tc-rs --out-dir ../tc-js/src/pkg --no-default-features --features wasm,broadcaster
+    wasm-pack build --target nodejs ../../crates/tc-rs --out-dir ./src/pkg --no-default-features --features wasm,broadcaster
 
 integration-transact:
     #!/usr/bin/env bash

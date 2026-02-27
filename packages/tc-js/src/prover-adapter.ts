@@ -8,7 +8,7 @@
  */
 
 import { readFile } from "node:fs/promises";
-import circuit from "../artifacts/tornado.json" with { type: "json" };
+import circuit from "../../../artifacts/tc/tornado.json" with { type: "json" };
 import buildGroth16 from "@tornado/websnark/src/groth16";
 import * as websnarkUtils from "@tornado/websnark/src/utils";
 import { JsProofResponse, JsProver } from "./pkg/tc_rs.js";
@@ -46,7 +46,7 @@ class ProverAdapter {
 
     console.log("Loading proving key");
     const provingKeyBuffer = await readFile(
-      new URL("../artifacts/tornadoProvingKey.bin", import.meta.url)
+      new URL("../../../artifacts/tc/tornadoProvingKey.bin", import.meta.url)
     );
 
     console.log("Generating proof");

@@ -1,5 +1,5 @@
 // import { createPublicClient, createWalletClient, http } from "viem";
-// import { test } from "vitest";
+import { test } from "vitest";
 // import { createProver } from "../src/prover-adapter.js";
 // import { sepolia } from "viem/chains";
 // import { privateKeyToAccount } from "viem/accounts";
@@ -9,6 +9,10 @@
 // const RPC_URL = "http://localhost:8545";
 // const CACHE_PATH = "../tc-rs/tests/fixtures";
 // const PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+
+test("broadcast", async () => {
+
+});
 
 // // Tests the tornado broadcaster for depositing and preparing a note for broadcast 
 // // from a tornado pool.

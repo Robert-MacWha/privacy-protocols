@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const CHAIN_ID = 1n;
 const RPC_URL = "http://localhost:8545";
-const ARTIFACTS_PATH = "../railgun-rs/artifacts";
+const ARTIFACTS_PATH = "../../artifacts/railgun";
 const FORK_BLOCK = 24379760n;
 
 const erc20Abi = parseAbi([

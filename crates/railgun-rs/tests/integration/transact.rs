@@ -34,7 +34,7 @@ async fn test_transact() {
         .ok();
 
     info!("Setting up prover");
-    let prover = Arc::new(Groth16Prover::new_native("./artifacts"));
+    let prover = Arc::new(Groth16Prover::new_native("../../artifacts/railgun"));
 
     info!("Setting up alloy provider");
     let signer = PrivateKeySigner::from_str(
