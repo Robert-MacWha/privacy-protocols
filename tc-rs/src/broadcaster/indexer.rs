@@ -73,7 +73,6 @@ const MIN_STAKE_BALANCE: u128 = 500 * 10u128.pow(18);
 const REGISTRY_ADDRESS: Address = address!("0x58E8dCC13BE9780fC42E8723D8EaD4CF46943dF2");
 const AGGREGATOR_ADDRESS: Address = address!("0xE8F47A78A6D52D317D0D2FFFac56739fE14D1b49");
 const REGISTRY_DEPLOYED_BLOCK: u64 = 14173129;
-// const REGISTRY_DEPLOYED_BLOCK: u64 = 24290000;
 const SUBDOMAINS: [(&str, u64); 8] = [
     ("mainnet-tornado", 1),
     ("bsc-tornado", 56),
@@ -126,6 +125,10 @@ impl BroadcasterIndexer {
             relayers: self.relayers.clone(),
             synced_block: self.synced_block,
         }
+    }
+
+    pub fn relayers(&self) -> Vec<&Relayer> {
+        self.relayers.iter().filter(|r| r.healthy).collect()
     }
 
     /// Select a relayer using weighted random selection, filtered to the given
@@ -193,8 +196,12 @@ impl BroadcasterIndexer {
     }
 
     pub async fn sync(&mut self) -> Result<(), BroadcasterError> {
+        self.sync_to(self.syncer.latest_block().await?).await
+    }
+
+    pub async fn sync_to(&mut self, block: u64) -> Result<(), BroadcasterError> {
         let from_block = self.synced_block;
-        let to_block = self.syncer.latest_block().await?;
+        let to_block = block;
 
         if from_block > to_block {
             info!("Broadcaster indexer already synced to block {}", to_block);

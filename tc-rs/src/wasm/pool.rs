@@ -33,6 +33,11 @@ impl JsPool {
     pub fn sepolia_ether_1() -> JsPool {
         Pool::sepolia_ether_1().into()
     }
+
+    #[wasm_bindgen(js_name = "ethereumEther100", getter)]
+    pub fn ethereum_ether_100() -> JsPool {
+        Pool::ethereum_ether_100().into()
+    }
 }
 
 impl From<Pool> for JsPool {

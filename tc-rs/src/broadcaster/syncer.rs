@@ -19,14 +19,13 @@ pub struct RelayerRecord {
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 pub trait RelayerSyncer: Send + Sync {
+    async fn latest_block(&self) -> Result<u64, SyncerError>;
     async fn sync_relayers(
         &self,
         registry: Address,
         from_block: u64,
         to_block: u64,
     ) -> Result<Vec<RelayerRecord>, SyncerError>;
-
-    async fn latest_block(&self) -> Result<u64, SyncerError>;
 }
 
 impl TryFrom<Log> for RelayerRecord {

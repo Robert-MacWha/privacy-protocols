@@ -1,4 +1,4 @@
-fork_url := env_var("FORK_URL_SEPOLIA")
+fork_url := env_var("RPC_URL_SEPOLIA")
 # Forking from a slightly historic block so we can perform less work syncing
 # when testing.
 fork_block := "8800000"

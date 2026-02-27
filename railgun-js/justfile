@@ -1,4 +1,4 @@
-fork_url := env_var("FORK_URL_MAINNET")
+fork_url := env_var("RPC_URL_MAINNET")
 fork_block := "24379760"
 
 wasm:

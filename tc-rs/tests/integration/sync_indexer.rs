@@ -23,7 +23,6 @@ async fn test_sync_indexer() {
     let cache_json = std::fs::read_to_string(cache_path).unwrap();
     let cache_syncer = Arc::new(CacheSyncer::from_str(&cache_json).unwrap());
 
-    // let rpc_url = std::env::var("FORK_URL_SEPOLIA").expect("FORK_URL_SEPOLIA must be set");
     let rpc_url = "http://localhost:8545";
     let provider = ProviderBuilder::new()
         .network::<Ethereum>()

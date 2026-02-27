@@ -4,7 +4,7 @@ import { createProver } from "../src/prover-adapter.js";
 import { writeFileSync } from "node:fs";
 
 const CHAIN_ID = 1n;
-const RPC_URL = process.env.FORK_URL_MAINNET!;
+const RPC_URL = process.env.RPC_URL_MAINNET!;
 const ARTIFACTS_PATH = "../railgun-rs/artifacts";
 const FORK_BLOCK = 24379760n;
 

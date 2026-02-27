@@ -8,7 +8,8 @@ use crate::{
     broadcaster::BroadcastProvider,
     wasm::{
         JsDepositResult, JsPool, JsProver, JsSyncer, JsVerifier, note::JsNote,
-        provider::bigint_to_u256, relayer_syncer::JsRelayerSyncer, syncer::new_dyn_provider,
+        prepared_broadcast::JsPreparedBroadcast, provider::bigint_to_u256,
+        relayer_syncer::JsRelayerSyncer, syncer::new_dyn_provider,
     },
 };
 
@@ -45,10 +46,12 @@ impl JsBroadcastProvider {
         Ok(inner.into())
     }
 
+    #[wasm_bindgen(js_name = "addPool")]
     pub fn add_pool(&mut self, pool: &JsPool) {
         self.inner.add_pool(pool.inner.clone());
     }
 
+    #[wasm_bindgen(js_name = "addPoolFromState")]
     pub fn add_pool_from_state(&mut self, state: &[u8]) -> Result<(), JsValue> {
         let state: PoolProviderState = serde_json::from_slice(state)
             .map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))?;
@@ -70,23 +73,22 @@ impl JsBroadcastProvider {
         })
     }
 
-    /// Broadcast a withdrawal transaction to the network
+    /// Prepares a withdrawal transaction for broadcasting
     ///
     /// @param pool The pool to withdraw from
     /// @param note The note to withdraw
     /// @param rpc_url RPC URL for the target network (used for gas estimation)
     /// @param recipient The address to receive the withdrawn funds
     /// @param refund Optional
-    ///
-    /// @return The txhash for the broadcasted transaction (0x...)
-    pub async fn broadcast(
+    #[wasm_bindgen(js_name = "prepareBroadcast")]
+    pub async fn prepare_broadcast(
         &self,
         pool: &JsPool,
         note: &JsNote,
         rpc_url: &str,
         recipient: String,
         refund: Option<js_sys::BigInt>,
-    ) -> Result<String, JsValue> {
+    ) -> Result<JsPreparedBroadcast, JsValue> {
         let recipient: Address = recipient
             .parse()
             .map_err(|e| JsValue::from_str(&format!("Invalid recipient address: {}", e)))?;
@@ -99,9 +101,9 @@ impl JsBroadcastProvider {
         let provider = new_dyn_provider(rpc_url).await?;
 
         let mut rng = rand::rng();
-        let tx_hash = self
+        let prepared = self
             .inner
-            .broadcast(
+            .prepare_broadcast(
                 &pool.inner,
                 &note.inner,
                 &provider,
@@ -110,7 +112,14 @@ impl JsBroadcastProvider {
                 &mut rng,
             )
             .await?;
+        Ok(prepared.into())
+    }
 
+    /// Broadcasts a prepared transaction
+    ///
+    /// @return The txhash for the broadcasted transaction (0x...)
+    pub async fn broadcast(&self, prepared: JsPreparedBroadcast) -> Result<String, JsValue> {
+        let tx_hash = self.inner.broadcast(prepared.inner).await?;
         Ok(tx_hash.to_string())
     }
 

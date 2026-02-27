@@ -10,23 +10,19 @@ use tc_rs::{
     broadcaster::{BroadcastProvider, RpcRelayerSyncer},
     indexer::RpcSyncer,
 };
+use tracing::info;
 
 #[tokio::test]
 #[ignore]
 async fn test_sync_broadcaster() {
-    println!(
-        "Tokio runtime present: {}",
-        tokio::runtime::Handle::try_current().is_ok()
-    );
-
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_test_writer()
         .try_init()
         .ok();
 
-    let mainnet_rpc_url = std::env::var("FORK_URL_MAINNET").unwrap();
-    let sepolia_rpc_url = std::env::var("FORK_URL_SEPOLIA").unwrap();
+    let mainnet_rpc_url = std::env::var("RPC_URL_MAINNET").unwrap();
+    let sepolia_rpc_url = std::env::var("RPC_URL_SEPOLIA").unwrap();
 
     let mainnet_provider = ProviderBuilder::new()
         .network::<Ethereum>()
@@ -55,7 +51,13 @@ async fn test_sync_broadcaster() {
         mainnet_provider.clone(),
     );
 
-    tornado.sync().await.unwrap();
+    tornado.sync_to(14_400_000).await.unwrap();
+    let relayers = tornado.relayers();
+    if relayers.is_empty() {
+        panic!("Expected to find some relayers, but found none");
+    }
+
+    info!("Found {} healthy relayers", relayers.len());
 }
 
 struct MockProver;

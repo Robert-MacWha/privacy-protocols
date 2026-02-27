@@ -26,7 +26,7 @@ async fn test_sync_utxo() {
         .ok();
 
     info!("Setting up chain client");
-    let fork_url = std::env::var("FORK_URL_MAINNET").expect("Fork URL Must be set");
+    let fork_url = std::env::var("RPC_URL_MAINNET").expect("Fork URL Must be set");
     let provider: DynProvider = ProviderBuilder::new()
         .network::<Ethereum>()
         .connect(&fork_url)

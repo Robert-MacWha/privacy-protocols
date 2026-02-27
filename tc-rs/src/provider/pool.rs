@@ -33,7 +33,19 @@ impl Pool {
                 symbol: "ETH".to_string(),
                 decimals: 18,
             },
-            amount_wei: 10_u128.pow(18),
+            amount_wei: 1 * 10_u128.pow(18),
+        }
+    }
+
+    pub fn ethereum_ether_100() -> Pool {
+        Pool {
+            chain_id: 1,
+            address: address!("0xA160cdAB225685dA1d56aa342Ad8841c3b53f291"),
+            asset: Asset::Native {
+                symbol: "ETH".to_string(),
+                decimals: 18,
+            },
+            amount_wei: 100 * 10_u128.pow(18),
         }
     }
 }

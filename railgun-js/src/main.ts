@@ -13,7 +13,7 @@
 // const PROVIDER_STATE_PATH = "./provider_state_11155111.json";
 
 // const TEST_PRIVATE_KEY = process.env.DEV_KEY as string;
-// const RPC_URL = process.env.FORK_URL_SEPOLIA as string;
+// const RPC_URL = process.env.RPC_URL_SEPOLIA as string;
 
 // const erc20Abi = parseAbi([
 //     "function balanceOf(address) view returns (uint256)",

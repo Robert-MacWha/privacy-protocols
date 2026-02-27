@@ -48,10 +48,12 @@ impl JsTornadoProvider {
         inner.into()
     }
 
+    #[wasm_bindgen(js_name = "addPool")]
     pub fn add_pool(&mut self, pool: &JsPool) {
         self.inner.add_pool(pool.inner.clone());
     }
 
+    #[wasm_bindgen(js_name = "addPoolFromState")]
     pub fn add_pool_from_state(&mut self, state: &[u8]) -> Result<(), JsValue> {
         let state: PoolProviderState = serde_json::from_slice(state)
             .map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))?;
@@ -113,6 +115,7 @@ impl JsTornadoProvider {
             .map_err(|e| JsValue::from_str(&format!("Sync error: {}", e)))
     }
 
+    #[wasm_bindgen(js_name = "syncTo")]
     pub async fn sync_to(&mut self, block: u64) -> Result<(), JsValue> {
         self.inner
             .sync_to(block)

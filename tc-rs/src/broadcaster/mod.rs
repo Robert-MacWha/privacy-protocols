@@ -4,7 +4,7 @@ mod rpc_syncer;
 mod syncer;
 
 pub use indexer::{BroadcasterConfig, BroadcasterIndexer, Relayer};
-pub use provider::BroadcastProvider;
+pub use provider::{BroadcastProvider, PreparedBroadcast};
 pub use rpc_syncer::RpcRelayerSyncer;
 pub use syncer::{RelayerRecord, RelayerSyncer};
 

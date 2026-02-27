@@ -1,3 +1,28 @@
+
+- Railgun
+  - [ ] Native token support
+  - [ ] More sophisticated artifact management
+  - [ ] Improved syncing
+    - Sync time is dominated by network requests. Ergo just providing a giant "events" file that contains all commitment + nullifier + operation events would be a significant improvement. If times are still an issue we could also provide pre-computed merkle trees for latest, so syncing doesn't need to compute the poseidon hashes for every event.
+  - [ ] Recipe / RelayAdapter support
+  - [ ] NFT support
+- TC
+  - [ ] Improved syncing
+    - Just provide the pre-built merkle trees for the latest block, alongside a list of nullifiers. Similar to tornado-cli's events file, but much more compact.
+  - [ ] Implement proper integration test for broadcasting
+    - Challenging since we don't want to actually broadcast. Probably:
+      - Create a mock broadcaster for our sepolia fork that we can get the status for, send a tx to, and receive a txhash. Not too complex, but it's not actually testing against a real broadcaster so might not be worthwhile.
+      - Use insta + deterministic transaction generation to assert that the `PreparedBroadcast` is correct. This assumes we know what correct looks like, which will require at least one real broadcast to verify the output. But will otherwise act as a decent regression test.
+        - Would still not test the `broadcast` method, but that's pretty small.
+  - [ ] Figure out how to run on native.
+    - Currently the TC SDK relies on JS dependency-injecting a snarkjs v1 prover. This is because (a) tornadocash made some changes to the snarkjs / websnark packages I haven't fully understood, and (b) because snarkjs v1 witness generation only exists for JS.  The only artifacts I have for TC classic are a tornado.json and tornadoProvingKey.bin. The tornadoProvingKey.bin can *probably* be converted into a zkey losslessly, but the tornado.json is more concerning since it relies on js `eval` to generate the witnesses. So options seem to be:
+      1. Run JS inside rust.  Straightforward but orders of magnitude overkill.  And will probably have a hard time working in wasm32-wasip1.
+      2. Figure out how to compile the TC circuits with circom v2+, to generate a .wasm witness generator. I tried this once and ran into some issues, with the generated witness being different.  Circom's github mentions some stuff about graph_v1 compatibility (https://github.com/iden3/circom-witnesscalc) but I haven't looked into this at all.  I could also potentially compile it to a native c-something and use some method to run that from rust. No clue if that would work.
+      3. Re-write witness generation in rust.  Probably the most certain way to get it working, but annoying. Claude seems to think creating the ~50k witnesses won't be so bad, I struggle to believe.
+- TC Nova
+  - [ ] Implementation
+
+---
 - [x] Implement unshielding
 - [x] Fix event tracker so it works with unshielding
 - [x] Implement builder pattern for shields / transactions
@@ -31,7 +56,8 @@
   - [x] Perform real-world workflow on sepolia to test broadcaster + POI end-to-end. I can't think of a way to mock this properly since I don't understand the POI process well enough. Should be pretty cheap - about 0.0001 ETH.
 
 - [x] Clean up tc classic API
-- [ ] Impl broadcasters for tc classic
+- [/] Impl broadcasters for tc classic
+  - [ ] Figure out a good way to test broadcasters. Maybe have a mock broadcaster for a sepolia fork?  Assert that the generated request is correct via a mock reqwest instance.  I probably need to actually run on-chain at least once to verify the outputs.
 
 - [ ] Create common creates & re-structure repo, with a focus on multiple privacy protocols
 
@@ -39,7 +65,7 @@
 
 - [ ] Smarter artifact loader that fetches from remote & caches in memory.
   - Consider whether we ought to integrate the artifact loader into the JS SDK, or just leave it seperate.
-- [ ] Update poi builder so input POIs are pre-fetched, so invalid notes aren't used as inputs.
+- [x] Update poi builder so input POIs are pre-fetched, so invalid notes aren't used as inputs.
 
 - Optimize performance / size
   - Benchmark current performance + components

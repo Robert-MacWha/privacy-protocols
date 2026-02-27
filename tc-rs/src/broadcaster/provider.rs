@@ -14,8 +14,8 @@ use super::{BroadcasterError, indexer::BroadcasterIndexer};
 use crate::{
     Asset, Pool, PoolProvider, PoolProviderState, TornadoProvider, TornadoProviderError,
     TornadoProviderState,
-    abis::tornado::Tornado,
-    broadcaster::{RelayerSyncer, indexer::BroadcasterIndexerState},
+    abis::tornado::Tornado::{self, withdrawCall},
+    broadcaster::{Relayer, RelayerSyncer, indexer::BroadcasterIndexerState},
     indexer::{Syncer, Verifier},
     note::Note,
     tx_data::TxData,
@@ -34,6 +34,13 @@ pub struct BroadcastProvider {
 pub struct BroadcasterState {
     pub tornado: TornadoProviderState,
     pub indexer: BroadcasterIndexerState,
+}
+
+#[derive(Debug)]
+pub struct PreparedBroadcast {
+    pub call: withdrawCall,
+    pub hostname: String,
+    pub pool: Pool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -112,15 +119,24 @@ impl BroadcastProvider {
         self.inner.deposit(pool, rng)
     }
 
+    pub async fn sync_to(&mut self, block: u64) -> Result<(), BroadcasterError> {
+        self.indexer.sync_to(block).await?;
+        self.inner.sync_to(block).await?;
+        Ok(())
+    }
+
     pub async fn sync(&mut self) -> Result<(), BroadcasterError> {
         self.indexer.sync().await?;
         self.inner.sync().await?;
         Ok(())
     }
 
-    /// Create a withdrawal transaction and broadcast it via a relayer. Returns
-    /// the txhash once confirmed.
-    pub async fn broadcast<R: Rng>(
+    pub fn relayers(&self) -> Vec<&Relayer> {
+        self.indexer.relayers()
+    }
+
+    /// Prepares a withdrawal transaction for broadcasting
+    pub async fn prepare_broadcast<R: Rng>(
         &self,
         pool: &Pool,
         note: &Note,
@@ -128,7 +144,7 @@ impl BroadcastProvider {
         recipient: Address,
         refund: Option<U256>,
         rng: &mut R,
-    ) -> Result<TxHash, BroadcasterError> {
+    ) -> Result<PreparedBroadcast, BroadcasterError> {
         let token_symbol = match &pool.asset {
             Asset::Native { .. } => None,
             Asset::Erc20 { symbol, .. } => Some(symbol.as_str()),
@@ -182,7 +198,6 @@ impl BroadcastProvider {
 
         let total_fee = relayer_fee + gas_cost_in_token;
 
-        //? Submit withdrawal to relayer
         let call = self
             .inner
             .withdraw_calldata(
@@ -194,9 +209,21 @@ impl BroadcastProvider {
                 refund,
             )
             .await?;
+
+        Ok(PreparedBroadcast {
+            call,
+            hostname,
+            pool: pool.clone(),
+        })
+    }
+
+    /// Broadcasts a prepared transaction to the relayer and waits for confirmation
+    pub async fn broadcast(&self, prepared: PreparedBroadcast) -> Result<TxHash, BroadcasterError> {
+        let pool = &prepared.pool;
+        let hostname = prepared.hostname;
+        let call = prepared.call;
         let resp = self.submit_withdraw(pool, &hostname, call).await?;
         info!("Relayer job submitted: {}", resp.id);
-
         self.await_withdraw(hostname, resp).await
     }
 

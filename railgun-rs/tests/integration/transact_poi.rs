@@ -44,7 +44,7 @@ async fn test_transact_poi() {
     info!("Setting up alloy provider");
     let signer_key = std::env::var("DEV_KEY").expect("DEV_KEY must be set");
     let signer = PrivateKeySigner::from_str(&signer_key).unwrap();
-    let fork_url = std::env::var("FORK_URL_SEPOLIA").expect("Fork URL Must be set");
+    let fork_url = std::env::var("RPC_URL_SEPOLIA").expect("Fork URL Must be set");
     let provider = ProviderBuilder::new()
         .network::<Ethereum>()
         .wallet(signer)

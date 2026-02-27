@@ -18,6 +18,8 @@ use wasm_bindgen::prelude::wasm_bindgen;
 #[cfg(feature = "broadcaster")]
 mod broadcaster;
 #[cfg(feature = "broadcaster")]
+mod prepared_broadcast;
+#[cfg(feature = "broadcaster")]
 mod relayer_syncer;
 
 #[cfg(feature = "broadcaster")]
