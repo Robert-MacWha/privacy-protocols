@@ -109,15 +109,8 @@ impl PoiTransactionBuilder {
         let proved = prove_operations(prover, &indexer.utxo_trees, &ops, chain, 0, rng).await?;
 
         info!("Attaching POI proofs");
-        self.prove_poi(
-            poi_prover,
-            poi_client,
-            proved,
-            &indexer.utxo_trees,
-            &list_keys,
-            None,
-        )
-        .await
+        self.prove_poi(poi_prover, proved, &indexer.utxo_trees, &list_keys, None)
+            .await
     }
 
     /// Builds a transaction with fee calculation and POI proofs for broadcasting.
@@ -158,7 +151,6 @@ impl PoiTransactionBuilder {
         let tx = self
             .prove_poi(
                 poi_prover,
-                poi_client,
                 proved,
                 &indexer.utxo_trees,
                 &fee.list_keys,
@@ -263,7 +255,6 @@ impl PoiTransactionBuilder {
     async fn prove_poi(
         &self,
         poi_prover: &dyn PoiProver,
-        poi_client: &PoiClient,
         proved: ProvedTx<PoiNote>,
         utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
         list_keys: &[ListKey],
@@ -284,25 +275,6 @@ impl PoiTransactionBuilder {
         // Attach POI proofs to each operation
         for poi_op in poi_operations.iter_mut() {
             poi_op.add_pois(poi_prover, list_keys, utxo_trees).await?;
-        }
-
-        // Validate all POI merkle roots
-        //? Should always pass, but sanity check to ensure proofs are valid before broadcasting
-        #[cfg(debug_assertions)]
-        for poi_op in poi_operations.iter() {
-            for (list_key, poi) in poi_op.pois.iter() {
-                for merkleroot in &poi.poi_merkleroots {
-                    let valid = poi_client
-                        .validate_poi_merkleroot(list_key.clone(), *merkleroot)
-                        .await?;
-                    if !valid {
-                        return Err(PoiTransactionBuilderError::InvalidPoiMerkleroot(
-                            list_key.clone(),
-                            *merkleroot,
-                        ));
-                    }
-                }
-            }
         }
 
         Ok(PoiProvedTx {
