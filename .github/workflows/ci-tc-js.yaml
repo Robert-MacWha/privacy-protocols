@@ -1,4 +1,4 @@
-name: CI JS
+name: CI TC JS
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-js:
+  test-tc-js:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
@@ -35,16 +35,10 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && pnpm install"
+    - run: nix develop .#ci-js --command bash -c "cd packages/ts-js && pnpm install"
 
     - name: Pack wasm
-      run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && just wasm"
-
-    - name: Run sync-utxo
-      run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && just integration-sync-utxo"
+      run: nix develop .#ci-js --command bash -c "cd packages/ts-js && just wasm"
 
     - name: Run transact
-      run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && just integration-transact"
-
-    - name: Run transact-poi
-      run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && just integration-transact-poi"
+      run: nix develop .#ci-js --command bash -c "cd packages/ts-js && just integration-transact"

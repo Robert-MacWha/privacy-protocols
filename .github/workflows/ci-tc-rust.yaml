@@ -1,4 +1,4 @@
-name: CI JS
+name: CI TC Rust
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-js:
+  test-tc-rust:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
@@ -35,16 +35,14 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && pnpm install"
+    - name: Build
+      run: nix develop .#ci --command bash -c "cd crates/tc-rs && cargo build"
 
-    - name: Pack wasm
-      run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && just wasm"
+    - name: Run tests
+      run: nix develop .#ci --command bash -c "cd crates/tc-rs && cargo test"
 
-    - name: Run sync-utxo
-      run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && just integration-sync-utxo"
+    - name: Run sync
+      run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync"
 
-    - name: Run transact
-      run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && just integration-transact"
-
-    - name: Run transact-poi
-      run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && just integration-transact-poi"
+    - name: Run sync-broadcaster
+      run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync-broadcaster"
