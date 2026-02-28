@@ -8,7 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["native", "broadcaster"]
-native = ["alloy", "dep:tokio"]
+native = ["alloy", "dep:tokio", "prover/native", "eth-rpc/native"]
 broadcaster = ["dep:reqwest"]
 wasm = [
     "wasm-bindgen-futures",
