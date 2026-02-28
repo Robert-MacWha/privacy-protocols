@@ -1,2 +1,2 @@
 wasm:
-    wasm-pack build --target nodejs ../../crates/eth-rpc --out-dir ../../packages/eth-rpc/src/pkg --no-default-features --features wasm
+    wasm-pack build --target nodejs ../../crates/eth-rpc --out-dir ../../packages/eth-rpc/src/pkg
