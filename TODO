@@ -23,7 +23,7 @@
   - [ ] Implementation
 - Repo
   - [ ] Dependency-inject alloy + reqwests in wasm
-    - [ ] Remove alloy (except for alloy-primatives and contracts) from wasm build
+    - [x] Remove alloy (except for alloy-primatives and contracts) from wasm build
     - [ ] Remove reqwest from wasm build
     - [ ] Remove tokio from wasm build
     - Hopefully get wasm builds both below 1MiB. TC seems like it could get <500KiB, which would be great.
