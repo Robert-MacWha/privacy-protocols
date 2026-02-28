@@ -35,9 +35,6 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - name: Build
-      run: nix develop .#ci --command bash -c "cd crates/tc-rs && cargo build"
-
     - name: Run sync
       run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync"
 
