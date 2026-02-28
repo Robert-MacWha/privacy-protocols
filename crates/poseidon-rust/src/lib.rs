@@ -3,48 +3,48 @@ pub mod error;
 mod parameters;
 mod poseidon;
 
-use crate::{
-    bn254::{
-        circom_t10::POSEIDON_CIRCOM_BN_10_PARAMS, circom_t11::POSEIDON_CIRCOM_BN_11_PARAMS,
-        circom_t12::POSEIDON_CIRCOM_BN_12_PARAMS, circom_t13::POSEIDON_CIRCOM_BN_13_PARAMS,
-        circom_t14::POSEIDON_CIRCOM_BN_14_PARAMS, circom_t2::POSEIDON_CIRCOM_BN_2_PARAMS,
-        circom_t3::POSEIDON_CIRCOM_BN_3_PARAMS, circom_t4::POSEIDON_CIRCOM_BN_4_PARAMS,
-        circom_t5::POSEIDON_CIRCOM_BN_5_PARAMS, circom_t6::POSEIDON_CIRCOM_BN_6_PARAMS,
-        circom_t7::POSEIDON_CIRCOM_BN_7_PARAMS, circom_t8::POSEIDON_CIRCOM_BN_8_PARAMS,
-        circom_t9::POSEIDON_CIRCOM_BN_9_PARAMS,
-    },
-    error::Error,
-};
 use ark_bn254::Fr;
 use ark_ff::PrimeField;
 use num_bigint::BigUint;
 use num_traits::Num;
 use poseidon::Poseidon;
 
+use crate::{
+    bn254::{
+        circom_t10::get_t10_params, circom_t11::get_t11_params, circom_t12::get_t12_params,
+        circom_t13::get_t13_params, circom_t14::get_t14_params, circom_t2::get_t2_params,
+        circom_t3::get_t3_params, circom_t4::get_t4_params, circom_t5::get_t5_params,
+        circom_t6::get_t6_params, circom_t7::get_t7_params, circom_t8::get_t8_params,
+        circom_t9::get_t9_params,
+    },
+    error::Error,
+};
+
 pub fn poseidon_hash(inputs: &[Fr]) -> Result<Fr, Error> {
     let mut state = vec![Fr::from(0)];
     state.extend_from_slice(inputs);
 
     let out = match state.len() {
-        2 => Poseidon::new(&POSEIDON_CIRCOM_BN_2_PARAMS).permutation(state)?,
-        3 => Poseidon::new(&POSEIDON_CIRCOM_BN_3_PARAMS).permutation(state)?,
-        4 => Poseidon::new(&POSEIDON_CIRCOM_BN_4_PARAMS).permutation(state)?,
-        5 => Poseidon::new(&POSEIDON_CIRCOM_BN_5_PARAMS).permutation(state)?,
-        6 => Poseidon::new(&POSEIDON_CIRCOM_BN_6_PARAMS).permutation(state)?,
-        7 => Poseidon::new(&POSEIDON_CIRCOM_BN_7_PARAMS).permutation(state)?,
-        8 => Poseidon::new(&POSEIDON_CIRCOM_BN_8_PARAMS).permutation(state)?,
-        9 => Poseidon::new(&POSEIDON_CIRCOM_BN_9_PARAMS).permutation(state)?,
-        10 => Poseidon::new(&POSEIDON_CIRCOM_BN_10_PARAMS).permutation(state)?,
-        11 => Poseidon::new(&POSEIDON_CIRCOM_BN_11_PARAMS).permutation(state)?,
-        12 => Poseidon::new(&POSEIDON_CIRCOM_BN_12_PARAMS).permutation(state)?,
-        13 => Poseidon::new(&POSEIDON_CIRCOM_BN_13_PARAMS).permutation(state)?,
-        14 => Poseidon::new(&POSEIDON_CIRCOM_BN_14_PARAMS).permutation(state)?,
+        2 => Poseidon::new(&get_t2_params()).permutation(state)?,
+        3 => Poseidon::new(&get_t3_params()).permutation(state)?,
+        4 => Poseidon::new(&get_t4_params()).permutation(state)?,
+        5 => Poseidon::new(&get_t5_params()).permutation(state)?,
+        6 => Poseidon::new(&get_t6_params()).permutation(state)?,
+        7 => Poseidon::new(&get_t7_params()).permutation(state)?,
+        8 => Poseidon::new(&get_t8_params()).permutation(state)?,
+        9 => Poseidon::new(&get_t9_params()).permutation(state)?,
+        10 => Poseidon::new(&get_t10_params()).permutation(state)?,
+        11 => Poseidon::new(&get_t11_params()).permutation(state)?,
+        12 => Poseidon::new(&get_t12_params()).permutation(state)?,
+        13 => Poseidon::new(&get_t13_params()).permutation(state)?,
+        14 => Poseidon::new(&get_t14_params()).permutation(state)?,
         _ => return Err(Error::UnsupportedInputLength(state.len())),
     };
 
     Ok(out[0])
 }
 
+#[allow(dead_code)]
 fn field_from_hex_string<F: PrimeField>(str: &str) -> Result<F, Error> {
     let tmp = match str.strip_prefix("0x") {
         Some(t) => BigUint::from_str_radix(t, 16),

@@ -19,6 +19,7 @@ sage parameters.sage 1 0 254 <t> 8 <r> 0x30644e72e131a029b85045b68181585d2833e84
 Or generate the whole thing with:
 
 ```bash
+nix-shell -p sage
 just generate
 ```
 

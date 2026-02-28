@@ -1,7 +1,9 @@
-use crate::{error::Error, parameters::PoseidonParams};
+use std::sync::Arc;
+
 use ark_ff::PrimeField;
 use itertools::izip;
-use std::sync::Arc;
+
+use crate::{error::Error, parameters::PoseidonParams};
 
 #[derive(Clone, Debug)]
 pub struct Poseidon<F: PrimeField> {
@@ -104,13 +106,14 @@ impl<F: PrimeField> Poseidon<F> {
 
 #[cfg(test)]
 mod poseidon_bn254_tests {
-    use super::*;
-    use crate::{
-        bn254::{circom_t3::POSEIDON_CIRCOM_BN_3_PARAMS, circom_t4::POSEIDON_CIRCOM_BN_4_PARAMS},
-        field_from_hex_string,
-    };
     use ark_ff::{One, UniformRand, Zero};
     use ark_std::rand::thread_rng;
+
+    use super::*;
+    use crate::{
+        bn254::{circom_t3::get_t3_params, circom_t4::get_t4_params},
+        field_from_hex_string,
+    };
 
     static TESTRUNS: usize = 5;
     type Scalar = ark_bn254::Fr;
@@ -119,7 +122,7 @@ mod poseidon_bn254_tests {
     fn consistent_perm() {
         let mut rng = thread_rng();
 
-        let poseidon = Poseidon::new(&POSEIDON_CIRCOM_BN_3_PARAMS);
+        let poseidon = Poseidon::new(&get_t3_params());
         let t = poseidon.params.t;
         for _ in 0..TESTRUNS {
             let input1: Vec<Scalar> = (0..t).map(|_| Scalar::rand(&mut rng)).collect();
@@ -142,7 +145,7 @@ mod poseidon_bn254_tests {
 
     #[test]
     fn kats_t3() {
-        let poseidon = Poseidon::new(&POSEIDON_CIRCOM_BN_3_PARAMS);
+        let poseidon = Poseidon::new(&get_t3_params());
         let input: Vec<Scalar> = vec![Scalar::zero(), Scalar::one(), Scalar::from(2)];
         let perm = poseidon.permutation(input).unwrap();
         assert_eq!(
@@ -170,7 +173,7 @@ mod poseidon_bn254_tests {
 
     #[test]
     fn kats_t4() {
-        let poseidon = Poseidon::new(&POSEIDON_CIRCOM_BN_4_PARAMS);
+        let poseidon = Poseidon::new(&get_t4_params());
         let input: Vec<Scalar> = vec![
             Scalar::zero(),
             Scalar::one(),

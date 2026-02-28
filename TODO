@@ -22,6 +22,11 @@
 - TC Nova
   - [ ] Implementation
 - Repo
+  - [ ] Dependency-inject alloy + reqwests in wasm
+    - [ ] Remove alloy (except for alloy-primatives and contracts) from wasm build
+    - [ ] Remove reqwest from wasm build
+    - [ ] Remove tokio from wasm build
+    - Hopefully get wasm builds both below 1MiB. TC seems like it could get <500KiB, which would be great.
   - [ ] Add proper documentation explaining the architecture and design decisions. Especially important for the shared design expectations we're trying to create between the different privacy providers.
   - [ ] Clean up rust, abstracting out common code into shared crates. Probably:
     - Native prover + associate architecture
