@@ -4,7 +4,7 @@ use alloy::{
     rpc::types::{Filter, TransactionRequest},
     transports::{RpcError, TransportErrorKind},
 };
-use alloy_primitives::{Address, FixedBytes};
+use alloy_primitives::{Address, Bytes, FixedBytes};
 
 use crate::{EthRpcClient, EthRpcClientError, RawLog};
 
@@ -48,7 +48,7 @@ impl<P: Provider> EthRpcClient for P {
         Ok(logs)
     }
 
-    async fn eth_call(&self, to: Address, data: Vec<u8>) -> Result<Vec<u8>, EthRpcClientError> {
+    async fn eth_call(&self, to: Address, data: Bytes) -> Result<Bytes, EthRpcClientError> {
         let request = TransactionRequest::default().to(to).with_input(data);
         Ok(self.call(request).await?.into())
     }
@@ -56,7 +56,7 @@ impl<P: Provider> EthRpcClient for P {
     async fn estimate_gas(
         &self,
         to: Address,
-        data: Vec<u8>,
+        data: Bytes,
         from: Option<Address>,
     ) -> Result<u64, EthRpcClientError> {
         let mut request = TransactionRequest::default().to(to).with_input(data);

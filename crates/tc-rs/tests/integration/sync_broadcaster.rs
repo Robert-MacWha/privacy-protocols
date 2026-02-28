@@ -61,8 +61,7 @@ async fn test_sync_broadcaster() {
 
 struct MockProver;
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[async_trait::async_trait]
 impl Prover for MockProver {
     async fn prove(
         &self,

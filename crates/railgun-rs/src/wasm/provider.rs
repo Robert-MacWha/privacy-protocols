@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use eth_rpc::JsEthRpcAdapter;
+use eth_rpc::{JsEthRpcAdapter, TxData};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     railgun::{RailgunProvider, RailgunProviderState, address::RailgunAddress},
     wasm::{
-        JsProver, JsShieldBuilder, JsSigner, JsSyncer, JsTransactionBuilder, JsTxData,
-        balance::JsBalance, chain::try_get_chain,
+        JsProver, JsShieldBuilder, JsSigner, JsSyncer, JsTransactionBuilder, balance::JsBalance,
+        chain::try_get_chain,
     },
 };
 
@@ -91,10 +91,10 @@ impl JsRailgunProvider {
     }
 
     /// Build a executable transaction from a transaction builder
-    pub async fn build(&self, builder: JsTransactionBuilder) -> Result<JsTxData, JsValue> {
+    pub async fn build(&self, builder: JsTransactionBuilder) -> Result<TxData, JsValue> {
         let mut rng = rand::rng();
         let proved_tx = self.inner.build(builder.into(), &mut rng).await?;
-        Ok(proved_tx.tx_data.into())
+        Ok(proved_tx.tx_data)
     }
 
     pub async fn sync(&mut self) -> Result<(), JsValue> {

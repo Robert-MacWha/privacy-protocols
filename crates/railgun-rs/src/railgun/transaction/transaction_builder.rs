@@ -17,13 +17,15 @@ use std::{
 };
 
 use alloy_primitives::Address;
+use alloy_sol_types::SolCall;
+use eth_rpc::TxData;
 use rand::Rng;
 use ruint::aliases::U256;
 use thiserror::Error;
 use tracing::{info, warn};
 
 use crate::{
-    abis,
+    abis::{self, railgun::RailgunSmartWallet},
     caip::AssetId,
     chain_config::ChainConfig,
     circuit::{
@@ -43,7 +45,7 @@ use crate::{
             unshield::UnshieldNote,
         },
         signer::Signer,
-        transaction::{ProvedOperation, ProvedTx, TxData},
+        transaction::{ProvedOperation, ProvedTx},
     },
 };
 
@@ -281,7 +283,12 @@ pub async fn prove_operations<N: IncludedNote + SignableNote + Clone, R: Rng>(
         .iter()
         .map(|po| po.transaction.clone())
         .collect();
-    let tx_data = TxData::from_transactions(chain.railgun_smart_wallet, transactions);
+
+    let calldata = RailgunSmartWallet::transactCall {
+        _transactions: transactions,
+    }
+    .abi_encode();
+    let tx_data = TxData::new(chain.railgun_smart_wallet, calldata.into(), U256::ZERO);
 
     Ok(ProvedTx {
         proved_operations,

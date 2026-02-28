@@ -3,6 +3,7 @@ use std::{
     fmt::Display,
 };
 
+use eth_rpc::TxData;
 use ruint::aliases::U256;
 use thiserror::Error;
 
@@ -18,7 +19,6 @@ use crate::{
         merkle_tree::{TxidLeafHash, UtxoMerkleTree},
         note::operation::Operation,
         poi::{BlindedCommitment, ListKey, PoiNote, PreTransactionPoi},
-        transaction::tx_data::TxData,
     },
 };
 

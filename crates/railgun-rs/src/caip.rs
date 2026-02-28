@@ -3,24 +3,22 @@ use std::{fmt::Display, str::FromStr};
 use alloy_primitives::{Address, U256, Uint};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tsify::Tsify;
 
 use crate::abis::railgun::{TokenData, TokenType};
 
 /// CAIP-10 style Asset ID.  ERC721 and ERC1155 sub-id represented as hex strings.
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Tsify,
-)]
-#[tsify(into_wasm_abi, from_wasm_abi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum AssetId {
-    Erc20(#[tsify(type = "string")] Address),
+    Erc20(#[cfg_attr(target_arch = "wasm32", tsify(type = "string"))] Address),
     Erc721(
-        #[tsify(type = "string")] Address,
-        #[tsify(type = "string")] U256,
+        #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))] Address,
+        #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))] U256,
     ),
     Erc1155(
-        #[tsify(type = "string")] Address,
-        #[tsify(type = "string")] U256,
+        #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))] Address,
+        #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))] U256,
     ),
 }
 

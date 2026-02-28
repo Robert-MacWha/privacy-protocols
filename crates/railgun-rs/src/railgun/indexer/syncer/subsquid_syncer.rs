@@ -5,12 +5,9 @@ use tracing::{info, warn};
 
 #[cfg(feature = "poi")]
 use crate::railgun::indexer::TransactionSyncer;
-use crate::{
-    railgun::indexer::{
-        NoteSyncer,
-        syncer::{self, subsquid_types::*, syncer::SyncerError},
-    },
-    sleep::sleep,
+use crate::railgun::indexer::{
+    NoteSyncer,
+    syncer::{self, subsquid_types::*, syncer::SyncerError},
 };
 
 pub struct SubsquidSyncer {
@@ -66,8 +63,8 @@ impl SubsquidSyncer {
     }
 }
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl NoteSyncer for SubsquidSyncer {
     async fn latest_block(&self) -> Result<u64, SyncerError> {
         Ok(self.latest_block().await?)
@@ -93,8 +90,8 @@ impl NoteSyncer for SubsquidSyncer {
 }
 
 #[cfg(feature = "poi")]
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl TransactionSyncer for SubsquidSyncer {
     async fn latest_block(&self) -> Result<u64, SyncerError> {
         Ok(self.latest_block().await?)
@@ -281,7 +278,7 @@ impl SubsquidSyncer {
                         "GraphQL request failed (attempt {}/{}): {}",
                         attempt, self.max_retries, e
                     );
-                    sleep(self.retry_delay).await;
+                    common::sleep(self.retry_delay).await;
                 }
             }
         }

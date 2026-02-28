@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use alloy_primitives::{Address, TxHash, U256};
-use eth_rpc::EthRpcClient;
+use eth_rpc::{EthRpcClient, TxData};
 use prover::Prover;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,6 @@ use crate::{
     broadcaster::{Relayer, RelayerSyncer, indexer::BroadcasterIndexerState},
     indexer::{Syncer, Verifier},
     note::Note,
-    tx_data::TxData,
 };
 
 const JOB_POLL_INTERVAL: web_time::Duration = web_time::Duration::from_secs(3);
@@ -293,7 +292,7 @@ impl BroadcastProvider {
                 });
             }
 
-            sleep(JOB_POLL_INTERVAL).await;
+            common::sleep(JOB_POLL_INTERVAL).await;
 
             let job_resp = self.http.get(&job_url).send().await?;
             let job: JobStatusResponse = job_resp.json().await?;
@@ -321,14 +320,4 @@ fn compute_service_fee(amount_wei: u128, fee_percent: f64) -> U256 {
     let amount_f64 = amount_wei as f64;
     let fee = amount_f64 * fee_percent / 100.0;
     U256::from(fee as u128)
-}
-
-#[cfg(feature = "native")]
-pub async fn sleep(duration: web_time::Duration) {
-    tokio::time::sleep(duration).await;
-}
-
-#[cfg(feature = "wasm")]
-pub async fn sleep(duration: web_time::Duration) {
-    gloo_timers::future::sleep(duration).await;
 }

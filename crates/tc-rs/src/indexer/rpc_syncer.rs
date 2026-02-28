@@ -35,8 +35,8 @@ impl RpcSyncer {
     }
 }
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl Syncer for RpcSyncer {
     async fn latest_block(&self) -> Result<u64, SyncerError> {
         self.provider
@@ -172,8 +172,8 @@ impl Syncer for RpcSyncer {
     }
 }
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl Verifier for RpcSyncer {
     async fn verify(&self, contract: Address, root: MerkleRoot) -> Result<(), VerifierError> {
         let root_u256: U256 = root.into();

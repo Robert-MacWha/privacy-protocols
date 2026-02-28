@@ -6,8 +6,8 @@ use crate::circuit::inputs::TransactCircuitInputs;
 
 pub type PublicInputs = Vec<U256>;
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait TransactProver: common::MaybeSend {
     async fn prove_transact(
         &self,
@@ -16,8 +16,8 @@ pub trait TransactProver: common::MaybeSend {
 }
 
 #[cfg(feature = "poi")]
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait PoiProver: common::MaybeSend {
     async fn prove_poi(
         &self,

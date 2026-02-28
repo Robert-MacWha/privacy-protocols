@@ -1,10 +1,6 @@
-/// Conditional Send + Sync bound: required on native, no-op on WASM.
-#[cfg(not(feature = "wasm"))]
-pub trait MaybeSend: Send + Sync {}
-#[cfg(not(feature = "wasm"))]
-impl<T: Send + Sync> MaybeSend for T {}
+mod maybe_send;
+pub mod serde;
+mod sleep;
 
-#[cfg(feature = "wasm")]
-pub trait MaybeSend {}
-#[cfg(feature = "wasm")]
-impl<T> MaybeSend for T {}
+pub use maybe_send::MaybeSend;
+pub use sleep::sleep;

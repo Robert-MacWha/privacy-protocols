@@ -1,12 +1,11 @@
 use std::fmt::Display;
 
+use eth_rpc::TxData;
+
 use crate::{
     abis,
     circuit::inputs::TransactCircuitInputs,
-    railgun::{
-        note::{operation::Operation, utxo::UtxoNote},
-        transaction::tx_data::TxData,
-    },
+    railgun::note::{operation::Operation, utxo::UtxoNote},
 };
 
 /// A transaction that has been proven for railgun.

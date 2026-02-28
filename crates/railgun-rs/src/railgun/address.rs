@@ -4,17 +4,18 @@ use bech32::Hrp;
 use serde::{self, Deserialize, Serialize};
 use thiserror::Error;
 use tracing::warn;
-use tsify::Tsify;
 
 use crate::crypto::keys::{
     HexKey, KeyError, MasterPublicKey, SpendingKey, ViewingKey, ViewingPublicKey,
 };
 
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Tsify,
-)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
 #[serde(try_from = "String", into = "String")]
-#[tsify(from_wasm_abi, into_wasm_abi, type = "String")]
+#[cfg_attr(
+    target_arch = "wasm32",
+    tsify(from_wasm_abi, into_wasm_abi, type = "String")
+)]
 pub struct RailgunAddress {
     master_key: MasterPublicKey,
     viewing_pubkey: ViewingPublicKey,

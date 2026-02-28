@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use alloy_primitives::Address;
+use eth_rpc::TxData;
 use prover::Prover;
 use rand::Rng;
 use ruint::aliases::U256;
@@ -16,7 +17,6 @@ use crate::{
         pool::Pool,
         pool_provider::{PoolProvider, PoolProviderError, PoolProviderState},
     },
-    tx_data::TxData,
 };
 
 /// TornadoProvider manages multiple pools and provides a unified interface for

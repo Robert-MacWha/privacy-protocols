@@ -4,12 +4,11 @@ pub mod indexer;
 pub mod merkle;
 pub mod note;
 mod provider;
-pub mod tx_data;
 
 #[cfg(feature = "broadcaster")]
 pub mod broadcaster;
 
-#[cfg(feature = "wasm")]
+#[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
 pub use provider::*;

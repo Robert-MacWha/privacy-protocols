@@ -18,7 +18,6 @@ use railgun_rs::{
         signer::Signer,
         transaction::PoiTransactionBuilder,
     },
-    sleep::sleep,
 };
 use rand::random;
 use tracing::info;
@@ -230,7 +229,7 @@ async fn await_balance_update(
     let start = std::time::Instant::now();
     loop {
         info!("Waiting for balance to update...");
-        sleep(web_time::Duration::from_secs(10)).await;
+        common::sleep(web_time::Duration::from_secs(10)).await;
 
         if start.elapsed().as_secs() > 200 {
             panic!("Balance did not update within 200 seconds");

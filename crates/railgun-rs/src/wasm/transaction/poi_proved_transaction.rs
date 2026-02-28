@@ -20,14 +20,8 @@ impl JsPoiProvedTx {
 
     /// Raw calldata bytes
     #[wasm_bindgen(getter)]
-    pub fn data(&self) -> Vec<u8> {
-        self.inner.tx_data.data.clone()
-    }
-
-    /// Returns 0x-prefixed hex-encoded calldata
-    #[wasm_bindgen(getter, js_name = "dataHex")]
-    pub fn data_hex(&self) -> String {
-        format!("0x{}", hex::encode(&self.inner.tx_data.data))
+    pub fn data(&self) -> String {
+        self.inner.tx_data.data.clone().to_string()
     }
 
     /// ETH value to send

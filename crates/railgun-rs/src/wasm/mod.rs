@@ -15,7 +15,7 @@ pub use prover::JsProver;
 pub use provider::JsRailgunProvider;
 pub use signer::JsSigner;
 pub use transaction::{
-    JsPoiProvedTx, JsPoiTransactionBuilder, JsShieldBuilder, JsTransactionBuilder, JsTxData,
+    JsPoiProvedTx, JsPoiTransactionBuilder, JsShieldBuilder, JsTransactionBuilder,
 };
 use wasm_bindgen::prelude::wasm_bindgen;
 

@@ -5,15 +5,13 @@ use std::collections::HashMap;
 use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-#[cfg(feature = "wasm")]
-use tsify::Tsify;
 
 use crate::railgun::{address::RailgunAddress, poi::ListKey};
 
 /// A message received from the Waku network.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "wasm", derive(Tsify))]
-#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, from_wasm_abi))]
 #[serde(rename_all = "camelCase")]
 pub struct WakuMessage {
     /// Message payload as bytes

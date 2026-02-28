@@ -34,8 +34,8 @@ impl RpcRelayerSyncer {
     }
 }
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl RelayerSyncer for RpcRelayerSyncer {
     async fn latest_block(&self) -> Result<u64, SyncerError> {
         self.mainnet_provider

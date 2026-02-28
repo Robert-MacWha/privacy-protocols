@@ -1,12 +1,10 @@
 mod proved_transaction;
 mod shield_builder;
 mod transaction_builder;
-mod tx_data;
 
 pub use proved_transaction::{ProvedOperation, ProvedTx};
 pub use shield_builder::ShieldBuilder;
 pub use transaction_builder::{TransactionBuilder, TransactionBuilderError};
-pub use tx_data::TxData;
 
 #[cfg(feature = "poi")]
 mod poi_proved_transaction;

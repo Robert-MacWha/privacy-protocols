@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use alloy_primitives::Address;
+use eth_rpc::TxData;
 use prover::JsProverAdapter;
 use rand::rng;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     provider::{PoolProviderState, TornadoProvider},
-    wasm::{JsPool, note::JsNote, syncer::JsSyncer, tx_data::JsTxData, verifier::JsVerifier},
+    wasm::{JsPool, note::JsNote, syncer::JsSyncer, verifier::JsVerifier},
 };
 
 #[wasm_bindgen]
@@ -18,14 +19,14 @@ pub struct JsTornadoProvider {
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct JsDepositResult {
-    pub(crate) tx_data: JsTxData,
+    pub(crate) tx_data: TxData,
     pub(crate) note: JsNote,
 }
 
 #[wasm_bindgen]
 impl JsDepositResult {
     #[wasm_bindgen(getter, js_name = "txData")]
-    pub fn tx_data(&self) -> JsTxData {
+    pub fn tx_data(&self) -> TxData {
         self.tx_data.clone()
     }
 
@@ -93,7 +94,7 @@ impl JsTornadoProvider {
         note: &JsNote,
         recipient: String,
         refund: Option<js_sys::BigInt>,
-    ) -> Result<JsTxData, JsValue> {
+    ) -> Result<TxData, JsValue> {
         let recipient: Address = recipient
             .parse()
             .map_err(|e| JsValue::from_str(&format!("Invalid recipient address: {}", e)))?;
@@ -108,7 +109,7 @@ impl JsTornadoProvider {
             .withdraw(&pool.inner, &note.inner, recipient, None, None, refund)
             .await?;
 
-        Ok(tx_data.into())
+        Ok(tx_data)
     }
 
     pub async fn sync(&mut self) -> Result<(), JsValue> {

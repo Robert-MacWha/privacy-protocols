@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, FixedBytes};
+use alloy_primitives::{Address, Bytes, FixedBytes};
 use js_sys::BigInt;
 use wasm_bindgen::prelude::*;
 
@@ -83,7 +83,7 @@ impl EthRpcClient for JsEthRpcAdapter {
         Ok(logs)
     }
 
-    async fn eth_call(&self, to: Address, data: Vec<u8>) -> Result<Vec<u8>, EthRpcClientError> {
+    async fn eth_call(&self, to: Address, data: Bytes) -> Result<Bytes, EthRpcClientError> {
         let to_str = format!("{:#x}", to);
         let data_str = format!("0x{}", hex::encode(data));
 
@@ -101,7 +101,7 @@ impl EthRpcClient for JsEthRpcAdapter {
     async fn estimate_gas(
         &self,
         to: Address,
-        data: Vec<u8>,
+        data: Bytes,
         from: Option<Address>,
     ) -> Result<u64, EthRpcClientError> {
         let to_str = format!("{:#x}", to);

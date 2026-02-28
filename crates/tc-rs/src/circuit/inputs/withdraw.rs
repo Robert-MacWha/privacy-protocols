@@ -4,33 +4,29 @@ use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{
-    circuit::inputs::decimal_u256::{u256_decimal, vec_u256_decimal},
-    merkle::TornadoMerkleTree,
-    note::Note,
-};
+use crate::{merkle::TornadoMerkleTree, note::Note};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WithdrawCircuitInputs {
-    #[serde(rename = "root", with = "u256_decimal")]
+    #[serde(rename = "root", with = "common::serde::u256_decimal")]
     pub merkle_root: U256,
-    #[serde(rename = "nullifierHash", with = "u256_decimal")]
+    #[serde(rename = "nullifierHash", with = "common::serde::u256_decimal")]
     pub nullifier_hash: U256,
-    #[serde(rename = "recipient", with = "u256_decimal")]
+    #[serde(rename = "recipient", with = "common::serde::u256_decimal")]
     pub recipient: U256,
-    #[serde(rename = "relayer", with = "u256_decimal")]
+    #[serde(rename = "relayer", with = "common::serde::u256_decimal")]
     pub relayer: U256,
-    #[serde(rename = "fee", with = "u256_decimal")]
+    #[serde(rename = "fee", with = "common::serde::u256_decimal")]
     pub fee: U256,
-    #[serde(rename = "refund", with = "u256_decimal")]
+    #[serde(rename = "refund", with = "common::serde::u256_decimal")]
     pub refund: U256,
-    #[serde(rename = "nullifier", with = "u256_decimal")]
+    #[serde(rename = "nullifier", with = "common::serde::u256_decimal")]
     pub nullifier: U256,
-    #[serde(rename = "secret", with = "u256_decimal")]
+    #[serde(rename = "secret", with = "common::serde::u256_decimal")]
     pub secret: U256,
-    #[serde(rename = "pathElements", with = "vec_u256_decimal")]
+    #[serde(rename = "pathElements", with = "common::serde::vec_u256_decimal")]
     pub path_elements: Vec<U256>,
-    #[serde(rename = "pathIndices", with = "vec_u256_decimal")]
+    #[serde(rename = "pathIndices", with = "common::serde::vec_u256_decimal")]
     pub path_indices: Vec<U256>,
 }
 

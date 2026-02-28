@@ -1,15 +1,13 @@
-#[cfg(feature = "native")]
-use ark_bn254::Bn254;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
-use tsify::Tsify;
 
 /// Circuit proof
 ///
 /// Serializes into a SnarkJS-compatible format, with decimal strings for all
 /// field elements and arrays for the g1 / g2 points.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Tsify)]
-#[tsify(from_wasm_abi)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(from_wasm_abi))]
 pub struct Proof {
     #[serde(rename = "pi_a")]
     pub a: G1Affine,
@@ -19,25 +17,30 @@ pub struct Proof {
     pub c: G1Affine,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Tsify)]
-#[tsify(type = "[`0x${string}`, `0x${string}`]")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(type = "[`0x${string}`, `0x${string}`]"))]
 #[serde(into = "[String; 2]", try_from = "[String; 2]")]
 pub struct G1Affine {
     pub x: U256,
     pub y: U256,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Tsify)]
-#[tsify(type = "[[`0x${string}`, `0x${string}`], [`0x${string}`, `0x${string}`]]")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
+#[cfg_attr(
+    target_arch = "wasm32",
+    tsify(type = "[[`0x${string}`, `0x${string}`], [`0x${string}`, `0x${string}`]]")
+)]
 #[serde(into = "[[String; 2]; 2]", try_from = "[[String; 2]; 2]")]
 pub struct G2Affine {
     pub x: [U256; 2],
     pub y: [U256; 2],
 }
 
-#[cfg(feature = "native")]
-impl From<ark_groth16::Proof<Bn254>> for Proof {
-    fn from(proof: ark_groth16::Proof<Bn254>) -> Self {
+#[cfg(not(target_arch = "wasm32"))]
+impl From<ark_groth16::Proof<ark_bn254::Bn254>> for Proof {
+    fn from(proof: ark_groth16::Proof<ark_bn254::Bn254>) -> Self {
         Proof {
             a: G1Affine {
                 x: ark_ff::BigInt::from(proof.a.x).into(),

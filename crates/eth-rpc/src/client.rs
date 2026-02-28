@@ -3,10 +3,9 @@ use alloy_sol_types::SolCall;
 use common::MaybeSend;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tsify::Tsify;
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait EthRpcClient: MaybeSend {
     async fn get_block_number(&self) -> Result<u64, EthRpcClientError>;
 
@@ -18,12 +17,12 @@ pub trait EthRpcClient: MaybeSend {
         to_block: Option<u64>,
     ) -> Result<Vec<RawLog>, EthRpcClientError>;
 
-    async fn eth_call(&self, to: Address, data: Vec<u8>) -> Result<Vec<u8>, EthRpcClientError>;
+    async fn eth_call(&self, to: Address, data: Bytes) -> Result<Bytes, EthRpcClientError>;
 
     async fn estimate_gas(
         &self,
         to: Address,
-        data: Vec<u8>,
+        data: Bytes,
         from: Option<Address>,
     ) -> Result<u64, EthRpcClientError>;
 
@@ -38,19 +37,25 @@ pub enum EthRpcClientError {
     Decode(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Tsify)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
 pub struct RawLog {
-    #[tsify(type = "number | null")]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "number | null"))]
     pub block_number: Option<u64>,
-    #[tsify(type = "number | null")]
+
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "number | null"))]
     pub block_timestamp: Option<u64>,
-    #[tsify(type = "`0x${string}` | null")]
+
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "`0x${string}` | null"))]
     pub transaction_hash: Option<FixedBytes<32>>,
-    #[tsify(type = "`0x${string}`")]
+
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "`0x${string}`"))]
     pub address: Address,
-    #[tsify(type = "`0x${string}`[]")]
+
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "`0x${string}`[]"))]
     pub topics: Vec<FixedBytes<32>>,
-    #[tsify(type = "`0x${string}`")]
+
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "`0x${string}`"))]
     pub data: Bytes,
 }
 
@@ -69,6 +74,6 @@ where
     C: SolCall,
 {
     let data = call.abi_encode();
-    let raw = provider.eth_call(to, data).await?;
+    let raw = provider.eth_call(to, data.into()).await?;
     C::abi_decode_returns(&raw).map_err(|e| EthRpcClientError::Decode(e.to_string()))
 }

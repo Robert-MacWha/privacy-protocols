@@ -68,19 +68,18 @@ pub enum SyncerError {
     Syncer(#[from] Box<dyn std::error::Error>),
 }
 
-/// Trait for syncers that emit note-level blockchain events (Shield, Transact, Nullified).
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+/// Syncers that emit note-level events (Shield, Transact, Nullified).
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait NoteSyncer: common::MaybeSend {
     async fn latest_block(&self) -> Result<u64, SyncerError>;
     async fn sync(&self, from_block: u64, to_block: u64) -> Result<Vec<SyncEvent>, SyncerError>;
 }
 
-/// Trait for syncers that fetch full operation data (nullifiers + commitments + tree positions).
-/// Used to build the TXID tree for post-transaction POI submission.
+/// Syncers that fetch full operation data (nullifiers + commitments + tree positions).
 #[cfg(feature = "poi")]
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait TransactionSyncer: common::MaybeSend {
     async fn latest_block(&self) -> Result<u64, SyncerError>;
     async fn sync(&self, from_block: u64, to_block: u64) -> Result<Vec<Operation>, SyncerError>;

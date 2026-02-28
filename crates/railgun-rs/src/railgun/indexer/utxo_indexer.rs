@@ -248,7 +248,7 @@ impl UtxoIndexer {
                 return Err(UtxoIndexerError::Timeout);
             }
 
-            crate::sleep::sleep(poll_interval).await;
+            common::sleep(poll_interval).await;
         }
     }
 

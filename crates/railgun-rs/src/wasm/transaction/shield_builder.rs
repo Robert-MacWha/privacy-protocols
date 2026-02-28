@@ -1,9 +1,9 @@
+use eth_rpc::TxData;
 use wasm_bindgen::{JsError, prelude::wasm_bindgen};
 
 use crate::{
     caip::AssetId,
     railgun::{address::RailgunAddress, transaction::ShieldBuilder},
-    wasm::transaction::JsTxData,
 };
 
 /// Builder for shield transactions (self-broadcast only, no prover needed)
@@ -22,7 +22,7 @@ impl JsShieldBuilder {
     }
 
     /// Build the shield transaction calldata
-    pub fn build(self) -> Result<JsTxData, JsError> {
+    pub fn build(self) -> Result<TxData, JsError> {
         let tx = self
             .inner
             .build(&mut rand::rng())

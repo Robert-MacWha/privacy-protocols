@@ -10,11 +10,8 @@ use super::{
     transport::{WakuTransport, WakuTransportError},
     types::{BROADCASTER_VERSION, BroadcasterFeeMessage, BroadcasterFeeMessageData, WakuMessage},
 };
-use crate::{
-    railgun::{
-        address::RailgunAddress, broadcaster::content_topics::fee_content_topic, poi::ListKey,
-    },
-    sleep::sleep,
+use crate::railgun::{
+    address::RailgunAddress, broadcaster::content_topics::fee_content_topic, poi::ListKey,
 };
 
 /// Manages broadcaster state and fee information.
@@ -92,7 +89,7 @@ impl BroadcasterManager {
 
             loop {
                 let next_msg = stream.next().fuse();
-                let timeout = crate::sleep::sleep(staleness_timeout).fuse();
+                let timeout = common::sleep(staleness_timeout).fuse();
                 futures::pin_mut!(next_msg, timeout);
 
                 futures::select! {
@@ -119,7 +116,7 @@ impl BroadcasterManager {
                 "Broadcaster fee subscription ended, reconnecting in {:?}",
                 backoff
             );
-            sleep(backoff).await;
+            common::sleep(backoff).await;
             backoff = (backoff * 2).min(max_backoff);
         }
     }
