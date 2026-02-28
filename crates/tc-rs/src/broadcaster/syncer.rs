@@ -39,7 +39,7 @@ impl TryFrom<RawLog> for RelayerRecord {
         }
 
         let block_number = log.block_number.unwrap_or(0);
-        let event = RelayerRegistry::RelayerRegistered::decode_log(&log.inner)
+        let event = RelayerRegistry::RelayerRegistered::decode_log(&log.inner())
             .map_err(|e| format!("Failed to decode log: {}", e))?;
 
         Ok(RelayerRecord {

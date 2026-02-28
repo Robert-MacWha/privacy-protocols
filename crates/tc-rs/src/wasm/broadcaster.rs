@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use alloy_primitives::Address;
 use eth_rpc::JsEthRpcAdapter;
+use prover::JsProverAdapter;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     PoolProviderState,
     broadcaster::BroadcastProvider,
     wasm::{
-        JsDepositResult, JsPool, JsProver, JsSyncer, JsVerifier, note::JsNote,
+        JsDepositResult, JsPool, JsSyncer, JsVerifier, note::JsNote,
         prepared_broadcast::JsPreparedBroadcast, provider::bigint_to_u256,
         relayer_syncer::JsRelayerSyncer,
     },
@@ -31,7 +32,7 @@ impl JsBroadcastProvider {
     pub async fn new(
         syncer: JsSyncer,
         verifier: JsVerifier,
-        prover: JsProver,
+        prover: JsProverAdapter,
         relayer_syncer: JsRelayerSyncer,
         mainnet_provider: JsEthRpcAdapter,
     ) -> Result<JsBroadcastProvider, JsValue> {

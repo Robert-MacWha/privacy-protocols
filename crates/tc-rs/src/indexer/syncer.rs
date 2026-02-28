@@ -66,7 +66,7 @@ impl TryFrom<RawLog> for Commitment {
 
         let block_number = log.block_number.unwrap_or(0);
         let tx_hash = log.transaction_hash.unwrap_or_default();
-        let event = Tornado::Deposit::decode_log(&log.inner)
+        let event = Tornado::Deposit::decode_log(&log.inner())
             .map_err(|e| format!("Failed to decode log: {}", e))?;
 
         Ok(Commitment {
@@ -93,7 +93,7 @@ impl TryFrom<RawLog> for Nullifier {
 
         let block_number = log.block_number.unwrap_or(0);
         let tx_hash = log.transaction_hash.unwrap_or_default();
-        let event = Tornado::Withdrawal::decode_log(&log.inner)
+        let event = Tornado::Withdrawal::decode_log(&log.inner())
             .map_err(|e| format!("Failed to decode log: {}", e))?;
 
         Ok(Nullifier {

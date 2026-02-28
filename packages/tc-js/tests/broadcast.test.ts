@@ -21,7 +21,7 @@ test("broadcast", async () => {
 // // expensive to do on every test run. Instead, it attempts to ensure that the transaction
 // // is correctly prepared for broadcasting.
 // test("broadcast", async () => {
-//   console.log("Setup Railgun");
+//   console.log("Setup TC");
 //   const pool = JsPool.sepoliaEther1;
 //   const prover = createProver();
 //   const cache_syncer = JsSyncer.newCache(

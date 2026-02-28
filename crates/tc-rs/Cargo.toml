@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["native", "broadcaster"]
+default = ["wasm", "broadcaster"]
 native = ["alloy", "dep:tokio"]
 broadcaster = ["dep:reqwest"]
 wasm = [

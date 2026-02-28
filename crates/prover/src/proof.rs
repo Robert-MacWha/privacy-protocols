@@ -20,7 +20,7 @@ pub struct Proof {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Tsify)]
-#[tsify(type = "[string, string]")]
+#[tsify(type = "[`0x${string}`, `0x${string}`]")]
 #[serde(into = "[String; 2]", try_from = "[String; 2]")]
 pub struct G1Affine {
     pub x: U256,
@@ -28,7 +28,7 @@ pub struct G1Affine {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Tsify)]
-#[tsify(type = "[[string, string], [string, string]]")]
+#[tsify(type = "[[`0x${string}`, `0x${string}`], [`0x${string}`, `0x${string}`]]")]
 #[serde(into = "[[String; 2]; 2]", try_from = "[[String; 2]; 2]")]
 pub struct G2Affine {
     pub x: [U256; 2],

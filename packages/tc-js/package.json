@@ -12,10 +12,10 @@
     "@types/node": "^25.3.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "viem": "^2.45.3",
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "viem": "^2.45.3",
     "@tornado/snarkjs": "github:Robert-MacWha/tornado-snarkjs",
     "@tornado/websnark": "github:Robert-MacWha/tornado-websnark"
   },

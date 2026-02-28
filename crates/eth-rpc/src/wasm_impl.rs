@@ -4,8 +4,25 @@ use wasm_bindgen::prelude::*;
 
 use crate::client::{EthRpcClient, EthRpcClientError, RawLog};
 
+#[wasm_bindgen(typescript_custom_section)]
+const TS_INTERFACE: &str = r#"
+export interface EthRpcAdapter {
+    getBlockNumber(): Promise<bigint>;
+    getLogs(
+        address: `0x${string}`, 
+        eventSignature: `0x${string}` | undefined, 
+        fromBlock: number | undefined, 
+        toBlock: number | undefined,
+    ): Promise<RawLog[]>;
+    ethCall(to: `0x${string}`, data: `0x${string}`): Promise<`0x${string}`>;
+    estimateGas(to: `0x${string}`, from: `0x${string}` | undefined, data: `0x${string}`): Promise<bigint>;
+    getGasPrice(): Promise<bigint>;
+}
+"#;
+
 #[wasm_bindgen]
 extern "C" {
+    #[wasm_bindgen(typescript_type = "EthRpcAdapter")]
     pub type JsEthRpcAdapter;
 
     #[wasm_bindgen(method, catch, js_name = "getBlockNumber")]

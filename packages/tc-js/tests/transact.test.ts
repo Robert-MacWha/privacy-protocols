@@ -1,8 +1,9 @@
 import { createPublicClient, createWalletClient, http } from "viem";
 import { test } from "vitest";
-import { createProver } from "../src/prover-adapter.js";
 import { mainnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { TornadoClassicProver } from "../src/prover-adapter.js";
+import { ViemEthRpcAdapter } from "../src/viem.js";
 import { JsPool, JsSyncer, JsTornadoProvider, JsVerifier } from "../src/pkg/tc_rs.js";
 import { readFileSync } from "node:fs";
 
@@ -12,18 +13,6 @@ const PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf
 
 // Tests the full transaction flow for depositing and withdrawing a note from a tornado pool.
 test("transact", async () => {
-  console.log("Setup Railgun");
-  const pool = JsPool.ethereumEther100;
-  const prover = createProver();
-  const cache_syncer = JsSyncer.newCache(
-    readFileSync(`${CACHE_PATH}/cache_ethereum_eth_100.json`, "utf-8")
-  );
-  const rpc_syncer = await JsSyncer.newRpc(RPC_URL, 10000n);
-  const syncer = JsSyncer.newChained([cache_syncer, rpc_syncer]);
-  const verifier = await JsVerifier.newRpc(RPC_URL);
-  const tornado = JsTornadoProvider.new(syncer, verifier, prover);
-  tornado.addPool(pool);
-
   console.log("Setup viem");
   const publicClient = createPublicClient({
     chain: mainnet,
@@ -36,6 +25,19 @@ test("transact", async () => {
     chain: mainnet,
     transport: http(RPC_URL),
   });
+
+  console.log("Setup TC");
+  const pool = JsPool.ethereumEther100;
+  const prover = new TornadoClassicProver();
+  const cacheSyncer = JsSyncer.newCache(
+    readFileSync(`${CACHE_PATH}/cache_ethereum_eth_100.json`, "utf-8")
+  );
+  const rpcAdapter = new ViemEthRpcAdapter(publicClient);
+  const rpcSyncer = await JsSyncer.newRpc(rpcAdapter, 10000n);
+  const syncer = JsSyncer.newChained([cacheSyncer, rpcSyncer]);
+  const verifier = await JsVerifier.newRpc(rpcAdapter);
+  const tornado = JsTornadoProvider.new(syncer, verifier, prover);
+  tornado.addPool(pool);
 
   console.log("Syncing");
   await tornado.sync();

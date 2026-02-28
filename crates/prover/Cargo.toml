@@ -16,9 +16,11 @@ ark-groth16 = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 tsify = { workspace = true }
 wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 common = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
 
 [dev-dependencies]
 tracing-test = { workspace = true }

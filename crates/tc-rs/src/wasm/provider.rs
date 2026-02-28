@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
 use alloy_primitives::Address;
+use prover::JsProverAdapter;
 use rand::rng;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     provider::{PoolProviderState, TornadoProvider},
-    wasm::{
-        JsPool, JsProver, note::JsNote, syncer::JsSyncer, tx_data::JsTxData, verifier::JsVerifier,
-    },
+    wasm::{JsPool, note::JsNote, syncer::JsSyncer, tx_data::JsTxData, verifier::JsVerifier},
 };
 
 #[wasm_bindgen]
@@ -43,7 +42,11 @@ impl JsTornadoProvider {
     /// @param syncer Syncer used to index deposits/withdrawals
     /// @param verifier Verifier used for on-chain root verification
     /// @param prover Prover used to generate proofs
-    pub fn new(syncer: JsSyncer, verifier: JsVerifier, prover: JsProver) -> JsTornadoProvider {
+    pub fn new(
+        syncer: JsSyncer,
+        verifier: JsVerifier,
+        prover: JsProverAdapter,
+    ) -> JsTornadoProvider {
         let inner = TornadoProvider::new(syncer.inner(), verifier.inner(), Arc::new(prover));
         inner.into()
     }

@@ -1,25 +1,10 @@
-/**
- * @module ProverAdapter
- *
- * Adapter that owns snarkjs proving logic and exposes a typed interface
- * for the Rust WASM prover to bind against.
- *
- * Rust calls: proveTransact()
- */
-
 import { readFile } from "node:fs/promises";
 import circuit from "../../../artifacts/tc/tornado.json" with { type: "json" };
 import buildGroth16 from "@tornado/websnark/src/groth16";
 import * as websnarkUtils from "@tornado/websnark/src/utils";
-import { JsProofResponse, JsProver } from "./pkg/tc_rs.js";
+import { JsProof, ProverAdapter } from "./pkg/tc_rs.js";
 
-/** Create a JsProver from config. */
-export function createProver(): JsProver {
-  const adapter = new ProverAdapter();
-  return new JsProver(adapter);
-}
-
-class ProverAdapter {
+export class TornadoClassicProver implements ProverAdapter {
   private groth16Promise: Promise<any>;
 
   constructor() {
@@ -27,8 +12,9 @@ class ProverAdapter {
   }
 
   async prove(
-    inputs: Record<string, string[]>
-  ): Promise<JsProofResponse> {
+    circuitName: string,
+    inputs: Record<string, `0x${string}`[]>
+  ): Promise<JsProof> {
     console.log("Starting proof generation");
 
     const groth16 = await this.groth16Promise;
@@ -60,14 +46,14 @@ class ProverAdapter {
 
     return {
       proof: {
-        pi_a: [pi_a[0]!, pi_a[1]!],
+        pi_a: [pi_a[0]! as `0x${string}`, pi_a[1]! as `0x${string}`],
         pi_b: [
-          [pi_b[0]![0]!, pi_b[0]![1]!],
-          [pi_b[1]![0]!, pi_b[1]![1]!],
+          [pi_b[0]![0]! as `0x${string}`, pi_b[0]![1]! as `0x${string}`],
+          [pi_b[1]![0]! as `0x${string}`, pi_b[1]![1]! as `0x${string}`],
         ],
-        pi_c: [pi_c[0]!, pi_c[1]!],
+        pi_c: [pi_c[0]! as `0x${string}`, pi_c[1]! as `0x${string}`],
       },
-      publicInputs: publicSignals.map((s: string) => '0x' + BigInt(s).toString(16)),
+      publicInputs: publicSignals.map((s: string) => `0x${BigInt(s).toString(16)}` as `0x${string}`),
     };
   }
 }
