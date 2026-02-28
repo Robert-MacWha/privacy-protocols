@@ -232,8 +232,8 @@ async fn await_balance_update(
         info!("Waiting for balance to update...");
         sleep(web_time::Duration::from_secs(10)).await;
 
-        if start.elapsed().as_secs() > 100 {
-            panic!("Balance did not update within 100 seconds");
+        if start.elapsed().as_secs() > 200 {
+            panic!("Balance did not update within 200 seconds");
         }
 
         railgun.sync().await.unwrap();

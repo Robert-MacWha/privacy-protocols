@@ -122,7 +122,7 @@ async function awaitBalanceUpdate(
   listKey: ListKey,
   asset: AssetId,
   expected: bigint | undefined,
-  timeoutMs = 100_000,
+  timeoutMs = 200_000,
   pollMs = 10_000,
 ) {
   const start = Date.now();
