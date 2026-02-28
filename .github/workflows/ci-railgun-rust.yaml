@@ -1,0 +1,54 @@
+name: CI Railgun Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci-railgun-rust:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - uses: ./.github/actions/load-sops-secrets
+      with:
+        age_key: ${{ secrets.SOPS_AGE_KEY }}
+
+    - uses: nixbuild/nix-quick-install-action@v30
+      with:
+        nix_conf: |
+          keep-env-derivations = true
+          keep-outputs = true
+
+    - uses: nix-community/cache-nix-action@v7
+      with:
+        primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-
+        purge: true
+        purge-prefixes: nix-${{ runner.os }}-
+        purge-primary-key: never
+
+    - uses: Swatinem/rust-cache@v2
+
+    - name: Build native
+      run: nix develop .#ci --command bash -c " cd crates/railgun-rs && cargo build --no-default-features --features native"
+
+    - name: Build with POI
+      run: nix develop .#ci --command bash -c " cd crates/railgun-rs && cargo build --no-default-features --features native,poi"
+
+    - name: Run sync-utxo
+      run: nix develop .#ci --command bash -c "cd crates/railgun-rs && just integration-sync-utxo"
+
+    - name: Run sync-txid
+      run: nix develop .#ci --command bash -c "cd crates/railgun-rs && just integration-sync-txid"
+
+    - name: Run transact
+      run: nix develop .#ci --command bash -c "cd crates/railgun-rs && just integration-transact"
+
+    - name: Run transact-poi
+      run: nix develop .#ci --command bash -c "cd crates/railgun-rs && just integration-transact-poi"
