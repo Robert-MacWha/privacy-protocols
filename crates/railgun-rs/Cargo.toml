@@ -10,7 +10,7 @@ wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["wasm", "poi"]
+default = ["native", "poi"]
 native = [
     "wasmer",
     "alloy",

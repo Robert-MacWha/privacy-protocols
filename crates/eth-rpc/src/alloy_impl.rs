@@ -40,7 +40,8 @@ impl<P: Provider> EthRpcClient for P {
                 block_number: log.block_number,
                 block_timestamp: log.block_timestamp,
                 transaction_hash: log.transaction_hash,
-                inner: log.inner,
+                address: log.address(),
+                data: log.data().data.clone(),
             })
             .collect();
 
