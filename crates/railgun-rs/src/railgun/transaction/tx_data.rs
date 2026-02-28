@@ -1,7 +1,4 @@
-use alloy::{
-    primitives::{Address, U256},
-    rpc::types::TransactionRequest,
-};
+use alloy_primitives::{Address, U256};
 use alloy_sol_types::SolCall;
 
 use crate::abis::railgun::{RailgunSmartWallet, Transaction};
@@ -30,14 +27,5 @@ impl TxData {
             data: calldata,
             value: U256::ZERO,
         }
-    }
-}
-
-impl From<TxData> for TransactionRequest {
-    fn from(tx_data: TxData) -> Self {
-        TransactionRequest::default()
-            .to(tx_data.to)
-            .input(tx_data.data.into())
-            .value(tx_data.value)
     }
 }

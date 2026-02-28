@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use alloy::primitives::Address;
+use alloy_primitives::Address;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::caip::AssetId;

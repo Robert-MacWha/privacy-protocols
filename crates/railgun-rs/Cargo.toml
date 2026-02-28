@@ -7,20 +7,18 @@ edition = "2024"
 wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [features]
 default = ["wasm", "poi"]
 native = [
     "wasmer",
     "ark-circom",
+    "ark-groth16",
+    "ark-relations",
     "reqwest/rustls",
-    "alloy/providers",
-    "alloy/rpc-types",
-    "alloy/transport-http",
-    "alloy/network",
-    "dep:alloy-contract",
     "eth-rpc/native",
+    "prover/native",
 ]
 wasm = [
     "wasm-bindgen-futures",
@@ -32,21 +30,21 @@ wasm = [
     "tracing-wasm",
     "gloo-timers",
     "eth-rpc/wasm",
+    "prover/wasm",
 ]
 poi = []
 
 [dependencies]
 aes = { workspace = true }
 aes-gcm = { workspace = true }
-alloy = { workspace = true }
-alloy-contract = { workspace = true, optional = true }
+alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 eth-rpc = { workspace = true }
 ark-bn254 = { workspace = true }
 ark-circom = { workspace = true, optional = true }
 ark-ff = { workspace = true }
-ark-groth16 = { workspace = true }
-ark-relations = { workspace = true }
+ark-groth16 = { workspace = true, optional = true }
+ark-relations = { workspace = true, optional = true }
 ark-std = { workspace = true }
 async-trait = { workspace = true }
 bech32 = { workspace = true }

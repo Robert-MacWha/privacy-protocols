@@ -96,7 +96,7 @@ impl Note for TransferNote {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::address;
+    use alloy_primitives::address;
     use ruint::uint;
     use tracing_test::traced_test;
 

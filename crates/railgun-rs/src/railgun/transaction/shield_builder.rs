@@ -1,6 +1,6 @@
-use alloy::primitives::U256;
 use alloy_sol_types::SolCall;
 use rand::Rng;
+use ruint::aliases::U256;
 use thiserror::Error;
 
 use crate::{
@@ -63,7 +63,7 @@ impl ShieldBuilder {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::Address;
+    use alloy_primitives::Address;
     use rand::SeedableRng;
     use rand_chacha::ChaChaRng;
 

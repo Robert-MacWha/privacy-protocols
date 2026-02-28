@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
+use eth_rpc::JsEthRpcAdapter;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     railgun::{RailgunProvider, RailgunProviderState, address::RailgunAddress},
     wasm::{
         JsProver, JsShieldBuilder, JsSigner, JsSyncer, JsTransactionBuilder, JsTxData,
-        balance::JsBalance,
-        chain::{new_dyn_provider, try_get_chain},
+        balance::JsBalance, chain::try_get_chain,
     },
 };
 
@@ -21,13 +21,13 @@ impl JsRailgunProvider {
     /// Creates a new provider with the given args
     pub async fn new(
         chain_id: u64,
-        rpc_url: &str,
+        provider: JsEthRpcAdapter,
         syncer: JsSyncer,
         prover: JsProver,
     ) -> Result<JsRailgunProvider, JsValue> {
         let chain = try_get_chain(chain_id)?;
-        let provider = new_dyn_provider(rpc_url).await?;
-        let prover: Arc<JsProver> = Arc::new(prover);
+        let provider = Arc::new(provider);
+        let prover = Arc::new(prover);
 
         Ok(RailgunProvider::new(chain, provider, syncer.inner(), prover).into())
     }
@@ -36,15 +36,15 @@ impl JsRailgunProvider {
     /// subsquid/RPC syncer with the given RPC URL and chain ID.
     pub async fn new_from_rpc(
         chain_id: u64,
-        rpc_url: &str,
+        provider: JsEthRpcAdapter,
         batch_size: u64,
         prover: JsProver,
     ) -> Result<JsRailgunProvider, JsValue> {
         let subsquid_syncer = JsSyncer::new_subsquid(chain_id)?;
-        let rpc_syncer = JsSyncer::new_rpc(rpc_url, chain_id, batch_size).await?;
+        let rpc_syncer = JsSyncer::new_rpc(provider.clone().into(), chain_id, batch_size).await?;
         let syncer = JsSyncer::new_chained(vec![subsquid_syncer, rpc_syncer]);
 
-        Self::new(chain_id, rpc_url, syncer, prover).await
+        Self::new(chain_id, provider, syncer, prover).await
     }
 
     pub fn set_state(&mut self, state: &[u8]) -> Result<(), JsValue> {

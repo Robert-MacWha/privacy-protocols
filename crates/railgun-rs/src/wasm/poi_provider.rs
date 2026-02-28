@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use eth_rpc::JsEthRpcAdapter;
 use wasm_bindgen::{JsError, JsValue, prelude::wasm_bindgen};
 
 use crate::{
@@ -12,9 +13,7 @@ use crate::{
     },
     wasm::{
         JsBroadcaster, JsFee, JsPoiProvedTx, JsPoiTransactionBuilder, JsProver, JsShieldBuilder,
-        JsSigner, JsSyncer,
-        chain::{new_dyn_provider, try_get_chain},
-        poi_balance::JsPoiBalance,
+        JsSigner, JsSyncer, chain::try_get_chain, poi_balance::JsPoiBalance,
     },
 };
 
@@ -28,15 +27,15 @@ impl JsPoiProvider {
     /// Creates a new provider with the given args
     pub async fn new(
         chain_id: u64,
-        rpc_url: &str,
+        provider: JsEthRpcAdapter,
         utxo_syncer: JsSyncer,
         prover: JsProver,
     ) -> Result<JsPoiProvider, JsValue> {
         let chain = try_get_chain(chain_id)?;
-        let provider = new_dyn_provider(rpc_url).await?;
 
         let utxo_syncer = utxo_syncer.inner();
         let txid_syncer = Arc::new(SubsquidSyncer::new(chain.subsquid_endpoint));
+        let provider = Arc::new(provider);
         let prover = Arc::new(prover);
 
         let poi_client = PoiClient::new(chain.poi_endpoint, chain_id)
@@ -47,10 +46,9 @@ impl JsPoiProvider {
             chain,
             provider,
             utxo_syncer,
-            prover.clone(),
+            prover,
             txid_syncer,
             poi_client,
-            prover.clone(),
         )
         .into())
     }
@@ -59,15 +57,15 @@ impl JsPoiProvider {
     /// subsquid/RPC syncer with the given RPC URL and chain ID.
     pub async fn new_from_rpc(
         chain_id: u64,
-        rpc_url: &str,
+        provider: JsEthRpcAdapter,
         batch_size: u64,
         prover: JsProver,
     ) -> Result<JsPoiProvider, JsValue> {
         let subsquid_syncer = JsSyncer::new_subsquid(chain_id)?;
-        let rpc_syncer = JsSyncer::new_rpc(rpc_url, chain_id, batch_size).await?;
+        let rpc_syncer = JsSyncer::new_rpc(provider.clone().into(), chain_id, batch_size).await?;
         let syncer = JsSyncer::new_chained(vec![subsquid_syncer, rpc_syncer]);
 
-        Self::new(chain_id, rpc_url, syncer, prover).await
+        Self::new(chain_id, provider, syncer, prover).await
     }
 
     /// Sets the provider's state from a serialized state object. Used to restore

@@ -10,7 +10,7 @@ use tracing::info;
 use crate::{
     caip::AssetId,
     chain_config::ChainConfig,
-    circuit::prover::{PoiProver, TransactProver},
+    circuit::prover::{PoiProver, Prover},
     railgun::{
         address::RailgunAddress,
         broadcaster::broadcaster::{BroadcastError, Broadcaster, Fee},
@@ -69,17 +69,16 @@ impl PoiProvider {
         chain: ChainConfig,
         provider: Arc<dyn EthRpcClient>,
         utxo_syncer: Arc<dyn NoteSyncer>,
-        tx_prover: Arc<dyn TransactProver>,
+        prover: Arc<dyn Prover>,
         txid_syncer: Arc<dyn TransactionSyncer>,
         poi_client: PoiClient,
-        poi_prover: Arc<dyn PoiProver>,
     ) -> Self {
         Self {
-            inner: RailgunProvider::new(chain, provider.clone(), utxo_syncer, tx_prover),
+            inner: RailgunProvider::new(chain, provider.clone(), utxo_syncer, prover.clone()),
             provider,
             txid_indexer: TxidIndexer::new(txid_syncer, poi_client.clone()),
             poi_client,
-            prover: poi_prover,
+            prover,
             pending_submitter: PendingPoiSubmitter::new(),
         }
     }
@@ -191,7 +190,7 @@ impl PoiProvider {
                 self.inner.prover.as_ref(),
                 &self.poi_client,
                 self.prover.as_ref(),
-                &self.provider,
+                self.provider.as_ref(),
                 fee_payer,
                 fee,
                 rng,

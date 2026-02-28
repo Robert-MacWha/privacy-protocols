@@ -1,4 +1,4 @@
-use alloy::primitives::{Address, aliases::U120};
+use alloy_primitives::{Address, aliases::U120};
 use crypto::poseidon_hash;
 use ruint::aliases::U256;
 
@@ -70,7 +70,7 @@ impl Note for UnshieldNote {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::address;
+    use alloy_primitives::address;
     use ruint::uint;
     use tracing_test::traced_test;
 

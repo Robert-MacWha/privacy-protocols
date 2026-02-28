@@ -23,7 +23,7 @@ pub struct RailgunAddress {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ChainId {
-    EVM(alloy::primitives::ChainId),
+    EVM(alloy_primitives::ChainId),
     All,
 }
 
@@ -159,7 +159,7 @@ fn encode_chain_id(chain: &ChainId) -> String {
     }
 }
 
-fn encode_evm_chain_id(chain_id: alloy::primitives::ChainId) -> String {
+fn encode_evm_chain_id(chain_id: alloy_primitives::ChainId) -> String {
     let mut bytes = [0u8; 8];
     bytes[0] = 0;
     bytes[1..].copy_from_slice(&chain_id.to_be_bytes()[1..]);

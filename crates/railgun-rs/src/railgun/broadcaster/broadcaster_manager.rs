@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy::primitives::Address;
+use alloy_primitives::Address;
 use futures::{FutureExt, StreamExt, lock::Mutex};
 use thiserror::Error;
 use tracing::{info, warn};

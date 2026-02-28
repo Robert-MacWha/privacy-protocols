@@ -3,7 +3,8 @@ use std::{
     sync::Arc,
 };
 
-use alloy::primitives::Address;
+use alloy_primitives::Address;
+use eth_rpc::{EthRpcClient, EthRpcClientError};
 use rand::Rng;
 use thiserror::Error;
 use tracing::info;
@@ -24,8 +25,8 @@ use crate::{
         note::{IncludedNote, Note, SignableNote, utxo::UtxoNote},
         poi::{ListKey, PoiClient, PoiClientError, PoiNote},
         transaction::{
-            GasEstimator, PoiProvedOperation, PoiProvedOperationError, PoiProvedTx, ProvedTx,
-            TransactionBuilder, TransactionBuilderError,
+            PoiProvedOperation, PoiProvedOperationError, PoiProvedTx, ProvedTx, TransactionBuilder,
+            TransactionBuilderError,
             transaction_builder::{build_operations, prove_operations},
         },
     },
@@ -45,8 +46,8 @@ pub enum PoiTransactionBuilderError {
     PoiProvedOperation(#[from] PoiProvedOperationError),
     #[error("Invalid POI merkleroot for list key {0}: {1}")]
     InvalidPoiMerkleroot(ListKey, MerkleRoot),
-    #[error("Estimator error: {0}")]
-    Estimator(Box<dyn std::error::Error>),
+    #[error("RPC Error: {0}")]
+    Estimator(#[from] EthRpcClientError),
     #[error("Build error: {0}")]
     Build(#[from] TransactionBuilderError),
 }
@@ -124,7 +125,7 @@ impl PoiTransactionBuilder {
         prover: &dyn TransactProver,
         poi_client: &PoiClient,
         poi_prover: &dyn PoiProver,
-        estimator: &dyn GasEstimator,
+        estimator: &dyn EthRpcClient,
         fee_payer: Arc<dyn Signer>,
         fee: &Fee,
         rng: &mut R,
@@ -168,7 +169,7 @@ impl PoiTransactionBuilder {
         in_notes: &[N],
         prover: &dyn TransactProver,
         utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
-        estimator: &dyn GasEstimator,
+        estimator: &dyn EthRpcClient,
         fee_payer: Arc<dyn Signer>,
         fee: &Fee,
         chain: ChainConfig,
@@ -176,10 +177,7 @@ impl PoiTransactionBuilder {
     ) -> Result<ProvedTx<N>, PoiTransactionBuilderError> {
         const MAX_ITERS: usize = 5;
 
-        let gas_price_wei = estimator
-            .gas_price_wei()
-            .await
-            .map_err(PoiTransactionBuilderError::Estimator)?;
+        let gas_price_wei = estimator.get_gas_price().await?;
 
         let fee_builder = self.inner.clone();
         let mut last_fee: u128 = calculate_fee(1000000, gas_price_wei, fee.per_unit_gas);
@@ -221,14 +219,12 @@ impl PoiTransactionBuilder {
             );
 
             let proved = prove_operations(prover, utxo_trees, &operations, chain, 0, rng).await?;
-
             let gas = estimator
-                .estimate_gas(&proved.tx_data)
-                .await
-                .map_err(PoiTransactionBuilderError::Estimator)?;
+                .estimate_gas(proved.tx_data.to, proved.tx_data.data.clone(), None)
+                .await?;
 
             proved_tx = Some(proved);
-            let new_fee = calculate_fee(gas, gas_price_wei, fee.per_unit_gas);
+            let new_fee = calculate_fee(gas as u128, gas_price_wei, fee.per_unit_gas);
 
             info!(
                 "Estimated gas: {}, gas price (wei): {}, fee: {}",

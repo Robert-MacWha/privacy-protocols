@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use alloy::primitives::ChainId;
+use alloy_primitives::ChainId;
 use reqwest::Client;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use thiserror::Error;
@@ -286,6 +286,21 @@ impl PoiClient {
     }
 }
 
+#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
+#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+impl MerkleTreeVerifier for PoiClient {
+    async fn verify_root(
+        &self,
+        tree_number: u32,
+        tree_index: u64,
+        root: MerkleRoot,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        Ok(self
+            .validate_txid_merkleroot(tree_number, tree_index, root)
+            .await?)
+    }
+}
+
 impl PoiClient {
     async fn call<P: Serialize, R: DeserializeOwned>(
         &self,
@@ -333,21 +348,6 @@ async fn call<P: Serialize, R: DeserializeOwned>(
         return Err(PoiClientError::Rpc(err));
     }
     resp.result.ok_or(PoiClientError::NullResult)
-}
-
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-impl MerkleTreeVerifier for PoiClient {
-    async fn verify_root(
-        &self,
-        tree_number: u32,
-        tree_index: u64,
-        root: MerkleRoot,
-    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
-        Ok(self
-            .validate_txid_merkleroot(tree_number, tree_index, root)
-            .await?)
-    }
 }
 
 impl std::fmt::Display for JsonRpcError {

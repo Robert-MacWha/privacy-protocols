@@ -113,7 +113,7 @@ impl RpcSyncer {
 }
 
 fn log_to_sync_events(log: RawLog) -> Result<Vec<SyncEvent>, RpcSyncerError> {
-    let Some(topic0) = log.topic0().cloned() else {
+    let Some(topic0) = log.topics.get(0).cloned() else {
         return Err(RpcSyncerError::LogParseError(format!(
             "Log missing topic0: {:?}",
             log
@@ -128,7 +128,7 @@ fn log_to_sync_events(log: RawLog) -> Result<Vec<SyncEvent>, RpcSyncerError> {
             handle_transact_event(&log, block_timestamp)
         }
         RailgunSmartWallet::Nullified::SIGNATURE_HASH => {
-            handle_nullified_event(log, block_timestamp)
+            handle_nullified_event(&log, block_timestamp)
         }
         RailgunSmartWallet::Unshield::SIGNATURE_HASH => {
             // Unshield events not needed. Spent notes are already

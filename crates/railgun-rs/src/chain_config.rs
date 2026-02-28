@@ -1,4 +1,4 @@
-use alloy::primitives::{Address, ChainId, address};
+use alloy_primitives::{Address, ChainId, address};
 
 /// Eip155 Chain Configurations
 #[derive(Copy, Clone, Debug)]

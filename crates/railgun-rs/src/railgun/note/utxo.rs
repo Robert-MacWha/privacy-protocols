@@ -386,7 +386,7 @@ pub fn test_note() -> UtxoNote<Arc<dyn Signer>> {
         1,
         0,
         signer,
-        AssetId::Erc20(alloy::primitives::address!(
+        AssetId::Erc20(alloy_primitives::address!(
             "0x1234567890123456789012345678901234567890"
         )),
         100u128,

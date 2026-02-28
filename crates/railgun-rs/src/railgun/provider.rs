@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy::primitives::ChainId;
+use alloy_primitives::ChainId;
 use eth_rpc::EthRpcClient;
 use rand::Rng;
 use serde::{Deserialize, Serialize};

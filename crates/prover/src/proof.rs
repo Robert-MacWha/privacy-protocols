@@ -1,3 +1,4 @@
+#[cfg(feature = "native")]
 use ark_bn254::Bn254;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
@@ -34,6 +35,7 @@ pub struct G2Affine {
     pub y: [U256; 2],
 }
 
+#[cfg(feature = "native")]
 impl From<ark_groth16::Proof<Bn254>> for Proof {
     fn from(proof: ark_groth16::Proof<Bn254>) -> Self {
         Proof {

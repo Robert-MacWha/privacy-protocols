@@ -4527,8 +4527,7 @@ version = "0.1.0"
 dependencies = [
  "aes",
  "aes-gcm",
- "alloy",
- "alloy-contract",
+ "alloy-primitives",
  "alloy-sol-types",
  "ark-bn254",
  "ark-circom",

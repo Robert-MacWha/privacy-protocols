@@ -142,7 +142,7 @@ pub fn encrypt_shield<R: Rng>(
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::{Address, address};
+    use alloy_primitives::{Address, address};
     use rand_chacha::{ChaChaRng, rand_core::SeedableRng};
     use tracing_test::traced_test;
 

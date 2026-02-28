@@ -200,7 +200,7 @@ impl<N: Note> Display for Operation<N> {
 
 #[cfg(test)]
 mod tests {
-    use alloy::primitives::address;
+    use alloy_primitives::address;
     use tracing_test::traced_test;
 
     use crate::{

@@ -6,7 +6,7 @@ use std::{
     task::Poll,
 };
 
-use alloy::primitives::{Address, Bytes, ChainId, FixedBytes, TxHash};
+use alloy_primitives::{Address, Bytes, ChainId, FixedBytes, TxHash};
 use futures::Stream;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -452,7 +452,7 @@ fn decode_response(
 
 #[cfg(test)]
 mod test {
-    use alloy::primitives::address;
+    use alloy_primitives::address;
     use rand::SeedableRng;
     use rand_chacha::ChaChaRng;
     use ruint::uint;

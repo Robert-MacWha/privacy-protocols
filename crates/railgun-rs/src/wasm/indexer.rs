@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use eth_rpc::JsEthRpcAdapter;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     railgun::indexer::{ChainedSyncer, NoteSyncer, RpcSyncer, SubsquidSyncer},
-    wasm::chain::{new_dyn_provider, try_get_chain},
+    wasm::chain::try_get_chain,
 };
 
 #[wasm_bindgen]
@@ -22,14 +23,13 @@ impl JsSyncer {
 
     #[wasm_bindgen(js_name = "newRpc")]
     pub async fn new_rpc(
-        rpc_url: &str,
+        provider: JsEthRpcAdapter,
         chain_id: u64,
         batch_size: u64,
     ) -> Result<JsSyncer, JsValue> {
         let chain = try_get_chain(chain_id)?;
-        let provider = new_dyn_provider(rpc_url).await?;
 
-        Ok(RpcSyncer::new(provider, chain)
+        Ok(RpcSyncer::new(Arc::new(provider), chain)
             .with_batch_size(batch_size)
             .into())
     }

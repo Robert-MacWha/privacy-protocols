@@ -24,3 +24,7 @@ pub trait PoiProver {
         inputs: &PoiCircuitInputs,
     ) -> Result<(prover::Proof, PublicInputs), Box<dyn std::error::Error>>;
 }
+
+#[cfg(feature = "poi")]
+pub trait Prover: TransactProver + PoiProver {}
+impl<T: TransactProver + PoiProver> Prover for T {}
