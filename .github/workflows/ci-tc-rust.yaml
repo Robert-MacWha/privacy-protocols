@@ -1,0 +1,45 @@
+name: CI TC Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci-tc-rust:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - uses: ./.github/actions/load-sops-secrets
+      with:
+        age_key: ${{ secrets.SOPS_AGE_KEY }}
+
+    - uses: nixbuild/nix-quick-install-action@v30
+      with:
+        nix_conf: |
+          keep-env-derivations = true
+          keep-outputs = true
+
+    - uses: nix-community/cache-nix-action@v7
+      with:
+        primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-
+        purge: true
+        purge-prefixes: nix-${{ runner.os }}-
+        purge-primary-key: never
+
+    - uses: Swatinem/rust-cache@v2
+
+    - name: Build
+      run: nix develop .#ci --command bash -c "cd crates/tc-rs && cargo build"
+
+    - name: Run sync
+      run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync"
+
+    - name: Run sync-broadcaster
+      run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync-broadcaster"

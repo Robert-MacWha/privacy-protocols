@@ -1,5 +1,0 @@
-query SeenRootQuery($root: Bytes) {
-  transactions(where: {merkleRoot_eq: $root}) {
-    id
-  }
-}

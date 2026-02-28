@@ -54,7 +54,7 @@ export $(sops -d secrets/secrets.yaml | xargs)
 ```
 
 **Required Environment Variables**:
-- `FORK_URL_MAINNET`: Ethereum Mainnet RPC endpoint for integration tests
+- `RPC_URL_MAINNET`: Ethereum Mainnet RPC endpoint for integration tests
 - Tests use Anvil forking at block 24379760
 
 **Dependencies**:
@@ -237,7 +237,7 @@ cargo clippy
 - **WASM panics**: Build with `console_error_panic_hook` feature enabled for readable stack traces
 - **Circuit failures**: Check witness calculation logs (witness mismatches indicate input generation bugs)
 - **Merkle proof issues**: Verify tree state matches expected root before generating proofs
-- **Integration test failures**: Ensure `FORK_URL_MAINNET` points to valid archive node RPC
+- **Integration test failures**: Ensure `RPC_URL_MAINNET` points to valid archive node RPC
 
 ## External Artifacts
 

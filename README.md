@@ -1,3 +1,7 @@
+# Privacy Providers
+
+A collection of privacy providers for EVM chains, built in rust, wasm-compatible, with JS-compatible wasm bindings. Build with the goal of being native, JS, and wasm32-unknown-unknown compatible.
+
 ## Secret Management
 
 Development secret management is handled via [SOPS](https://github.com/getsops/sops).
@@ -9,7 +13,6 @@ To load secrets:
 - `export $(sops -d secrets/secrets.yaml | xargs)`
 - Or load them automatically with direnv
 
-
 To add a new contributor: 
 - Have them run `age-keygen -o ~/.config/sops/age/keys.txt` and share the public key.
 - Add the public key to `.sops.yaml`.
@@ -17,13 +20,3 @@ To add a new contributor:
 
 ## Docs
 - ./docs/compatibility.md - Compatibility considerations with official railgun js-SDK
-
-## Artifacts
-
-### Railgun
-- https://github.com/Railgun-Privacy/circuits-v2/tree/main
-- https://ipfs-lb.com/ipfs/QmUsmnK4PFc7zDp2cmC4wBZxYLjNyRgWfs5GNcJJ2uLcpU/circuits/01x02/
-
-### Railgun PPOI
-- https://github.com/Railgun-Privacy/circuits-ppoi/tree/main
-- https://ipfs-lb.com/ipfs/QmZrP9zaZw2LwErT2yA6VpMWm65UdToQiKj4DtStVsUJHr/
