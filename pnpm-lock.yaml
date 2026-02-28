@@ -32,6 +32,9 @@ importers:
       '@waku/sdk':
         specifier: ^0.0.36
         version: 0.0.36(@multiformats/multiaddr@12.5.1)
+      eth-rpc:
+        specifier: workspace:*
+        version: link:../eth-rpc
       snarkjs:
         specifier: ^0.7.6
         version: 0.7.6
@@ -54,6 +57,9 @@ importers:
       '@tornado/websnark':
         specifier: github:Robert-MacWha/tornado-websnark
         version: https://codeload.github.com/Robert-MacWha/tornado-websnark/tar.gz/1c33316732c46d2ce234824ea1eb4e8699fca0ab
+      eth-rpc:
+        specifier: workspace:*
+        version: link:../eth-rpc
       viem:
         specifier: ^2.45.3
         version: 2.46.3(typescript@5.9.3)
