@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use alloy::primitives::{Address, Bytes};
+use alloy_primitives::{Address, Bytes};
 use alloy_sol_types::SolCall;
 use prover::{Proof, Prover};
 use rand::RngCore;

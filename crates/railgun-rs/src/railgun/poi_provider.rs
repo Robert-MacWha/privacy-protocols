@@ -1,6 +1,6 @@
 use std::{collections::HashMap, pin::pin, sync::Arc};
 
-use alloy::providers::DynProvider;
+use eth_rpc::EthRpcClient;
 use futures::future::Either;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -34,7 +34,7 @@ use crate::{
 pub struct PoiProvider {
     inner: RailgunProvider,
 
-    provider: DynProvider,
+    provider: Arc<dyn EthRpcClient>,
     txid_indexer: TxidIndexer,
     poi_client: PoiClient,
     prover: Arc<dyn PoiProver>,
@@ -67,7 +67,7 @@ pub enum PoiProviderError {
 impl PoiProvider {
     pub fn new(
         chain: ChainConfig,
-        provider: DynProvider,
+        provider: Arc<dyn EthRpcClient>,
         utxo_syncer: Arc<dyn NoteSyncer>,
         tx_prover: Arc<dyn TransactProver>,
         txid_syncer: Arc<dyn TransactionSyncer>,

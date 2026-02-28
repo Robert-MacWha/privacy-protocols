@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use alloy::primitives::Address;
+use alloy_primitives::Address;
+use eth_rpc::JsEthRpcAdapter;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
     wasm::{
         JsDepositResult, JsPool, JsProver, JsSyncer, JsVerifier, note::JsNote,
         prepared_broadcast::JsPreparedBroadcast, provider::bigint_to_u256,
-        relayer_syncer::JsRelayerSyncer, syncer::new_dyn_provider,
+        relayer_syncer::JsRelayerSyncer,
     },
 };
 
@@ -26,22 +27,20 @@ impl JsBroadcastProvider {
     /// @param verifier Verifier used for on-chain root verification
     /// @param prover Prover used to generate proofs
     /// @param relayer_syncer Syncer used to index relayers
-    /// @param rpc_url RPC URL for ethereum mainnet (used for relayer syncing)
+    /// @param mainnet_provider RPC provider for ethereum mainnet (used for relayer syncing)
     pub async fn new(
         syncer: JsSyncer,
         verifier: JsVerifier,
         prover: JsProver,
         relayer_syncer: JsRelayerSyncer,
-        mainnet_rpc_url: &str,
+        mainnet_provider: JsEthRpcAdapter,
     ) -> Result<JsBroadcastProvider, JsValue> {
-        let mainnet_provider = new_dyn_provider(mainnet_rpc_url).await?;
-
         let inner = BroadcastProvider::new(
             syncer.inner(),
             verifier.inner(),
             Arc::new(prover),
             relayer_syncer.inner(),
-            mainnet_provider,
+            Arc::new(mainnet_provider),
         );
         Ok(inner.into())
     }
@@ -77,7 +76,7 @@ impl JsBroadcastProvider {
     ///
     /// @param pool The pool to withdraw from
     /// @param note The note to withdraw
-    /// @param rpc_url RPC URL for the target network (used for gas estimation)
+    /// @param provider RPC provider for the target network (used for gas estimation)
     /// @param recipient The address to receive the withdrawn funds
     /// @param refund Optional
     #[wasm_bindgen(js_name = "prepareBroadcast")]
@@ -85,7 +84,7 @@ impl JsBroadcastProvider {
         &self,
         pool: &JsPool,
         note: &JsNote,
-        rpc_url: &str,
+        provider: JsEthRpcAdapter,
         recipient: String,
         refund: Option<js_sys::BigInt>,
     ) -> Result<JsPreparedBroadcast, JsValue> {
@@ -97,8 +96,6 @@ impl JsBroadcastProvider {
             Some(r) => Some(bigint_to_u256(r)?),
             None => None,
         };
-
-        let provider = new_dyn_provider(rpc_url).await?;
 
         let mut rng = rand::rng();
         let prepared = self

@@ -1,8 +1,6 @@
-use alloy::{
-    primitives::{Address, FixedBytes, U256},
-    rpc::types::Log,
-};
+use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_sol_types::SolEvent;
+use eth_rpc::RawLog;
 use serde::{Deserialize, Serialize};
 
 use crate::{abis::relayer_registry::RelayerRegistry, indexer::SyncerError};
@@ -18,7 +16,7 @@ pub struct RelayerRecord {
 
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-pub trait RelayerSyncer: Send + Sync {
+pub trait RelayerSyncer {
     async fn latest_block(&self) -> Result<u64, SyncerError>;
     async fn sync_relayers(
         &self,
@@ -28,16 +26,15 @@ pub trait RelayerSyncer: Send + Sync {
     ) -> Result<Vec<RelayerRecord>, SyncerError>;
 }
 
-impl TryFrom<Log> for RelayerRecord {
+impl TryFrom<RawLog> for RelayerRecord {
     type Error = String;
 
-    fn try_from(log: Log) -> Result<Self, Self::Error> {
-        if log.topics().first().copied() != Some(RelayerRegistry::RelayerRegistered::SIGNATURE_HASH)
-        {
+    fn try_from(log: RawLog) -> Result<Self, Self::Error> {
+        if log.topics.first().copied() != Some(RelayerRegistry::RelayerRegistered::SIGNATURE_HASH) {
             return Err(format!(
                 "Invalid event signature: expected {}, got {}",
                 RelayerRegistry::RelayerRegistered::SIGNATURE_HASH,
-                log.topics().first().copied().unwrap_or_default()
+                log.topics.first().copied().unwrap_or_default()
             ));
         }
 

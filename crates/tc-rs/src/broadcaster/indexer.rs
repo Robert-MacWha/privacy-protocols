@@ -1,9 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy::{
-    primitives::{Address, FixedBytes, address},
-    providers::DynProvider,
-};
+use alloy_primitives::{Address, FixedBytes, address};
+use eth_rpc::{EthRpcClient, eth_call_sol};
 use rand::Rng;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
@@ -14,7 +12,7 @@ use crate::{abis::relayer_registry::RelayerAggregator, broadcaster::RelayerRecor
 
 pub struct BroadcasterIndexer {
     syncer: Arc<dyn RelayerSyncer>,
-    mainnet_provider: DynProvider,
+    mainnet_provider: Arc<dyn EthRpcClient>,
     relayers: Vec<Relayer>,
     synced_block: u64,
     http: reqwest::Client,
@@ -90,7 +88,7 @@ impl BroadcasterIndexer {
     ///
     /// The provided must be connected to mainnet to query the RelayerAggregator
     /// since the registry aggregates data for all chains.
-    pub fn new(syncer: Arc<dyn RelayerSyncer>, mainnet_provider: DynProvider) -> Self {
+    pub fn new(syncer: Arc<dyn RelayerSyncer>, mainnet_provider: Arc<dyn EthRpcClient>) -> Self {
         Self {
             syncer,
             mainnet_provider,
@@ -105,7 +103,7 @@ impl BroadcasterIndexer {
 
     pub fn from_state(
         syncer: Arc<dyn RelayerSyncer>,
-        mainnet_provider: DynProvider,
+        mainnet_provider: Arc<dyn EthRpcClient>,
         state: BroadcasterIndexerState,
     ) -> Self {
         Self {
@@ -311,13 +309,15 @@ impl BroadcasterIndexer {
         let ens_hashes: Vec<FixedBytes<32>> = records.iter().map(|r| r.ens_hash).collect();
         let subdomains: Vec<String> = subdomain_keys();
 
-        let aggregator = RelayerAggregator::new(AGGREGATOR_ADDRESS, &self.mainnet_provider);
-
-        let result = aggregator
-            .relayersData(ens_hashes.clone(), subdomains.clone())
-            .call()
-            .await
-            .map_err(|e| BroadcasterError::Aggregator(e.to_string()))?;
+        let result = eth_call_sol(
+            self.mainnet_provider.as_ref(),
+            AGGREGATOR_ADDRESS,
+            RelayerAggregator::relayersDataCall {
+                _relayers: ens_hashes.clone(),
+                _subdomains: subdomains.clone(),
+            },
+        )
+        .await?;
 
         Ok(result)
     }

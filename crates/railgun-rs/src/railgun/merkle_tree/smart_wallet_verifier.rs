@@ -1,7 +1,8 @@
-use alloy::{
-    primitives::{Address, U256},
-    providers::DynProvider,
-};
+use std::sync::Arc;
+
+use alloy::primitives::{Address, U256};
+use alloy_sol_types::SolCall;
+use eth_rpc::EthRpcClient;
 
 use crate::{
     abis::railgun::RailgunSmartWallet,
@@ -11,11 +12,11 @@ use crate::{
 /// Verifies UTXO Merkle roots against the deployed `RailgunSmartWallet` contract.
 pub struct SmartWalletUtxoVerifier {
     address: Address,
-    provider: DynProvider,
+    provider: Arc<dyn EthRpcClient>,
 }
 
 impl SmartWalletUtxoVerifier {
-    pub fn new(address: Address, provider: DynProvider) -> Self {
+    pub fn new(address: Address, provider: Arc<dyn EthRpcClient>) -> Self {
         Self { address, provider }
     }
 }

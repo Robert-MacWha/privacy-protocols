@@ -1,0 +1,35 @@
+[package]
+name = "eth-rpc"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+native = [
+    "dep:alloy",
+    "alloy?/providers",
+    "alloy?/rpc-types",
+    "alloy?/transport-http",
+    "alloy?/network",
+]
+wasm = [
+    "dep:js-sys",
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:serde-wasm-bindgen",
+]
+
+[dependencies]
+alloy = { workspace = true, optional = true }
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
+async-trait = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+js-sys = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+
+[lints]
+workspace = true

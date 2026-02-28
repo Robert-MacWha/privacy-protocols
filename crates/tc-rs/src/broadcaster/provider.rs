@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use alloy::{
-    primitives::{Address, TxHash, U256},
-    providers::{DynProvider, Provider},
-    rpc::types::TransactionRequest,
-};
+use alloy_primitives::{Address, TxHash, U256};
+use eth_rpc::EthRpcClient;
 use prover::Prover;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -63,7 +60,7 @@ impl BroadcastProvider {
         verifier: Arc<dyn Verifier>,
         prover: Arc<dyn Prover>,
         relay_syncer: Arc<dyn RelayerSyncer>,
-        mainnet_provider: DynProvider,
+        mainnet_provider: Arc<dyn EthRpcClient>,
     ) -> Self {
         let inner = TornadoProvider::new(syncer, verifier, prover);
         let indexer = BroadcasterIndexer::new(relay_syncer, mainnet_provider);
@@ -80,7 +77,7 @@ impl BroadcastProvider {
         verifier: Arc<dyn Verifier>,
         prover: Arc<dyn Prover>,
         relay_syncer: Arc<dyn RelayerSyncer>,
-        mainnet_provider: DynProvider,
+        mainnet_provider: Arc<dyn EthRpcClient>,
     ) -> Self {
         let inner = TornadoProvider::from_state(syncer, verifier, prover, state.tornado);
         let indexer =
@@ -140,7 +137,7 @@ impl BroadcastProvider {
         &self,
         pool: &Pool,
         note: &Note,
-        provider: &DynProvider,
+        provider: &dyn EthRpcClient,
         recipient: Address,
         refund: Option<U256>,
         rng: &mut R,
@@ -171,7 +168,7 @@ impl BroadcastProvider {
             )
             .await?;
 
-        let gas_cost_wei = self.estimate_gas_cost_wei(&provider, dummy_tx).await?;
+        let gas_cost_wei = self.estimate_gas_cost_wei(provider, dummy_tx).await?;
 
         //? Convert gas cost to token denomination for ERC20 pools
         let gas_cost_in_token = match &pool.asset {
@@ -229,13 +226,11 @@ impl BroadcastProvider {
 
     async fn estimate_gas_cost_wei(
         &self,
-        provider: &DynProvider,
+        provider: &dyn EthRpcClient,
         tx: TxData,
     ) -> Result<u128, BroadcasterError> {
-        let tx_request: TransactionRequest = tx.into();
-
         let gas_limit = provider
-            .estimate_gas(tx_request)
+            .estimate_gas(tx.to, tx.data, None)
             .await
             .map_err(|e| BroadcasterError::GasEstimation(e.to_string()))?;
 
@@ -328,12 +323,12 @@ fn compute_service_fee(amount_wei: u128, fee_percent: f64) -> U256 {
     U256::from(fee as u128)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "native")]
 pub async fn sleep(duration: web_time::Duration) {
     tokio::time::sleep(duration).await;
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(feature = "wasm")]
 pub async fn sleep(duration: web_time::Duration) {
     gloo_timers::future::sleep(duration).await;
 }

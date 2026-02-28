@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use alloy::primitives::{Address, address};
+use alloy_primitives::{Address, address};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]

@@ -71,7 +71,7 @@ pub enum SyncerError {
 /// Trait for syncers that emit note-level blockchain events (Shield, Transact, Nullified).
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-pub trait NoteSyncer: Send + Sync {
+pub trait NoteSyncer {
     async fn latest_block(&self) -> Result<u64, SyncerError>;
     async fn sync(&self, from_block: u64, to_block: u64) -> Result<Vec<SyncEvent>, SyncerError>;
 }
@@ -81,7 +81,7 @@ pub trait NoteSyncer: Send + Sync {
 #[cfg(feature = "poi")]
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-pub trait TransactionSyncer: Send + Sync {
+pub trait TransactionSyncer {
     async fn latest_block(&self) -> Result<u64, SyncerError>;
     async fn sync(&self, from_block: u64, to_block: u64) -> Result<Vec<Operation>, SyncerError>;
 }

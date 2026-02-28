@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use alloy::primitives::Address;
+use alloy_primitives::Address;
 use rand::rng;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 

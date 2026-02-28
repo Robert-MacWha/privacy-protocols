@@ -1,9 +1,7 @@
-use alloy::{
-    providers::{DynProvider, Provider},
-    rpc::types::{Filter, Log},
-    transports::{RpcError, TransportErrorKind},
-};
+use std::sync::Arc;
+
 use alloy_sol_types::SolEvent;
+use eth_rpc::{EthRpcClient, EthRpcClientError, RawLog};
 use tracing::{info, warn};
 
 use crate::{
@@ -19,7 +17,7 @@ use crate::{
 };
 
 pub struct RpcSyncer {
-    provider: DynProvider,
+    provider: Arc<dyn EthRpcClient>,
     batch_size: u64,
     timeout: web_time::Duration,
     chain: ChainConfig,
@@ -32,11 +30,11 @@ pub enum RpcSyncerError {
     #[error("Error parsing log: {0}")]
     LogParseError(String),
     #[error("RPC error: {0}")]
-    RpcError(#[from] RpcError<TransportErrorKind>),
+    RpcError(#[from] EthRpcClientError),
 }
 
 impl RpcSyncer {
-    pub fn new(provider: DynProvider, chain: ChainConfig) -> Self {
+    pub fn new(provider: Arc<dyn EthRpcClient>, chain: ChainConfig) -> Self {
         Self {
             provider,
             batch_size: 10000,
@@ -89,12 +87,15 @@ impl RpcSyncer {
                 break;
             }
 
-            let filter = Filter::new()
-                .address(self.chain.railgun_smart_wallet)
-                .from_block(batch_start)
-                .to_block(batch_end);
-
-            let logs = self.provider.get_logs(&filter).await?;
+            let logs = self
+                .provider
+                .get_logs(
+                    self.chain.railgun_smart_wallet,
+                    None,
+                    Some(batch_start),
+                    Some(batch_end),
+                )
+                .await?;
             sleep(self.timeout).await;
 
             for log in logs {
@@ -111,7 +112,7 @@ impl RpcSyncer {
     }
 }
 
-fn log_to_sync_events(log: Log) -> Result<Vec<SyncEvent>, RpcSyncerError> {
+fn log_to_sync_events(log: RawLog) -> Result<Vec<SyncEvent>, RpcSyncerError> {
     let Some(topic0) = log.topic0().cloned() else {
         return Err(RpcSyncerError::LogParseError(format!(
             "Log missing topic0: {:?}",
@@ -143,7 +144,7 @@ fn log_to_sync_events(log: Log) -> Result<Vec<SyncEvent>, RpcSyncerError> {
     }
 }
 
-fn decode_shield_event(log: &Log, block_number: u64) -> Result<Vec<SyncEvent>, RpcSyncerError> {
+fn decode_shield_event(log: &RawLog, block_number: u64) -> Result<Vec<SyncEvent>, RpcSyncerError> {
     let event = RailgunSmartWallet::Shield::decode_log(&log.inner)?;
 
     let tree_number = event.treeNumber.saturating_to();
@@ -181,7 +182,7 @@ fn decode_shield_event(log: &Log, block_number: u64) -> Result<Vec<SyncEvent>, R
 }
 
 fn handle_transact_event(
-    log: &Log,
+    log: &RawLog,
     block_timestamp: u64,
 ) -> Result<Vec<SyncEvent>, RpcSyncerError> {
     let event = RailgunSmartWallet::Transact::decode_log(&log.inner)?;
@@ -222,7 +223,7 @@ fn handle_transact_event(
 }
 
 fn handle_nullified_event(
-    log: Log,
+    log: &RawLog,
     block_timestamp: u64,
 ) -> Result<Vec<SyncEvent>, RpcSyncerError> {
     let event = RailgunSmartWallet::Nullified::decode_log(&log.inner)?;

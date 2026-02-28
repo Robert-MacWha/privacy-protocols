@@ -10,8 +10,18 @@ wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["native", "poi"]
-native = ["wasmer", "ark-circom", "reqwest/rustls"]
+default = ["wasm", "poi"]
+native = [
+    "wasmer",
+    "ark-circom",
+    "reqwest/rustls",
+    "alloy/providers",
+    "alloy/rpc-types",
+    "alloy/transport-http",
+    "alloy/network",
+    "dep:alloy-contract",
+    "eth-rpc/native",
+]
 wasm = [
     "wasm-bindgen-futures",
     "js-sys",
@@ -21,6 +31,7 @@ wasm = [
     "getrandom/wasm_js",
     "tracing-wasm",
     "gloo-timers",
+    "eth-rpc/wasm",
 ]
 poi = []
 
@@ -28,8 +39,9 @@ poi = []
 aes = { workspace = true }
 aes-gcm = { workspace = true }
 alloy = { workspace = true }
-alloy-contract = { workspace = true }
+alloy-contract = { workspace = true, optional = true }
 alloy-sol-types = { workspace = true }
+eth-rpc = { workspace = true }
 ark-bn254 = { workspace = true }
 ark-circom = { workspace = true, optional = true }
 ark-ff = { workspace = true }

@@ -1,7 +1,6 @@
 use alloy_sol_types::sol;
 
 sol!(
-    #[sol(rpc)]
     contract MerkleTreeWithHistory {
         // @dev Whether the root is present in the root history
         function isKnownRoot(bytes32 _root) public view returns(bool);
@@ -10,7 +9,6 @@ sol!(
         function getLastRoot() public view returns(bytes32);
     }
 
-    #[sol(rpc)]
     contract Tornado {
         event Deposit(bytes32 indexed commitment, uint32 leafIndex, uint256 timestamp);
         event Withdrawal(address to, bytes32 nullifierHash, address indexed relayer, uint256 fee);

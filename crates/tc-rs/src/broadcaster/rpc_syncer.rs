@@ -1,9 +1,8 @@
-use alloy::{
-    primitives::Address,
-    providers::{DynProvider, Provider},
-    rpc::types::Filter,
-};
+use std::sync::Arc;
+
+use alloy_primitives::Address;
 use alloy_sol_types::SolEvent;
+use eth_rpc::EthRpcClient;
 use tracing::{info, warn};
 
 use crate::{
@@ -13,7 +12,7 @@ use crate::{
 };
 
 pub struct RpcRelayerSyncer {
-    mainnet_provider: DynProvider,
+    mainnet_provider: Arc<dyn EthRpcClient>,
     batch_size: u64,
 }
 
@@ -22,7 +21,7 @@ impl RpcRelayerSyncer {
     ///
     /// The provider must be connected to mainnet since the registry aggregates
     /// data for all chains.
-    pub fn new(mainnet_provider: DynProvider) -> Self {
+    pub fn new(mainnet_provider: Arc<dyn EthRpcClient>) -> Self {
         Self {
             mainnet_provider,
             batch_size: 2000,
@@ -57,15 +56,14 @@ impl RelayerSyncer for RpcRelayerSyncer {
         while current_block <= to_block {
             let batch_end = (current_block + self.batch_size - 1).min(to_block);
 
-            let filter = Filter::new()
-                .address(registry)
-                .event_signature(RelayerRegistry::RelayerRegistered::SIGNATURE_HASH)
-                .from_block(current_block)
-                .to_block(batch_end);
-
             let logs = self
                 .mainnet_provider
-                .get_logs(&filter)
+                .get_logs(
+                    registry,
+                    Some(RelayerRegistry::RelayerRegistered::SIGNATURE_HASH),
+                    Some(current_block),
+                    Some(to_block),
+                )
                 .await
                 .map_err(|e| SyncerError::Syncer(Box::new(e)))?;
 

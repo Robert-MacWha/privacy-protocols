@@ -14,6 +14,10 @@ use crate::{TornadoProviderError, indexer::SyncerError};
 pub enum BroadcasterError {
     #[error("No relayer available")]
     NoRelayerAvailable,
+    #[error("RPC error: {0}")]
+    Rpc(#[from] eth_rpc::EthRpcClientError),
+    #[error("ABI decoding error: {0}")]
+    AbiDecoding(#[from] alloy_sol_types::Error),
     #[error("HTTP: {0}")]
     Http(#[from] reqwest::Error),
     #[error("Relayer job failed: {reason}")]

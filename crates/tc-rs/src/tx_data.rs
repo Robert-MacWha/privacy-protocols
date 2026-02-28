@@ -1,7 +1,4 @@
-use alloy::{
-    primitives::{Address, U256},
-    rpc::types::TransactionRequest,
-};
+use alloy_primitives::{Address, U256};
 
 #[derive(Debug, Clone)]
 pub struct TxData {
@@ -13,14 +10,5 @@ pub struct TxData {
 impl TxData {
     pub fn new(to: Address, data: Vec<u8>, value: U256) -> Self {
         TxData { to, data, value }
-    }
-}
-
-impl From<TxData> for TransactionRequest {
-    fn from(tx_data: TxData) -> Self {
-        TransactionRequest::default()
-            .to(tx_data.to)
-            .input(tx_data.data.into())
-            .value(tx_data.value)
     }
 }

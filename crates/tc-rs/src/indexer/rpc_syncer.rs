@@ -1,9 +1,8 @@
-use alloy::{
-    primitives::Address,
-    providers::{DynProvider, Provider},
-    rpc::types::Filter,
-};
+use std::sync::Arc;
+
+use alloy_primitives::Address;
 use alloy_sol_types::SolEvent;
+use eth_rpc::{EthRpcClient, eth_call_sol};
 use ruint::aliases::U256;
 use tracing::{info, warn};
 
@@ -18,12 +17,12 @@ use crate::{
 
 /// A syncer and verifier that reads from an Ethereum JSON-RPC provider
 pub struct RpcSyncer {
-    provider: DynProvider,
+    provider: Arc<dyn EthRpcClient>,
     batch_size: u64,
 }
 
 impl RpcSyncer {
-    pub fn new(provider: DynProvider) -> Self {
+    pub fn new(provider: Arc<dyn EthRpcClient>) -> Self {
         Self {
             provider,
             batch_size: 2000,
@@ -67,13 +66,15 @@ impl Syncer for RpcSyncer {
             let batch_end = to_block.min(current_block + batch_size - 1);
             current_block = batch_end + 1;
 
-            let filter = Filter::new()
-                .address(contract_address)
-                .event_signature(Tornado::Deposit::SIGNATURE_HASH)
-                .from_block(batch_start)
-                .to_block(batch_end);
-
-            let logs = match provider.get_logs(&filter).await {
+            let logs = match provider
+                .get_logs(
+                    contract_address,
+                    Some(Tornado::Deposit::SIGNATURE_HASH),
+                    Some(batch_start),
+                    Some(batch_end),
+                )
+                .await
+            {
                 Ok(logs) => logs,
                 Err(e) => {
                     warn!(
@@ -128,13 +129,15 @@ impl Syncer for RpcSyncer {
             let batch_end = to_block.min(current_block + batch_size - 1);
             current_block = batch_end + 1;
 
-            let filter = Filter::new()
-                .address(contract_address)
-                .event_signature(Tornado::Withdrawal::SIGNATURE_HASH)
-                .from_block(batch_start)
-                .to_block(batch_end);
-
-            let logs = match provider.get_logs(&filter).await {
+            let logs = match provider
+                .get_logs(
+                    contract_address,
+                    Some(Tornado::Withdrawal::SIGNATURE_HASH),
+                    Some(batch_start),
+                    Some(batch_end),
+                )
+                .await
+            {
                 Ok(logs) => logs,
                 Err(e) => {
                     warn!(
@@ -173,22 +176,17 @@ impl Syncer for RpcSyncer {
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
 impl Verifier for RpcSyncer {
     async fn verify(&self, contract: Address, root: MerkleRoot) -> Result<(), VerifierError> {
-        let contract = MerkleTreeWithHistory::new(contract, &self.provider);
         let root_u256: U256 = root.into();
-        let root_b256 = alloy::primitives::FixedBytes::<32>::from(root_u256);
-        let result = contract
-            .isKnownRoot(root_b256)
-            .call()
-            .await
-            .map_err(|e| VerifierError::Other(Box::new(e)))?;
 
-        let last = contract
-            .getLastRoot()
-            .call()
-            .await
-            .map_err(|e| VerifierError::Other(Box::new(e)))?;
-        let last: U256 = last.into();
-        info!("On-chain last root: {:?}", last);
+        let result = eth_call_sol(
+            self.provider.as_ref(),
+            contract,
+            MerkleTreeWithHistory::isKnownRootCall {
+                _root: root_u256.into(),
+            },
+        )
+        .await
+        .map_err(|e| VerifierError::Other(Box::new(e)))?;
 
         if result {
             Ok(())

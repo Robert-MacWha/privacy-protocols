@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy::{primitives::ChainId, providers::DynProvider};
+use alloy::primitives::ChainId;
+use eth_rpc::EthRpcClient;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -45,7 +46,7 @@ pub enum RailgunProviderError {
 impl RailgunProvider {
     pub fn new(
         chain: ChainConfig,
-        provider: DynProvider,
+        provider: Arc<dyn EthRpcClient>,
         utxo_syncer: Arc<dyn NoteSyncer>,
         prover: Arc<dyn TransactProver>,
     ) -> Self {

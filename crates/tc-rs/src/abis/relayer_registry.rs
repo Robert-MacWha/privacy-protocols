@@ -1,12 +1,10 @@
 use alloy_sol_types::sol;
 
 sol!(
-    #[sol(rpc)]
     contract RelayerRegistry {
         event RelayerRegistered(bytes32 relayer, string ensName, address relayerAddress, uint256 stakedAmount);
     }
 
-    #[sol(rpc)]
     contract RelayerAggregator {
         struct Relayer {
             address owner;

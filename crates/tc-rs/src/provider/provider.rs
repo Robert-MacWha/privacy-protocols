@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use alloy::primitives::Address;
+use alloy_primitives::Address;
 use prover::Prover;
 use rand::Rng;
 use ruint::aliases::U256;

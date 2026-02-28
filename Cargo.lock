@@ -2448,6 +2448,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "eth-rpc"
+version = "0.1.0"
+dependencies = [
+ "alloy",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "async-trait",
+ "hex",
+ "js-sys",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "thiserror 2.0.18",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
 name = "ethabi"
 version = "18.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4527,6 +4544,7 @@ dependencies = [
  "ctr",
  "curve25519-dalek",
  "ed25519-dalek",
+ "eth-rpc",
  "futures",
  "getrandom 0.2.17",
  "getrandom 0.3.4",
@@ -5855,7 +5873,7 @@ name = "tc-rs"
 version = "0.1.0"
 dependencies = [
  "alloy",
- "alloy-contract",
+ "alloy-primitives",
  "alloy-sol-types",
  "ark-bn254",
  "ark-ff 0.5.0",
@@ -5863,6 +5881,7 @@ dependencies = [
  "async-trait",
  "console_error_panic_hook",
  "crypto",
+ "eth-rpc",
  "futures",
  "getrandom 0.2.17",
  "getrandom 0.3.4",

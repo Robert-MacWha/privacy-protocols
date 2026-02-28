@@ -129,7 +129,6 @@ fn hash_to_scalar(data: &[u8]) -> U256 {
 }
 
 sol! {
-    #[sol(rpc)]
     contract RailgunSmartWallet {
         // Events
         #[derive(Debug, Serialize, Deserialize)]
@@ -152,10 +151,9 @@ sol! {
         #[derive(Debug, Serialize, Deserialize)]
         event Nullified(uint16 treeNumber, bytes32[] nullifier);
 
-        // Public variables
-        // Whether the contract has already seen a particular Merkle tree root
+        // Getter for rootHistory mapping:
         // treeNumber -> root -> seen
-        mapping(uint256 => mapping(bytes32 => bool)) public rootHistory;
+        function rootHistory(uint256 treeNumber, bytes32 root) external view returns (bool);
 
         // Functions
         function shield(ShieldRequest[] calldata _shieldRequests) external;

@@ -24,19 +24,21 @@ async fn test_sync_broadcaster() {
     let mainnet_rpc_url = std::env::var("RPC_URL_MAINNET").unwrap();
     let sepolia_rpc_url = std::env::var("RPC_URL_SEPOLIA").unwrap();
 
-    let mainnet_provider = ProviderBuilder::new()
-        .network::<Ethereum>()
-        .connect(&mainnet_rpc_url)
-        .await
-        .unwrap()
-        .erased();
+    let mainnet_provider = Arc::new(
+        ProviderBuilder::new()
+            .network::<Ethereum>()
+            .connect(&mainnet_rpc_url)
+            .await
+            .unwrap(),
+    );
 
-    let sepolia_provider = ProviderBuilder::new()
-        .network::<Ethereum>()
-        .connect(&sepolia_rpc_url)
-        .await
-        .unwrap()
-        .erased();
+    let sepolia_provider = Arc::new(
+        ProviderBuilder::new()
+            .network::<Ethereum>()
+            .connect(&sepolia_rpc_url)
+            .await
+            .unwrap(),
+    );
 
     let rpc_syncer = Arc::new(RpcSyncer::new(sepolia_provider.clone()).with_batch_size(10000));
     let relay_syncer =

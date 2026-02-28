@@ -1,8 +1,6 @@
-use alloy::{
-    primitives::{Address, FixedBytes, TxHash},
-    rpc::types::Log,
-};
+use alloy_primitives::{Address, FixedBytes, TxHash};
 use alloy_sol_types::SolEvent;
+use eth_rpc::RawLog;
 use thiserror::Error;
 
 use crate::abis::tornado::Tornado;
@@ -17,7 +15,7 @@ pub enum SyncerError {
 
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-pub trait Syncer: Send + Sync {
+pub trait Syncer {
     async fn latest_block(&self) -> Result<u64, SyncerError>;
 
     async fn sync_commitments(
@@ -54,15 +52,15 @@ pub struct Nullifier {
     pub timestamp: u64,
 }
 
-impl TryFrom<Log> for Commitment {
+impl TryFrom<RawLog> for Commitment {
     type Error = String;
 
-    fn try_from(log: Log) -> Result<Self, Self::Error> {
-        if log.topics().first().copied() != Some(Tornado::Deposit::SIGNATURE_HASH) {
+    fn try_from(log: RawLog) -> Result<Self, Self::Error> {
+        if log.topics.first().copied() != Some(Tornado::Deposit::SIGNATURE_HASH) {
             return Err(format!(
                 "Invalid event signature: expected {}, got {}",
                 Tornado::Deposit::SIGNATURE_HASH,
-                log.topics().first().copied().unwrap_or_default()
+                log.topics.first().copied().unwrap_or_default()
             ));
         }
 
@@ -81,15 +79,15 @@ impl TryFrom<Log> for Commitment {
     }
 }
 
-impl TryFrom<Log> for Nullifier {
+impl TryFrom<RawLog> for Nullifier {
     type Error = String;
 
-    fn try_from(log: Log) -> Result<Self, Self::Error> {
-        if log.topics().first().copied() != Some(Tornado::Withdrawal::SIGNATURE_HASH) {
+    fn try_from(log: RawLog) -> Result<Self, Self::Error> {
+        if log.topics.first().copied() != Some(Tornado::Withdrawal::SIGNATURE_HASH) {
             return Err(format!(
                 "Invalid event signature: expected {}, got {}",
                 Tornado::Withdrawal::SIGNATURE_HASH,
-                log.topics().first().copied().unwrap_or_default()
+                log.topics.first().copied().unwrap_or_default()
             ));
         }
 

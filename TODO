@@ -27,7 +27,7 @@
     - Native prover + associate architecture
     - tx_data
     - CAIP-style asset primitives
-    - Gas estimation trait (impl by DynProvider)
+    - Gas estimation trait
 
 ---
 - [x] Implement unshielding

@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use alloy::{
-    network::Ethereum,
-    providers::{DynProvider, Provider, ProviderBuilder},
-};
+use eth_rpc::JsEthRpcAdapter;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::indexer::{CacheSyncer, ChainedSyncer, RpcSyncer, Syncer};
@@ -16,9 +13,10 @@ pub struct JsSyncer {
 #[wasm_bindgen]
 impl JsSyncer {
     #[wasm_bindgen(js_name = "newRpc")]
-    pub async fn new_rpc(rpc_url: &str, batch_size: u64) -> Result<JsSyncer, JsValue> {
-        let provider = new_dyn_provider(rpc_url).await?;
-        Ok(RpcSyncer::new(provider).with_batch_size(batch_size).into())
+    pub async fn new_rpc(provider: JsEthRpcAdapter, batch_size: u64) -> Result<JsSyncer, JsValue> {
+        Ok(RpcSyncer::new(Arc::new(provider))
+            .with_batch_size(batch_size)
+            .into())
     }
 
     #[wasm_bindgen(js_name = "newCache")]
@@ -62,15 +60,4 @@ impl From<ChainedSyncer> for JsSyncer {
             inner: Arc::new(syncer),
         }
     }
-}
-
-pub async fn new_dyn_provider(rpc_url: &str) -> Result<DynProvider, JsValue> {
-    let provider = ProviderBuilder::new()
-        .network::<Ethereum>()
-        .connect(rpc_url)
-        .await
-        .map_err(|e| JsValue::from_str(&format!("Failed to connect to RPC: {}", e)))?
-        .erased();
-
-    Ok(provider)
 }

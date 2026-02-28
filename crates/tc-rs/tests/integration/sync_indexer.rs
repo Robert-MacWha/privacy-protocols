@@ -24,12 +24,13 @@ async fn test_sync_indexer() {
     let cache_syncer = Arc::new(CacheSyncer::from_str(&cache_json).unwrap());
 
     let rpc_url = "http://localhost:8545";
-    let provider = ProviderBuilder::new()
-        .network::<Ethereum>()
-        .connect(&rpc_url)
-        .await
-        .unwrap()
-        .erased();
+    let provider = Arc::new(
+        ProviderBuilder::new()
+            .network::<Ethereum>()
+            .connect(&rpc_url)
+            .await
+            .unwrap(),
+    );
 
     let rpc_syncer = Arc::new(RpcSyncer::new(provider).with_batch_size(10000));
     let syncer: Arc<ChainedSyncer> =

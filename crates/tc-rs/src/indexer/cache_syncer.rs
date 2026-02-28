@@ -1,4 +1,6 @@
-use alloy::primitives::{Address, FixedBytes, TxHash, map::HashMap};
+use std::collections::HashMap;
+
+use alloy_primitives::{Address, FixedBytes, TxHash};
 use serde::Deserialize;
 use thiserror::Error;
 use tracing::info;

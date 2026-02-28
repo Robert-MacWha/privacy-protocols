@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
+use eth_rpc::JsEthRpcAdapter;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
-use crate::{
-    broadcaster::{RelayerSyncer, RpcRelayerSyncer},
-    wasm::syncer::new_dyn_provider,
-};
+use crate::broadcaster::{RelayerSyncer, RpcRelayerSyncer};
 
 #[wasm_bindgen]
 pub struct JsRelayerSyncer {
@@ -16,11 +14,10 @@ pub struct JsRelayerSyncer {
 impl JsRelayerSyncer {
     /// Creates a new `JsRelayerSyncer` using an RPC URL.
     ///
-    /// @param mainnetRpcUrl - An RPC URL for a mainnet RPC provider.
+    /// @param mainnet_provider RPC provider for a mainnet RPC provider.
     #[wasm_bindgen(js_name = "newRpc")]
-    pub async fn new_rpc(mainnet_rpc_url: &str) -> Result<JsRelayerSyncer, JsValue> {
-        let provider = new_dyn_provider(mainnet_rpc_url).await?;
-        Ok(RpcRelayerSyncer::new(provider).into())
+    pub async fn new_rpc(mainnet_provider: JsEthRpcAdapter) -> Result<JsRelayerSyncer, JsValue> {
+        Ok(RpcRelayerSyncer::new(Arc::new(mainnet_provider)).into())
     }
 }
 
