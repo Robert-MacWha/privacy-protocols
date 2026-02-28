@@ -12,7 +12,4 @@ pub mod broadcaster;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
-#[cfg(feature = "native")]
-compile_error!("todo: add support for native");
-
 pub use provider::*;

@@ -1,9 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use alloy::{
-    network::Ethereum,
-    providers::{Provider, ProviderBuilder},
-};
+use alloy::{network::Ethereum, providers::ProviderBuilder};
 use tc_rs::{
     Pool,
     indexer::{CacheSyncer, ChainedSyncer, Indexer, RpcSyncer},

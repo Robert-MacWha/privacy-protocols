@@ -1,9 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use alloy::{
-    network::Ethereum,
-    providers::{Provider, ProviderBuilder},
-};
+use alloy::{network::Ethereum, providers::ProviderBuilder};
 use prover::{Proof, Prover, ProverError};
 use ruint::aliases::U256;
 use tc_rs::{
