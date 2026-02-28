@@ -5,6 +5,7 @@ import { createProver } from "../src/prover-adapter.js";
 import { mainnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { readFileSync } from "node:fs";
+import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
 
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const CHAIN_ID = 1n;
@@ -19,14 +20,6 @@ const erc20Abi = parseAbi([
 test("transact-utxo", async () => {
   const USDC = erc20(USDC_ADDRESS);
 
-  console.log("Setup Railgun");
-  const prover = createProver({ artifactsPath: ARTIFACTS_PATH });
-  const syncer = await JsSyncer.newRpc(RPC_URL, CHAIN_ID, 10n);
-  const railgun = await JsRailgunProvider.new(CHAIN_ID, RPC_URL, syncer, prover);
-
-  const state = readFileSync("./provider_state_utxo_1.json");
-  railgun.set_state(state);
-
   console.log("Setup viem");
   const publicClient = createPublicClient({
     chain: mainnet,
@@ -39,6 +32,15 @@ test("transact-utxo", async () => {
     chain: mainnet,
     transport: http(RPC_URL),
   });
+
+  console.log("Setup Railgun");
+  const prover = createProver({ artifactsPath: ARTIFACTS_PATH });
+  const rpcAdapter = new ViemEthRpcAdapter(publicClient);
+  const syncer = await JsSyncer.newRpc(rpcAdapter, CHAIN_ID, 10n);
+  const railgun = await JsRailgunProvider.new(CHAIN_ID, rpcAdapter, syncer, prover);
+
+  const state = readFileSync("./provider_state_utxo_1.json");
+  railgun.set_state(state);
 
   const account1 = JsSigner.random(CHAIN_ID);
   const account2 = JsSigner.random(CHAIN_ID);

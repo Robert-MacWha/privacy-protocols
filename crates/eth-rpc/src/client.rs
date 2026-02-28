@@ -40,7 +40,9 @@ pub enum EthRpcClientError {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Tsify)]
 pub struct RawLog {
+    #[tsify(type = "number | null")]
     pub block_number: Option<u64>,
+    #[tsify(type = "number | null")]
     pub block_timestamp: Option<u64>,
     #[tsify(type = "`0x${string}` | null")]
     pub transaction_hash: Option<FixedBytes<32>>,
@@ -48,6 +50,7 @@ pub struct RawLog {
     pub address: Address,
     #[tsify(type = "`0x${string}`[]")]
     pub topics: Vec<FixedBytes<32>>,
+    #[tsify(type = "`0x${string}`")]
     pub data: Bytes,
 }
 

@@ -3,9 +3,9 @@ import { test } from "vitest";
 import { mainnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { TornadoClassicProver } from "../src/prover-adapter.js";
-import { ViemEthRpcAdapter } from "../src/viem.js";
 import { JsPool, JsSyncer, JsTornadoProvider, JsVerifier } from "../src/pkg/tc_rs.js";
 import { readFileSync } from "node:fs";
+import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
 
 const RPC_URL = "http://localhost:8545";
 const CACHE_PATH = "../../crates/tc-rs/tests/fixtures";

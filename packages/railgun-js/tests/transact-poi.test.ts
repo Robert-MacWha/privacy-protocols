@@ -4,6 +4,7 @@ import { erc20, JsPoiProvider, JsSigner, type AssetId, type RailgunAddress, type
 import { createProver } from "../src/prover-adapter.js";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
 
 const USDC_ADDRESS = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238";
 const CHAIN_ID = 11155111n;
@@ -20,14 +21,6 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 test("transact-poi", async () => {
   const USDC = erc20(USDC_ADDRESS);
 
-  console.log("Setup Railgun POI Provider");
-  const prover = createProver({ artifactsPath: ARTIFACTS_PATH });
-  const railgun = await JsPoiProvider.new_from_rpc(CHAIN_ID, RPC_URL, 10n, prover);
-
-  const listKeys = railgun.list_keys();
-  expect(listKeys.length).toBeGreaterThan(0);
-  const listKey = listKeys[0]!;
-
   console.log("Setup viem");
   const publicClient = createPublicClient({
     chain: sepolia,
@@ -40,6 +33,15 @@ test("transact-poi", async () => {
     chain: sepolia,
     transport: http(RPC_URL),
   });
+
+  console.log("Setup Railgun POI Provider");
+  const prover = createProver({ artifactsPath: ARTIFACTS_PATH });
+  const rpcAdapter = new ViemEthRpcAdapter(publicClient);
+  const railgun = await JsPoiProvider.new_from_rpc(CHAIN_ID, rpcAdapter, 10n, prover);
+
+  const listKeys = railgun.list_keys();
+  expect(listKeys.length).toBeGreaterThan(0);
+  const listKey = listKeys[0]!;
 
   const account1 = JsSigner.random(CHAIN_ID);
   const account2 = JsSigner.random(CHAIN_ID);
