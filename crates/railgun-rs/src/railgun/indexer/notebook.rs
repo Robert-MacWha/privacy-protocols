@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use ruint::aliases::U256;
 
@@ -8,8 +8,8 @@ use crate::railgun::note::{IncludedNote, utxo::UtxoNote};
 /// on a single tree.
 #[derive(Debug, Clone, Default)]
 pub struct Notebook {
-    pub unspent: BTreeMap<u32, UtxoNote>,
-    pub spent: BTreeMap<u32, UtxoNote>,
+    pub unspent: HashMap<u32, UtxoNote>,
+    pub spent: HashMap<u32, UtxoNote>,
 }
 
 // #[derive(Debug, Clone)]
@@ -21,12 +21,12 @@ impl Notebook {
     #[allow(dead_code)]
     pub fn new() -> Self {
         Notebook {
-            unspent: BTreeMap::new(),
-            spent: BTreeMap::new(),
+            unspent: HashMap::new(),
+            spent: HashMap::new(),
         }
     }
 
-    pub fn unspent(&self) -> &BTreeMap<u32, UtxoNote> {
+    pub fn unspent(&self) -> &HashMap<u32, UtxoNote> {
         &self.unspent
     }
 

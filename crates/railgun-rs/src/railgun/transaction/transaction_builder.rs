@@ -51,8 +51,8 @@ use crate::{
 #[derive(Clone)]
 pub struct TransactionBuilder {
     pub(crate) transfers: Vec<TransferData>,
-    pub(crate) unshields: BTreeMap<AssetId, UnshieldData>,
-    pub(crate) signers: BTreeMap<ViewingPublicKey, Arc<dyn Signer>>,
+    pub(crate) unshields: HashMap<AssetId, UnshieldData>,
+    pub(crate) signers: HashMap<ViewingPublicKey, Arc<dyn Signer>>,
 }
 
 #[derive(Clone)]
@@ -94,8 +94,8 @@ impl TransactionBuilder {
     pub fn new() -> Self {
         Self {
             transfers: Vec::new(),
-            unshields: BTreeMap::new(),
-            signers: BTreeMap::new(),
+            unshields: HashMap::new(),
+            signers: HashMap::new(),
         }
     }
 }

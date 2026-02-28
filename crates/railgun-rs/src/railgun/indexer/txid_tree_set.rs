@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -16,7 +16,7 @@ use crate::{
 /// Manages the set of TXID Merkle trees, with a pending queue of operations
 /// not yet validated by the POI aggregator.
 pub struct TxidTreeSet {
-    pub trees: BTreeMap<u32, TxidMerkleTree>,
+    pub trees: HashMap<u32, TxidMerkleTree>,
     /// Maps TxID to UTXO tree position (tree number, leaf index)
     pub txid_to_utxo_pos: HashMap<Txid, (u32, u32)>,
     /// Maps TxID to TXID tree position (tree number, leaf index)
@@ -35,7 +35,7 @@ pub struct TxidTreeSet {
 /// Serializable state for `TxidTreeSet`.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TxidTreeSetState {
-    pub trees: BTreeMap<u32, MerkleTreeState>,
+    pub trees: HashMap<u32, MerkleTreeState>,
     pub pending: Vec<Operation>,
     pub txid_to_utxo_position: HashMap<Txid, (u32, u32)>,
     pub txid_to_txid_position: HashMap<Txid, (u32, u32)>,
@@ -53,7 +53,7 @@ pub enum TxidTreeError {
 impl TxidTreeSet {
     pub fn new(poi_client: PoiClient) -> Self {
         TxidTreeSet {
-            trees: BTreeMap::new(),
+            trees: HashMap::new(),
             pending: VecDeque::new(),
             poi_client,
             txid_to_utxo_pos: HashMap::new(),
@@ -150,7 +150,7 @@ impl TxidTreeSet {
 
         // Validate
         info!("Validating TXID trees");
-        if let Some((tree_number, tree)) = self.trees.last_key_value() {
+        for (tree_number, tree) in self.trees.iter() {
             let index = tree.leaves_len() as u64 - 1;
             let merkleroot = tree.root();
             let validated = self

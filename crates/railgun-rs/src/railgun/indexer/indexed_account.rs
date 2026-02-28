@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{HashMap},
     sync::Arc,
 };
 
@@ -26,14 +26,14 @@ pub struct IndexedAccount {
     signer: Arc<dyn Signer>,
 
     /// The latest block number that has been processed for this account
-    notebooks: BTreeMap<u32, Notebook>,
+    notebooks: HashMap<u32, Notebook>,
 }
 
 impl IndexedAccount {
     pub fn new(signer: Arc<dyn Signer>) -> Self {
         IndexedAccount {
             signer,
-            notebooks: BTreeMap::new(),
+            notebooks: HashMap::new(),
         }
     }
 
