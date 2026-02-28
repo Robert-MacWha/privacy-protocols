@@ -1,5 +1,5 @@
 #[cfg(not(target_arch = "wasm32"))]
-pub use bench::*;
+criterion::criterion_main!(bench::benches);
 
 #[cfg(target_arch = "wasm32")]
 fn main() {}
@@ -8,7 +8,7 @@ fn main() {}
 mod bench {
     use std::hint::black_box;
 
-    use criterion::{criterion_group, criterion_main};
+    use criterion::criterion_group;
     use crypto::pedersen_hash;
     use rand::random;
 
@@ -22,5 +22,4 @@ mod bench {
     }
 
     criterion_group!(benches, benchmark_pedersen);
-    criterion_main!(benches);
 }

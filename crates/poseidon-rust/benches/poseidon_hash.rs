@@ -1,5 +1,5 @@
 #[cfg(not(target_arch = "wasm32"))]
-pub use bench::*;
+criterion::criterion_main!(bench::benches);
 
 #[cfg(target_arch = "wasm32")]
 fn main() {}
@@ -7,7 +7,7 @@ fn main() {}
 #[cfg(not(target_arch = "wasm32"))]
 mod bench {
     use ark_bn254::Fr;
-    use criterion::{criterion_group, criterion_main};
+    use criterion::criterion_group;
     use poseidon_rust::poseidon_hash;
     use rand::random;
 
@@ -24,5 +24,4 @@ mod bench {
     }
 
     criterion_group!(benches, benchmark_poseidon);
-    criterion_main!(benches);
 }
