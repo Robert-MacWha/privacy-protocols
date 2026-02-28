@@ -43,7 +43,7 @@ impl Groth16Prover<WasmerWitnessCalculator, FsArtifactLoader> {
 }
 
 #[async_trait::async_trait]
-impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> TransactProver for Groth16Prover<W, A> {
+impl<W: WitnessCalculator + Send + Sync, A: ArtifactLoader + Send + Sync> TransactProver for Groth16Prover<W, A> {
     #[tracing::instrument(skip_all)]
     async fn prove_transact(
         &self,
@@ -60,7 +60,7 @@ impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> TransactProver for G
 
 #[cfg(feature = "poi")]
 #[async_trait::async_trait]
-impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> PoiProver for Groth16Prover<W, A> {
+impl<W: WitnessCalculator + Send + Sync, A: ArtifactLoader + Send + Sync> PoiProver for Groth16Prover<W, A> {
     #[tracing::instrument(skip_all)]
     async fn prove_poi(
         &self,

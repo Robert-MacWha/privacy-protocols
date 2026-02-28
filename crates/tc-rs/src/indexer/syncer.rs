@@ -15,7 +15,7 @@ pub enum SyncerError {
 
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-pub trait Syncer {
+pub trait Syncer: common::MaybeSend {
     async fn latest_block(&self) -> Result<u64, SyncerError>;
 
     async fn sync_commitments(

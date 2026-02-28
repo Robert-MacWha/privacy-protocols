@@ -7,12 +7,13 @@ edition = "2024"
 wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["wasm", "poi"]
+default = ["native", "poi"]
 native = [
     "wasmer",
+    "alloy",
     "ark-circom",
     "ark-groth16",
     "ark-relations",
@@ -31,12 +32,14 @@ wasm = [
     "gloo-timers",
     "eth-rpc/wasm",
     "prover/wasm",
+    "common/wasm",
 ]
 poi = []
 
 [dependencies]
 aes = { workspace = true }
 aes-gcm = { workspace = true }
+alloy = { workspace = true, optional = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 eth-rpc = { workspace = true }
@@ -48,6 +51,7 @@ ark-relations = { workspace = true, optional = true }
 ark-std = { workspace = true }
 async-trait = { workspace = true }
 bech32 = { workspace = true }
+common = { workspace = true }
 console_error_panic_hook = { workspace = true, optional = true }
 ctr = { workspace = true }
 crypto = { workspace = true }

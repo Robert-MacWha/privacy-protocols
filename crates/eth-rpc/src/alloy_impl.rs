@@ -17,26 +17,30 @@ impl<P: Provider> EthRpcClient for P {
     async fn get_logs(
         &self,
         address: Address,
-        event_signature: FixedBytes<32>,
-        from_block: u64,
-        to_block: u64,
+        event_signature: Option<FixedBytes<32>>,
+        from_block: Option<u64>,
+        to_block: Option<u64>,
     ) -> Result<Vec<RawLog>, EthRpcClientError> {
-        let filter = Filter::new()
-            .address(address)
-            .event_signature(event_signature)
-            .from_block(from_block)
-            .to_block(to_block);
+        let mut filter = Filter::new().address(address);
+        if let Some(event_signature) = event_signature {
+            filter = filter.event_signature(event_signature);
+        }
+        if let Some(from_block) = from_block {
+            filter = filter.from_block(from_block);
+        }
+        if let Some(to_block) = to_block {
+            filter = filter.to_block(to_block);
+        }
 
         let logs = self.get_logs(&filter).await?;
         let logs = logs
             .into_iter()
             .map(|log| RawLog {
-                address: log.address(),
                 topics: log.topics().to_vec(),
-                data: log.data().clone(),
                 block_number: log.block_number,
                 block_timestamp: log.block_timestamp,
                 transaction_hash: log.transaction_hash,
+                inner: log.inner,
             })
             .collect();
 

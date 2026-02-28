@@ -16,10 +16,12 @@ wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
     "dep:serde-wasm-bindgen",
+    "common/wasm",
 ]
 
 [dependencies]
 alloy = { workspace = true, optional = true }
+common = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 async-trait = { workspace = true }

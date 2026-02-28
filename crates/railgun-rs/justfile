@@ -28,7 +28,7 @@ test:
 
 # Release enabled for integration tests since the txid syncing is *very* slow in 
 # debug mode.
-integration: integration-sync-txid integration-sync-utxo integration-transact
+integration: integration-sync-txid integration-sync-utxo integration-transact integration-transact-poi
 
 integration-sync-utxo:
     RUST_LOG=info cargo test --release --no-default-features --features native -- test_sync_utxo --ignored --nocapture

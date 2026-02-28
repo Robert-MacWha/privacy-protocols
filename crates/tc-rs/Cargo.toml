@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["wasm", "broadcaster"]
+default = ["native", "broadcaster"]
 native = ["alloy", "dep:tokio"]
 broadcaster = ["dep:reqwest"]
 wasm = [
@@ -21,9 +21,11 @@ wasm = [
     "gloo-timers",
     "prover/wasm",
     "eth-rpc/wasm",
+    "common/wasm",
 ]
 
 [dependencies]
+common = { workspace = true }
 eth-rpc = { workspace = true }
 alloy = { workspace = true, optional = true }
 alloy-primitives = { workspace = true }

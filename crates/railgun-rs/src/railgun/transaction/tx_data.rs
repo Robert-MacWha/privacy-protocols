@@ -29,3 +29,13 @@ impl TxData {
         }
     }
 }
+
+#[cfg(not(feature = "wasm"))]
+impl From<TxData> for alloy::rpc::types::TransactionRequest {
+    fn from(tx_data: TxData) -> Self {
+        alloy::rpc::types::TransactionRequest::default()
+            .to(tx_data.to)
+            .input(tx_data.data.into())
+            .value(tx_data.value)
+    }
+}

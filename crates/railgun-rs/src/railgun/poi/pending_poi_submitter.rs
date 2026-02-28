@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{
     circuit::{
@@ -153,7 +153,8 @@ impl PendingPoiSubmitter {
 
             let Some((utxo_tree_number, utxo_leaf_index)) = txid_indexer.utxo_position(&entry.txid)
             else {
-                info!(
+                //? This should never happen since the TXID should only update after the UTXO tree is updated
+                warn!(
                     "Txid {:?} for note within bound params hash {:?} not yet found in UTXO tree, skipping",
                     entry.txid, entry.bound_params_hash
                 );

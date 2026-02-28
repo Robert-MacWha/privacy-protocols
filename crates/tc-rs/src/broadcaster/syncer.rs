@@ -16,7 +16,7 @@ pub struct RelayerRecord {
 
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-pub trait RelayerSyncer {
+pub trait RelayerSyncer: common::MaybeSend {
     async fn latest_block(&self) -> Result<u64, SyncerError>;
     async fn sync_relayers(
         &self,

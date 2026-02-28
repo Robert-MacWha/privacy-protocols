@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use alloy::{
-    network::Ethereum,
-    providers::{DynProvider, Provider, ProviderBuilder},
-};
+use alloy::{network::Ethereum, providers::ProviderBuilder};
 use railgun_rs::{
     chain_config::{ChainConfig, MAINNET_CONFIG},
     circuit::native::Groth16Prover,
@@ -29,12 +26,13 @@ async fn test_sync_utxo() {
 
     info!("Setting up chain client");
     let fork_url = std::env::var("RPC_URL_MAINNET").expect("Fork URL Must be set");
-    let provider: DynProvider = ProviderBuilder::new()
-        .network::<Ethereum>()
-        .connect(&fork_url)
-        .await
-        .unwrap()
-        .erased();
+    let provider = Arc::new(
+        ProviderBuilder::new()
+            .network::<Ethereum>()
+            .connect(&fork_url)
+            .await
+            .unwrap(),
+    );
 
     info!("Setting up indexer");
     let subsquid_syncer = Arc::new(SubsquidSyncer::new(CHAIN.subsquid_endpoint));

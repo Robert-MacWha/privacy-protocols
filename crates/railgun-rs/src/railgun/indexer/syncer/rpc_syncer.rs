@@ -62,7 +62,6 @@ impl NoteSyncer for RpcSyncer {
     }
 
     async fn sync(&self, from_block: u64, to_block: u64) -> Result<Vec<SyncEvent>, SyncerError> {
-        info!("Starting RPC sync {}-{}", from_block, to_block);
         Ok(self.events(from_block, to_block).await?)
     }
 }

@@ -8,7 +8,7 @@ pub type PublicInputs = Vec<U256>;
 
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-pub trait TransactProver {
+pub trait TransactProver: common::MaybeSend {
     async fn prove_transact(
         &self,
         inputs: &TransactCircuitInputs,
@@ -18,7 +18,7 @@ pub trait TransactProver {
 #[cfg(feature = "poi")]
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-pub trait PoiProver {
+pub trait PoiProver: common::MaybeSend {
     async fn prove_poi(
         &self,
         inputs: &PoiCircuitInputs,
@@ -27,4 +27,5 @@ pub trait PoiProver {
 
 #[cfg(feature = "poi")]
 pub trait Prover: TransactProver + PoiProver {}
+#[cfg(feature = "poi")]
 impl<T: TransactProver + PoiProver> Prover for T {}

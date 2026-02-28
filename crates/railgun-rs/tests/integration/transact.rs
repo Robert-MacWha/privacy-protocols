@@ -42,13 +42,14 @@ async fn test_transact() {
     )
     .unwrap();
 
-    let provider = ProviderBuilder::new()
-        .network::<Ethereum>()
-        .wallet(signer)
-        .connect("http://localhost:8545")
-        .await
-        .unwrap()
-        .erased();
+    let provider = Arc::new(
+        ProviderBuilder::new()
+            .network::<Ethereum>()
+            .wallet(signer)
+            .connect("http://localhost:8545")
+            .await
+            .unwrap(),
+    );
 
     let usdc_contract = ERC20::new(USDC_ADDRESS, provider.clone());
 

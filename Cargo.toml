@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/common",
     "crates/crypto",
     "crates/eth-rpc",
     "crates/poseidon-rust",
@@ -32,6 +33,7 @@ ark-serialize = "0.5.0"
 async-trait = "0.1.89"
 bech32 = "0.11.1"
 blake-hash = { version = "0.2.0", default-features = false }
+common = { path = "./crates/common" }
 console_error_panic_hook = "0.1"
 crypto = { path = "./crates/crypto" }
 criterion = "0.8.2"

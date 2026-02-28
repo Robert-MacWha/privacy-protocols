@@ -17,7 +17,7 @@ pub enum ProverError {
 
 #[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
 #[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
-pub trait Prover {
+pub trait Prover: common::MaybeSend {
     async fn prove(
         &self,
         circuit_name: &str,

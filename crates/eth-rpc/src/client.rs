@@ -3,6 +3,8 @@ use alloy_sol_types::SolCall;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use common::MaybeSend;
+
 #[derive(Debug, Error)]
 pub enum EthRpcClientError {
     #[error("RPC error: {0}")]
@@ -20,36 +22,9 @@ pub struct RawLog {
     pub inner: Log,
 }
 
-// Native (multithreaded)
-#[cfg(not(feature = "wasm"))]
-#[async_trait::async_trait]
-pub trait EthRpcClient: Send + Sync {
-    async fn get_block_number(&self) -> Result<u64, EthRpcClientError>;
-
-    async fn get_logs(
-        &self,
-        address: Address,
-        event_signature: Option<FixedBytes<32>>,
-        from_block: Option<u64>,
-        to_block: Option<u64>,
-    ) -> Result<Vec<RawLog>, EthRpcClientError>;
-
-    async fn eth_call(&self, to: Address, data: Vec<u8>) -> Result<Vec<u8>, EthRpcClientError>;
-
-    async fn estimate_gas(
-        &self,
-        to: Address,
-        data: Vec<u8>,
-        from: Option<Address>,
-    ) -> Result<u64, EthRpcClientError>;
-
-    async fn get_gas_price(&self) -> Result<u128, EthRpcClientError>;
-}
-
-// WASM (single-threaded)
-#[cfg(feature = "wasm")]
-#[async_trait::async_trait(?Send)]
-pub trait EthRpcClient {
+#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
+#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+pub trait EthRpcClient: MaybeSend {
     async fn get_block_number(&self) -> Result<u64, EthRpcClientError>;
 
     async fn get_logs(

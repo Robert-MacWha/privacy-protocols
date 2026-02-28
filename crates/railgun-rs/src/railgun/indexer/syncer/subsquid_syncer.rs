@@ -105,8 +105,6 @@ impl TransactionSyncer for SubsquidSyncer {
         from_block: u64,
         to_block: u64,
     ) -> Result<Vec<syncer::Operation>, SyncerError> {
-        info!("Starting Subsquid sync {}-{}", from_block, to_block);
-
         let operations = self.operations(from_block, to_block).await?;
         Ok(operations)
     }

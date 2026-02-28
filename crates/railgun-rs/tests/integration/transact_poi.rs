@@ -3,7 +3,7 @@ use std::{str::FromStr, sync::Arc};
 use alloy::{
     network::Ethereum,
     primitives::{Address, address},
-    providers::{DynProvider, Provider, ProviderBuilder},
+    providers::{Provider, ProviderBuilder},
     signers::local::PrivateKeySigner,
 };
 use railgun_rs::{
@@ -45,13 +45,14 @@ async fn test_transact_poi() {
     let signer_key = std::env::var("DEV_KEY").expect("DEV_KEY must be set");
     let signer = PrivateKeySigner::from_str(&signer_key).unwrap();
     let fork_url = std::env::var("RPC_URL_SEPOLIA").expect("Fork URL Must be set");
-    let provider = ProviderBuilder::new()
-        .network::<Ethereum>()
-        .wallet(signer)
-        .connect(&fork_url)
-        .await
-        .unwrap()
-        .erased();
+    let provider = Arc::new(
+        ProviderBuilder::new()
+            .network::<Ethereum>()
+            .wallet(signer)
+            .connect(&fork_url)
+            .await
+            .unwrap(),
+    );
 
     info!("Setting up railgun");
     let subsquid_syncer = Arc::new(SubsquidSyncer::new(CHAIN.subsquid_endpoint));
@@ -68,10 +69,9 @@ async fn test_transact_poi() {
         CHAIN,
         provider.clone(),
         syncer,
-        prover.clone(),
+        prover,
         subsquid_syncer,
         poi_client,
-        prover,
     );
 
     info!("Setting up accounts");
@@ -119,9 +119,9 @@ async fn test_transact_poi() {
     .await;
 }
 
-async fn test_shield_poi(
+async fn test_shield_poi<P: Provider>(
     railgun: &mut PoiProvider,
-    provider: &DynProvider,
+    provider: &P,
     account_1: Arc<dyn Signer>,
     account_2: Arc<dyn Signer>,
     list_key: &ListKey,
@@ -145,9 +145,9 @@ async fn test_shield_poi(
     await_balance_update(railgun, account_2.clone(), USDC, list_key, None).await;
 }
 
-async fn test_transfer_poi(
+async fn test_transfer_poi<P: Provider>(
     railgun: &mut PoiProvider,
-    provider: &DynProvider,
+    provider: &P,
     account_1: Arc<dyn Signer>,
     account_2: Arc<dyn Signer>,
     list_key: &ListKey,
@@ -175,9 +175,9 @@ async fn test_transfer_poi(
     await_balance_update(railgun, account_2.clone(), USDC, list_key, Some(5)).await;
 }
 
-async fn test_unshield_poi(
+async fn test_unshield_poi<P: Provider>(
     railgun: &mut PoiProvider,
-    provider: &DynProvider,
+    provider: &P,
     account_1: Arc<dyn Signer>,
     account_2: Arc<dyn Signer>,
     list_key: &ListKey,
@@ -190,7 +190,7 @@ async fn test_unshield_poi(
     );
     let unshield_tx = railgun.build(tx, &mut rand::rng()).await.unwrap();
 
-    let usdc_contract = ERC20::new(USDC_ADDRESS, provider.clone());
+    let usdc_contract = ERC20::new(USDC_ADDRESS, provider);
     let pre_unshield_balance_eoa = usdc_contract
         .balanceOf(address!("0xe03747a83E600c3ab6C2e16dd1989C9b419D3a86"))
         .call()
