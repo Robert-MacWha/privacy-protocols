@@ -30,6 +30,7 @@ impl MerkleTreeVerifier for SmartWalletUtxoVerifier {
         root: MerkleRoot,
     ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let contract = RailgunSmartWallet::new(self.address, self.provider.clone());
+        let root: U256 = root.into();
         Ok(contract
             .rootHistory(U256::from(tree_number), root.into())
             .call()

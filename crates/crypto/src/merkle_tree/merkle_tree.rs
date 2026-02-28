@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, fmt::Debug};
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::warn;
 
 use crate::merkle_tree::{
     config::MerkleConfig,

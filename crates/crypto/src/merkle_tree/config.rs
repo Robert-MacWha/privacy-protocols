@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use alloy::primitives::U256;
+use ruint::aliases::U256;
 
 pub trait MerkleConfig: Debug + Clone + PartialEq + Eq {
     const DEPTH: usize;

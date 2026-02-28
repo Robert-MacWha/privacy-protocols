@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use alloy::primitives::FixedBytes;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 
@@ -80,18 +79,6 @@ impl From<U256> for MerkleRoot {
 impl From<MerkleRoot> for U256 {
     fn from(value: MerkleRoot) -> Self {
         value.0
-    }
-}
-
-impl From<MerkleRoot> for FixedBytes<32> {
-    fn from(value: MerkleRoot) -> Self {
-        value.0.into()
-    }
-}
-
-impl From<FixedBytes<32>> for MerkleRoot {
-    fn from(value: FixedBytes<32>) -> Self {
-        MerkleRoot(value.into())
     }
 }
 

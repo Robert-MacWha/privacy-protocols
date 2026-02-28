@@ -18,6 +18,7 @@ use std::{
 
 use alloy::primitives::Address;
 use rand::Rng;
+use ruint::aliases::U256;
 use thiserror::Error;
 use tracing::{info, warn};
 
@@ -447,9 +448,10 @@ async fn create_transaction<N: IncludedNote + SignableNote, R: Rng>(
         .await
         .map_err(TransactionBuilderError::Prover)?;
 
+    let merkle_root: U256 = inputs.merkleroot.into();
     let transaction = abis::railgun::Transaction {
         proof: proof.into(),
-        merkleRoot: inputs.merkleroot.into(),
+        merkleRoot: merkle_root.into(),
         nullifiers: inputs.nullifiers.iter().map(|n| n.clone().into()).collect(),
         commitments: inputs
             .commitments_out

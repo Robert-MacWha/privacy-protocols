@@ -4,7 +4,6 @@ use crypto::poseidon_hash;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::info;
 
 use crate::{
     abis::railgun::{ShieldRequest, TokenData, TokenDataError},

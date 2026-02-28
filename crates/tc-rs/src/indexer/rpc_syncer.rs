@@ -174,7 +174,8 @@ impl Syncer for RpcSyncer {
 impl Verifier for RpcSyncer {
     async fn verify(&self, contract: Address, root: MerkleRoot) -> Result<(), VerifierError> {
         let contract = MerkleTreeWithHistory::new(contract, &self.provider);
-        let root_b256 = alloy::primitives::FixedBytes::<32>::from(root);
+        let root_u256: U256 = root.into();
+        let root_b256 = alloy::primitives::FixedBytes::<32>::from(root_u256);
         let result = contract
             .isKnownRoot(root_b256)
             .call()
