@@ -1,10 +1,12 @@
 fork_url := env_var("RPC_URL_SEPOLIA")
-# Forking from a slightly historic block so we can perform less work syncing
+# Forking from a historic block so we can perform less work syncing
 # when testing.
 fork_block := "8800000"
 
 test: 
     cargo test
+
+integration: integration-sync integration-sync-broadcaster
 
 integration-sync:
     #!/usr/bin/env bash

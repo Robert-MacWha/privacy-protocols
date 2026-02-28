@@ -19,6 +19,7 @@ use std::{
 use alloy_primitives::Address;
 use alloy_sol_types::SolCall;
 use eth_rpc::TxData;
+use prover::{Prover, ProverError};
 use rand::Rng;
 use ruint::aliases::U256;
 use thiserror::Error;
@@ -30,7 +31,7 @@ use crate::{
     chain_config::ChainConfig,
     circuit::{
         inputs::{TransactCircuitInputs, TransactCircuitInputsError},
-        prover::TransactProver,
+        prover::prove_transact,
     },
     crypto::keys::ViewingPublicKey,
     railgun::{
@@ -81,7 +82,7 @@ pub enum TransactionBuilderError {
     #[error("Encryption error: {0}")]
     Encryption(#[from] EncryptError),
     #[error("Prover error: {0}")]
-    Prover(Box<dyn std::error::Error>),
+    Prover(#[from] ProverError),
     #[error("Missing tree for number {0}")]
     MissingTree(u32),
     #[error("No input notes")]
@@ -159,7 +160,7 @@ impl TransactionBuilder {
         self,
         chain: ChainConfig,
         indexer: &UtxoIndexer,
-        prover: &dyn TransactProver,
+        prover: &dyn Prover,
         rng: &mut R,
     ) -> Result<ProvedTx, TransactionBuilderError> {
         let in_notes = indexer.all_unspent();
@@ -250,7 +251,7 @@ pub fn build_operations<N: IncludedNote + Clone, R: Rng>(
 /// Proves the operations and returns a proved transaction that can be
 /// executed in railgun on-chain.
 pub async fn prove_operations<N: IncludedNote + SignableNote + Clone, R: Rng>(
-    prover: &dyn TransactProver,
+    prover: &dyn Prover,
     utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
     operations: &[Operation<N>],
     chain: ChainConfig,
@@ -374,7 +375,7 @@ fn add_change_note<R: Rng, N: IncludedNote + Clone>(
 
 /// Creates a list of railgun transactions for a list of operations.
 pub async fn create_transactions<N: IncludedNote + SignableNote, R: Rng>(
-    prover: &dyn TransactProver,
+    prover: &dyn Prover,
     utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
     operations: &[Operation<N>],
     chain: ChainConfig,
@@ -412,7 +413,7 @@ pub async fn create_transactions<N: IncludedNote + SignableNote, R: Rng>(
 
 /// Creates a railgun transaction for a single operation.
 async fn create_transaction<N: IncludedNote + SignableNote, R: Rng>(
-    prover: &dyn TransactProver,
+    prover: &dyn Prover,
     utxo_tree: &UtxoMerkleTree,
     operation: &Operation<N>,
     chain: ChainConfig,
@@ -450,10 +451,7 @@ async fn create_transaction<N: IncludedNote + SignableNote, R: Rng>(
         TransactCircuitInputs::from_inputs(utxo_tree, bound_params.hash(), notes_in, &notes_out)?;
 
     info!("Proving transaction");
-    let (proof, _) = prover
-        .prove_transact(&inputs)
-        .await
-        .map_err(TransactionBuilderError::Prover)?;
+    let (proof, _) = prove_transact(prover, &inputs).await?;
 
     let merkle_root: U256 = inputs.merkleroot.into();
     let transaction = abis::railgun::Transaction {

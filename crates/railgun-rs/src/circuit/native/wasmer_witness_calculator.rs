@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 use ruint::aliases::U256;
 use wasmer::Store;
 
-use crate::circuit::witness::{CircuitType, WitnessCalculator};
+use crate::circuit::witness::WitnessCalculator;
 
 pub struct WasmerWitnessCalculator {
     path: String,
@@ -14,7 +14,7 @@ pub struct WasmerWitnessCalculator {
 struct WitnessCalcState {
     store: Store,
     calculator: ark_circom::WitnessCalculator,
-    circuit_type: CircuitType,
+    circuit_name: String,
 }
 
 impl WasmerWitnessCalculator {
@@ -24,40 +24,21 @@ impl WasmerWitnessCalculator {
             inner: Mutex::new(None),
         }
     }
-
-    fn wasm_path(&self, circuit_type: CircuitType) -> String {
-        match circuit_type {
-            CircuitType::Transact {
-                nullifiers,
-                commitments,
-            } => format!(
-                "{}/railgun/{:02}x{:02}.wasm",
-                self.path, nullifiers, commitments
-            ),
-            CircuitType::Poi {
-                nullifiers,
-                commitments,
-            } => format!(
-                "{}/ppoi/{:02}x{:02}.wasm",
-                self.path, nullifiers, commitments
-            ),
-        }
-    }
 }
 
 #[async_trait::async_trait]
 impl WitnessCalculator for WasmerWitnessCalculator {
     async fn calculate_witness(
         &self,
-        circuit_type: CircuitType,
+        circuit_name: &str,
         inputs: HashMap<String, Vec<U256>>,
     ) -> Result<Vec<U256>, String> {
-        let wasm_path = self.wasm_path(circuit_type);
+        let wasm_path = format!("{}/{}.wasm", self.path, circuit_name);
         let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
 
         // Check if we have a cached calculator for this circuit type
         let needs_reload = match &*guard {
-            Some(state) => state.circuit_type != circuit_type,
+            Some(state) => state.circuit_name != circuit_name,
             None => true,
         };
 
@@ -68,7 +49,7 @@ impl WitnessCalculator for WasmerWitnessCalculator {
             *guard = Some(WitnessCalcState {
                 store,
                 calculator,
-                circuit_type,
+                circuit_name: circuit_name.to_string(),
             });
         }
 

@@ -11,6 +11,8 @@ pub enum ProverError {
     InvalidCircuit(String),
     #[error("Witness generation failed: {0}")]
     WitnessGeneration(String),
+    #[error("Invalid proof: {0}")]
+    InvalidProof(String),
     #[error("Error: {0}")]
     Other(String),
 }

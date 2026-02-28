@@ -4,14 +4,12 @@ mod chain;
 mod error;
 mod indexer;
 mod poi_balance;
-mod prover;
 mod provider;
 mod signer;
 mod transaction;
 
 pub use caip::erc20;
 pub use indexer::JsSyncer;
-pub use prover::JsProver;
 pub use provider::JsRailgunProvider;
 pub use signer::JsSigner;
 pub use transaction::{

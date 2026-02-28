@@ -9,7 +9,7 @@
 
 import { readFile } from "node:fs/promises";
 import * as snarkjs from "snarkjs";
-import { JsProofResponse, JsProver } from "./pkg/railgun_rs.js";
+import { JsProof, ProverAdapter } from "./pkg/railgun_rs";
 
 export interface ArtifactPaths {
   wasmPath: string;
@@ -25,17 +25,7 @@ export interface ProverConfig {
   verify?: boolean;
 }
 
-/** Create a JsProver from config. */
-export function createProver(config: ProverConfig): JsProver {
-  const adapter = new ProverAdapter(config);
-  return new JsProver(adapter);
-}
-
-/**
- * Owns snarkjs artifact loading / caching / proving.
- * Passed into Rust via `JsProver::new()`.
- */
-export class ProverAdapter {
+export class GrothProver implements ProverAdapter {
   private config: Required<Pick<ProverConfig, "artifactsPath" | "verify">> & {
     resolveArtifacts: (circuitName: string, basePath: string) => ArtifactPaths;
   };
@@ -49,28 +39,14 @@ export class ProverAdapter {
     this.config = {
       artifactsPath: config.artifactsPath,
       verify: config.verify ?? true,
-      resolveArtifacts: config.resolveArtifacts ?? ProverAdapter.defaultResolveArtifacts,
+      resolveArtifacts: config.resolveArtifacts ?? GrothProver.defaultResolveArtifacts,
     };
   }
 
-  async proveTransact(
+  async prove(
     circuitName: string,
     inputs: Record<string, string[]>
-  ): Promise<JsProofResponse> {
-    return this.prove(circuitName, inputs);
-  }
-
-  async provePoi(
-    circuitName: string,
-    inputs: Record<string, string[]>
-  ): Promise<JsProofResponse> {
-    return this.prove(circuitName, inputs);
-  }
-
-  private async prove(
-    circuitName: string,
-    inputs: Record<string, string[]>
-  ): Promise<JsProofResponse> {
+  ): Promise<JsProof> {
     const { wasmPath, zkeyPath } = this.config.resolveArtifacts(
       circuitName,
       this.config.artifactsPath
@@ -105,14 +81,14 @@ export class ProverAdapter {
 
     return {
       proof: {
-        pi_a: [proof.pi_a[0]!, proof.pi_a[1]!],
+        pi_a: [proof.pi_a[0]! as `0x${string}`, proof.pi_a[1]! as `0x${string}`],
         pi_b: [
-          [proof.pi_b[0]![0]!, proof.pi_b[0]![1]!],
-          [proof.pi_b[1]![0]!, proof.pi_b[1]![1]!],
+          [proof.pi_b[0]![0]! as `0x${string}`, proof.pi_b[0]![1]! as `0x${string}`],
+          [proof.pi_b[1]![0]! as `0x${string}`, proof.pi_b[1]![1]! as `0x${string}`],
         ],
-        pi_c: [proof.pi_c[0]!, proof.pi_c[1]!],
+        pi_c: [proof.pi_c[0]! as `0x${string}`, proof.pi_c[1]! as `0x${string}`],
       },
-      publicInputs: publicSignals.map((s: string) => '0x' + BigInt(s).toString(16)),
+      publicInputs: publicSignals.map((s: string) => `0x${BigInt(s).toString(16)}` as `0x${string}`),
     };
   }
 
@@ -138,11 +114,9 @@ export class ProverAdapter {
     circuitName: string,
     basePath: string
   ): ArtifactPaths {
-    const [circuitType, size] = circuitName.split("/");
-    const folder = circuitType === "transact" ? "railgun" : "ppoi";
     return {
-      wasmPath: `${basePath}/${folder}/${size}.wasm`,
-      zkeyPath: `${basePath}/${folder}/${size}.zkey`,
+      wasmPath: `${basePath}/${circuitName}.wasm`,
+      zkeyPath: `${basePath}/${circuitName}.zkey`,
     };
   }
 }

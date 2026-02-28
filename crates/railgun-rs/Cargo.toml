@@ -12,24 +12,6 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["poi"]
 poi = []
-# native = [
-#     "wasmer",
-#     "alloy",
-#     "ark-circom",
-#     "ark-groth16",
-#     "ark-relations",
-#     "reqwest/rustls",
-# ]
-# wasm = [
-#     "wasm-bindgen-futures",
-#     "js-sys",
-#     "serde-wasm-bindgen",
-#     "console_error_panic_hook",
-#     "getrandom_02",
-#     "getrandom/wasm_js",
-#     "tracing-wasm",
-#     "gloo-timers",
-# ]
 
 [dependencies]
 aes = { workspace = true }

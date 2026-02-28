@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use eth_rpc::JsEthRpcAdapter;
+use prover::JsProverAdapter;
 use wasm_bindgen::{JsError, JsValue, prelude::wasm_bindgen};
 
 use crate::{
@@ -12,8 +13,8 @@ use crate::{
         poi::{ListKey, PoiClient},
     },
     wasm::{
-        JsBroadcaster, JsFee, JsPoiProvedTx, JsPoiTransactionBuilder, JsProver, JsShieldBuilder,
-        JsSigner, JsSyncer, chain::try_get_chain, poi_balance::JsPoiBalance,
+        JsBroadcaster, JsFee, JsPoiProvedTx, JsPoiTransactionBuilder, JsShieldBuilder, JsSigner,
+        JsSyncer, chain::try_get_chain, poi_balance::JsPoiBalance,
     },
 };
 
@@ -29,7 +30,7 @@ impl JsPoiProvider {
         chain_id: u64,
         provider: JsEthRpcAdapter,
         utxo_syncer: JsSyncer,
-        prover: JsProver,
+        prover: JsProverAdapter,
     ) -> Result<JsPoiProvider, JsValue> {
         let chain = try_get_chain(chain_id)?;
 
@@ -59,7 +60,7 @@ impl JsPoiProvider {
         chain_id: u64,
         provider: JsEthRpcAdapter,
         batch_size: u64,
-        prover: JsProver,
+        prover: JsProverAdapter,
     ) -> Result<JsPoiProvider, JsValue> {
         let subsquid_syncer = JsSyncer::new_subsquid(chain_id)?;
         let rpc_syncer = JsSyncer::new_rpc(provider.clone().into(), chain_id, batch_size).await?;

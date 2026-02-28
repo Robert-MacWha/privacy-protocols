@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use eth_rpc::{JsEthRpcAdapter, TxData};
+use prover::JsProverAdapter;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     railgun::{RailgunProvider, RailgunProviderState, address::RailgunAddress},
     wasm::{
-        JsProver, JsShieldBuilder, JsSigner, JsSyncer, JsTransactionBuilder, balance::JsBalance,
+        JsShieldBuilder, JsSigner, JsSyncer, JsTransactionBuilder, balance::JsBalance,
         chain::try_get_chain,
     },
 };
@@ -23,7 +24,7 @@ impl JsRailgunProvider {
         chain_id: u64,
         provider: JsEthRpcAdapter,
         syncer: JsSyncer,
-        prover: JsProver,
+        prover: JsProverAdapter,
     ) -> Result<JsRailgunProvider, JsValue> {
         let chain = try_get_chain(chain_id)?;
         let provider = Arc::new(provider);
@@ -38,7 +39,7 @@ impl JsRailgunProvider {
         chain_id: u64,
         provider: JsEthRpcAdapter,
         batch_size: u64,
-        prover: JsProver,
+        prover: JsProverAdapter,
     ) -> Result<JsRailgunProvider, JsValue> {
         let subsquid_syncer = JsSyncer::new_subsquid(chain_id)?;
         let rpc_syncer = JsSyncer::new_rpc(provider.clone().into(), chain_id, batch_size).await?;
