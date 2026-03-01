@@ -14,10 +14,10 @@ use crate::railgun::{address::RailgunAddress, poi::ListKey};
 #[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, from_wasm_abi))]
 #[serde(rename_all = "camelCase")]
 pub struct WakuMessage {
-    /// Message payload as bytes
-    pub payload: Vec<u8>,
     /// Content topic the message was received on
     pub content_topic: String,
+    /// Message payload
+    pub payload: Vec<u8>,
     /// Optional timestamp in milliseconds
     pub timestamp: Option<u64>,
 }

@@ -15,7 +15,7 @@ import {
   type LightNode,
   type QueryRequestParams,
 } from "@waku/sdk";
-import { JsBroadcasterManager, type WakuMessage } from "./pkg/railgun_rs.js";
+import { JsBroadcasterManager, WakuAdapter, type WakuMessage } from "./pkg/railgun_rs.js";
 
 
 const WAKU_RAILGUN_PUB_SUB_TOPIC = "/waku/2/rs/1/1";
@@ -30,13 +30,12 @@ const HISTORICAL_LOOK_BACK_MS = 300_000;
 const PEER_DISCOVERY_TIMEOUT_MS = 60_000;
 
 /**
- * Convenience: create a `JsBroadcasterManager` from a new or existing
- * WakuAdapter.
+ * Create a `JsBroadcasterManager` from a new or existing WakuAdapter.
  */
 export async function createBroadcaster(
   chainId: bigint,
   whitelistedBroadcasters: string[] = [],
-  adapter?: WakuAdapter,
+  adapter?: WakuNodeAdapter,
   nodeOptions?: CreateNodeOptions
 ): Promise<JsBroadcasterManager> {
   const resolved = adapter ?? (await createWakuAdapter(nodeOptions));
@@ -51,7 +50,7 @@ async function createWakuAdapter(
     defaultBootstrap: true,
     networkConfig: { clusterId: 1 },
   }
-): Promise<WakuAdapter> {
+): Promise<WakuNodeAdapter> {
   const node = await createLightNode(options);
   await node.start();
 
@@ -64,14 +63,10 @@ async function createWakuAdapter(
   const peers = await node.getConnectedPeers();
   console.log(`Connected to ${peers.length} Waku peers`);
 
-  return new WakuAdapter(node);
+  return new WakuNodeAdapter(node);
 }
 
-/**
- * Owns the Waku LightNode and manages subscription state.
- * Designed to be passed into Rust via `JsWakuTransport::new()`.
- */
-class WakuAdapter {
+class WakuNodeAdapter implements WakuAdapter {
   private node: LightNode;
   private messageQueue: WakuMessage[] = [];
   private waiters: Array<(msg: WakuMessage | null) => void> = [];
@@ -81,26 +76,17 @@ class WakuAdapter {
     this.node = node;
   }
 
-
-  /**
-   * Subscribe to one or more content topics and enqueue matching messages for 
-   * retrieval via `nextMessage()`.
-   */
   async subscribe(topics: string[]): Promise<void> {
     const decoders = topics.map((t) =>
       createDecoder(t, WAKU_RAILGUN_SHARD_CONFIG)
     );
 
     await this.node.filter.subscribe(decoders, (decoded: IDecodedMessage) => {
-      const msg = WakuAdapter.toWakuMessage(decoded);
+      const msg = WakuNodeAdapter.toWakuMessage(decoded);
       this.enqueue(msg);
     });
   }
 
-  /**
-   * Resolves with the next inbound message, or `null` if the adapter is
-   * closed. If no message is queued the returned promise awaits until one arrives.
-   */
   async nextMessage(): Promise<WakuMessage | null> {
     if (this.messageQueue.length > 0) {
       return this.messageQueue.shift()!;
@@ -112,7 +98,6 @@ class WakuAdapter {
     });
   }
 
-  /** Publish a payload to a content topic. */
   async send(topic: string, payload: Uint8Array): Promise<void> {
     const encoder = createEncoder({
       contentTopic: topic,
@@ -121,10 +106,6 @@ class WakuAdapter {
     await this.node.lightPush.send(encoder, { payload });
   }
 
-  /**
-   * Query the Waku store for historical messages on a content topic
-   * within the look-back window.
-   */
   async retrieveHistorical(topic: string): Promise<WakuMessage[]> {
     const decoder = createDecoder(topic, WAKU_RAILGUN_SHARD_CONFIG);
     const messages: WakuMessage[] = [];
@@ -145,7 +126,7 @@ class WakuAdapter {
         if (promise == null) continue;
         const decoded = await promise;
         if (decoded == null) continue;
-        messages.push(WakuAdapter.toWakuMessage(decoded));
+        messages.push(WakuNodeAdapter.toWakuMessage(decoded));
       }
     }
 
