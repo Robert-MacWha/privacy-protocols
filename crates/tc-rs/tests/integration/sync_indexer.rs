@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use alloy::{network::Ethereum, providers::ProviderBuilder};
 use tc_rs::{
@@ -16,8 +16,12 @@ async fn test_sync_indexer() {
         .try_init()
         .ok();
 
-    let cache_path = Path::new("./tests/fixtures/cache_sepolia_eth_1.json");
-    let cache_json = std::fs::read_to_string(cache_path).unwrap();
+    let cache_json = reqwest::get("https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/cache/tornadocash-classic/cache_sepolia_eth_1.json")
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
     let cache_syncer = Arc::new(CacheSyncer::from_str(&cache_json).unwrap());
 
     let rpc_url = "http://localhost:8545";

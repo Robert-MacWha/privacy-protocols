@@ -55,5 +55,8 @@ rand_chacha = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-test = { workspace = true }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+reqwest = { workspace = true, features = ["json"] }
+
 [lints]
 workspace = true

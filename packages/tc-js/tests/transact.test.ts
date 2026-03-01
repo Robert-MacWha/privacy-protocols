@@ -5,11 +5,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import { TornadoClassicProver } from "../src/prover-adapter.js";
 import { RemoteArtifactLoader } from "../src/artifact-loader.js";
 import { JsPool, JsSyncer, JsTornadoProvider } from "../src/pkg/tc_rs.js";
-import { readFileSync } from "node:fs";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
 
 const RPC_URL = "http://localhost:8545";
-const CACHE_PATH = "../../crates/tc-rs/tests/fixtures";
 const PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
 // Tests the full transaction flow for depositing and withdrawing a note from a tornado pool.
@@ -30,13 +28,13 @@ test("transact", async () => {
   console.log("Setup TC");
   const pool = JsPool.ethereumEther100;
   const loader = new RemoteArtifactLoader(
-    "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocol-artifacts/refs/heads/main/tornadocash-classic/tornado.json",
-    "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocol-artifacts/refs/heads/main/tornadocash-classic/tornadoProvingKey.bin"
+    "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocol-artifacts/refs/heads/main/artifacts/tornadocash-classic/tornado.json",
+    "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocol-artifacts/refs/heads/main/artifacts/tornadocash-classic/tornadoProvingKey.bin"
   );
   const prover = new TornadoClassicProver(loader);
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
   const cacheSyncer = JsSyncer.newCache(
-    readFileSync(`${CACHE_PATH}/cache_ethereum_eth_100.json`, "utf-8")
+    await (await fetch("https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/cache/tornadocash-classic/cache_ethereum_eth_100.json")).text()
   );
   const rpcSyncer = await JsSyncer.newRpc(rpcAdapter, 10000n);
   const syncer = JsSyncer.newChained([cacheSyncer, rpcSyncer]);
