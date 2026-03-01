@@ -9,9 +9,8 @@ use crate::{
     PoolProviderState,
     broadcaster::BroadcastProvider,
     wasm::{
-        JsDepositResult, JsPool, JsSyncer, JsVerifier, note::JsNote,
+        JsDepositResult, JsPool, JsSyncer, note::JsNote,
         prepared_broadcast::JsPreparedBroadcast, provider::bigint_to_u256,
-        relayer_syncer::JsRelayerSyncer,
     },
 };
 
@@ -24,23 +23,20 @@ pub struct JsBroadcastProvider {
 impl JsBroadcastProvider {
     /// Creates a new BroadcastProvider
     ///
+    /// @param provider RPC provider for the pool's chain (syncing and root verification)
     /// @param syncer Syncer used to index deposits/withdrawals
-    /// @param verifier Verifier used for on-chain root verification
     /// @param prover Prover used to generate proofs
-    /// @param relayer_syncer Syncer used to index relayers
     /// @param mainnet_provider RPC provider for ethereum mainnet (used for relayer syncing)
     pub async fn new(
+        provider: JsEthRpcAdapter,
         syncer: JsSyncer,
-        verifier: JsVerifier,
         prover: JsProverAdapter,
-        relayer_syncer: JsRelayerSyncer,
         mainnet_provider: JsEthRpcAdapter,
     ) -> Result<JsBroadcastProvider, JsValue> {
         let inner = BroadcastProvider::new(
+            Arc::new(provider),
             syncer.inner(),
-            verifier.inner(),
             Arc::new(prover),
-            relayer_syncer.inner(),
             Arc::new(mainnet_provider),
         );
         Ok(inner.into())

@@ -7,6 +7,8 @@ use thiserror::Error;
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait EthRpcClient: MaybeSend {
+    async fn get_chain_id(&self) -> Result<u64, EthRpcClientError>;
+
     async fn get_block_number(&self) -> Result<u64, EthRpcClientError>;
 
     async fn get_logs(

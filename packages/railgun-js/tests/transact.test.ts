@@ -37,7 +37,7 @@ test("transact-utxo", async () => {
   const prover = new GrothProverAdapter({ artifactsPath: ARTIFACTS_PATH });
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
   const syncer = await JsSyncer.newRpc(rpcAdapter, CHAIN_ID, 10n);
-  const railgun = await JsRailgunProvider.new(CHAIN_ID, rpcAdapter, syncer, prover);
+  const railgun = await JsRailgunProvider.new(rpcAdapter, syncer, prover);
 
   const state = readFileSync("./provider_state_utxo_1.json");
   railgun.set_state(state);

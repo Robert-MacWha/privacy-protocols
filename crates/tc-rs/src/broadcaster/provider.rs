@@ -13,8 +13,8 @@ use crate::{
     Asset, Pool, PoolProvider, PoolProviderState, TornadoProvider, TornadoProviderError,
     TornadoProviderState,
     abis::tornado::Tornado::{self, withdrawCall},
-    broadcaster::{Relayer, RelayerSyncer, indexer::BroadcasterIndexerState},
-    indexer::{Syncer, Verifier},
+    broadcaster::{Relayer, RpcRelayerSyncer, indexer::BroadcasterIndexerState},
+    indexer::Syncer,
     note::Note,
 };
 
@@ -56,14 +56,14 @@ struct JobStatusResponse {
 
 impl BroadcastProvider {
     pub fn new(
+        rpc: Arc<dyn EthRpcClient>,
         syncer: Arc<dyn Syncer>,
-        verifier: Arc<dyn Verifier>,
         prover: Arc<dyn Prover>,
-        relay_syncer: Arc<dyn RelayerSyncer>,
-        mainnet_provider: Arc<dyn EthRpcClient>,
+        mainnet_rpc: Arc<dyn EthRpcClient>,
     ) -> Self {
-        let inner = TornadoProvider::new(syncer, verifier, prover);
-        let indexer = BroadcasterIndexer::new(relay_syncer, mainnet_provider);
+        let inner = TornadoProvider::new(rpc, syncer, prover);
+        let relay_syncer = Arc::new(RpcRelayerSyncer::new(mainnet_rpc.clone()));
+        let indexer = BroadcasterIndexer::new(relay_syncer, mainnet_rpc);
         Self {
             inner,
             indexer,
@@ -73,15 +73,15 @@ impl BroadcastProvider {
 
     pub fn from_state(
         state: BroadcasterState,
+        rpc: Arc<dyn EthRpcClient>,
         syncer: Arc<dyn Syncer>,
-        verifier: Arc<dyn Verifier>,
         prover: Arc<dyn Prover>,
-        relay_syncer: Arc<dyn RelayerSyncer>,
-        mainnet_provider: Arc<dyn EthRpcClient>,
+        mainnet_rpc: Arc<dyn EthRpcClient>,
     ) -> Self {
-        let inner = TornadoProvider::from_state(syncer, verifier, prover, state.tornado);
+        let inner = TornadoProvider::from_state(rpc, syncer, prover, state.tornado);
+        let relay_syncer = Arc::new(RpcRelayerSyncer::new(mainnet_rpc.clone()));
         let indexer =
-            BroadcasterIndexer::from_state(relay_syncer, mainnet_provider.clone(), state.indexer);
+            BroadcasterIndexer::from_state(relay_syncer, mainnet_rpc, state.indexer);
         Self {
             inner,
             indexer,

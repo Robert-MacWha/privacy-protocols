@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use alloy_primitives::Address;
-use eth_rpc::TxData;
+use eth_rpc::{JsEthRpcAdapter, TxData};
 use prover::JsProverAdapter;
 use rand::rng;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     provider::{PoolProviderState, TornadoProvider},
-    wasm::{JsPool, note::JsNote, syncer::JsSyncer, verifier::JsVerifier},
+    wasm::{JsPool, note::JsNote, syncer::JsSyncer},
 };
 
 #[wasm_bindgen]
@@ -40,15 +40,15 @@ impl JsDepositResult {
 impl JsTornadoProvider {
     /// Creates a new TornadoProvider
     ///
+    /// @param provider RPC provider for on-chain interaction and root verification
     /// @param syncer Syncer used to index deposits/withdrawals
-    /// @param verifier Verifier used for on-chain root verification
     /// @param prover Prover used to generate proofs
     pub fn new(
+        provider: JsEthRpcAdapter,
         syncer: JsSyncer,
-        verifier: JsVerifier,
         prover: JsProverAdapter,
     ) -> JsTornadoProvider {
-        let inner = TornadoProvider::new(syncer.inner(), verifier.inner(), Arc::new(prover));
+        let inner = TornadoProvider::new(Arc::new(provider), syncer.inner(), Arc::new(prover));
         inner.into()
     }
 

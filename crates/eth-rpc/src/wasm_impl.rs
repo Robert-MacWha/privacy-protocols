@@ -7,6 +7,7 @@ use crate::client::{EthRpcClient, EthRpcClientError, RawLog};
 #[wasm_bindgen(typescript_custom_section)]
 const TS_INTERFACE: &str = r#"
 export interface EthRpcAdapter {
+    getChainId(): Promise<bigint>;
     getBlockNumber(): Promise<bigint>;
     getLogs(
         address: `0x${string}`, 
@@ -24,6 +25,9 @@ export interface EthRpcAdapter {
 extern "C" {
     #[wasm_bindgen(typescript_type = "EthRpcAdapter")]
     pub type JsEthRpcAdapter;
+
+    #[wasm_bindgen(method, catch, js_name = "getChainId")]
+    pub async fn get_chain_id(this: &JsEthRpcAdapter) -> Result<JsValue, JsValue>;
 
     #[wasm_bindgen(method, catch, js_name = "getBlockNumber")]
     pub async fn get_block_number(this: &JsEthRpcAdapter) -> Result<JsValue, JsValue>;
@@ -55,6 +59,14 @@ extern "C" {
 
 #[async_trait::async_trait(?Send)]
 impl EthRpcClient for JsEthRpcAdapter {
+    async fn get_chain_id(&self) -> Result<u64, EthRpcClientError> {
+        let result = self
+            .get_chain_id()
+            .await
+            .map_err(|e| EthRpcClientError::Rpc(format!("{:?}", e)))?;
+        js_bigint_to_u64(result)
+    }
+
     async fn get_block_number(&self) -> Result<u64, EthRpcClientError> {
         let result = self
             .get_block_number()

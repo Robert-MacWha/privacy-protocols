@@ -1,6 +1,6 @@
 import { checksumAddress, createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { expect, test } from "vitest";
-import { erc20, JsPoiProvider, JsSigner, type AssetId, type RailgunAddress, type ListKey } from "../src/pkg/railgun_rs.js";
+import { erc20, JsPoiProvider, JsSigner, JsSyncer, type AssetId, type RailgunAddress, type ListKey } from "../src/pkg/railgun_rs.js";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
@@ -37,7 +37,11 @@ test("transact-poi", async () => {
   console.log("Setup Railgun POI Provider");
   const prover = new GrothProverAdapter({ artifactsPath: ARTIFACTS_PATH });
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
-  const railgun = await JsPoiProvider.new_from_rpc(CHAIN_ID, rpcAdapter, 10n, prover);
+  const syncer = JsSyncer.newChained([
+    JsSyncer.newSubsquid(CHAIN_ID),
+    await JsSyncer.newRpc(rpcAdapter, CHAIN_ID, 10n),
+  ]);
+  const railgun = await JsPoiProvider.new(rpcAdapter, syncer, prover);
 
   const listKeys = railgun.list_keys();
   expect(listKeys.length).toBeGreaterThan(0);

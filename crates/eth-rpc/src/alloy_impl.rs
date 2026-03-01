@@ -10,6 +10,10 @@ use crate::{EthRpcClient, EthRpcClientError, RawLog};
 
 #[async_trait::async_trait]
 impl<P: Provider> EthRpcClient for P {
+    async fn get_chain_id(&self) -> Result<u64, EthRpcClientError> {
+        Ok(self.get_chain_id().await?)
+    }
+
     async fn get_block_number(&self) -> Result<u64, EthRpcClientError> {
         Ok(self.get_block_number().await?)
     }

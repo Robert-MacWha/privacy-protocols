@@ -4,7 +4,7 @@ use alloy::{network::Ethereum, providers::ProviderBuilder};
 use prover::{Proof, Prover, ProverError};
 use ruint::aliases::U256;
 use tc_rs::{
-    broadcaster::{BroadcastProvider, RpcRelayerSyncer},
+    broadcaster::BroadcastProvider,
     indexer::RpcSyncer,
 };
 use tracing::info;
@@ -38,15 +38,12 @@ async fn test_sync_broadcaster() {
     );
 
     let rpc_syncer = Arc::new(RpcSyncer::new(sepolia_provider.clone()).with_batch_size(10000));
-    let relay_syncer =
-        Arc::new(RpcRelayerSyncer::new(mainnet_provider.clone()).with_batch_size(10000));
 
     let prover = Arc::new(MockProver);
     let mut tornado = BroadcastProvider::new(
-        rpc_syncer.clone(),
-        rpc_syncer.clone(),
+        sepolia_provider.clone(),
+        rpc_syncer,
         prover,
-        relay_syncer,
         mainnet_provider.clone(),
     );
 
