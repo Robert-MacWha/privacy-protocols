@@ -3,7 +3,7 @@ use std::sync::Arc;
 use alloy::{network::Ethereum, providers::ProviderBuilder};
 use railgun_rs::{
     chain_config::{ChainConfig, MAINNET_CONFIG},
-    circuit::native::{Groth16Prover, RemoteArtifactLoader, WasmerWitnessCalculator},
+    circuit::native::{Groth16Prover, RemoteArtifactLoader},
     railgun::{RailgunProvider, indexer::SubsquidSyncer},
 };
 use tracing::info;

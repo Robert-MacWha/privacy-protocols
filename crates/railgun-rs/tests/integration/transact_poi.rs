@@ -10,7 +10,7 @@ use railgun_rs::{
     abis::erc20::ERC20,
     caip::AssetId,
     chain_config::{ChainConfig, SEPOLIA_CONFIG},
-    circuit::native::{Groth16Prover, RemoteArtifactLoader, WasmerWitnessCalculator},
+    circuit::native::{Groth16Prover, RemoteArtifactLoader},
     railgun::{
         PoiProvider,
         indexer::{ChainedSyncer, RpcSyncer, SubsquidSyncer},
