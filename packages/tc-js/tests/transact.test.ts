@@ -3,6 +3,7 @@ import { test } from "vitest";
 import { mainnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { TornadoClassicProver } from "../src/prover-adapter.js";
+import { RemoteArtifactLoader } from "../src/artifact-loader.js";
 import { JsPool, JsSyncer, JsTornadoProvider } from "../src/pkg/tc_rs.js";
 import { readFileSync } from "node:fs";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
@@ -28,7 +29,11 @@ test("transact", async () => {
 
   console.log("Setup TC");
   const pool = JsPool.ethereumEther100;
-  const prover = new TornadoClassicProver();
+  const loader = new RemoteArtifactLoader(
+    "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocol-artifacts/refs/heads/main/tornadocash-classic/tornado.json",
+    "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocol-artifacts/refs/heads/main/tornadocash-classic/tornadoProvingKey.bin"
+  );
+  const prover = new TornadoClassicProver(loader);
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
   const cacheSyncer = JsSyncer.newCache(
     readFileSync(`${CACHE_PATH}/cache_ethereum_eth_100.json`, "utf-8")
