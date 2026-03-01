@@ -38,5 +38,5 @@ jobs:
     - name: Run sync
       run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync"
 
-    - name: Run sync-broadcaster
-      run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync-broadcaster"
+    - name: Run sync-relayer
+      run: nix develop .#ci --command bash -c "cd crates/tc-rs && just integration-sync-relayer"

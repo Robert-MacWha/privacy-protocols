@@ -1,14 +1,14 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{broadcaster::PreparedBroadcast, wasm::JsPool};
+use crate::{relayers::PreparedTransaction, wasm::JsPool};
 
 #[wasm_bindgen]
-pub struct JsPreparedBroadcast {
-    pub(crate) inner: PreparedBroadcast,
+pub struct JsPreparedTransaction {
+    pub(crate) inner: PreparedTransaction,
 }
 
 #[wasm_bindgen]
-impl JsPreparedBroadcast {
+impl JsPreparedTransaction {
     #[wasm_bindgen(getter)]
     pub fn pool(&self) -> JsPool {
         self.inner.pool.clone().into()
@@ -21,12 +21,12 @@ impl JsPreparedBroadcast {
 
     #[wasm_bindgen(getter)]
     pub fn display(&self) -> String {
-        format!("PreparedBroadcast({:?})", self.inner)
+        format!("PreparedTransaction({:?})", self.inner)
     }
 }
 
-impl From<PreparedBroadcast> for JsPreparedBroadcast {
-    fn from(inner: PreparedBroadcast) -> Self {
+impl From<PreparedTransaction> for JsPreparedTransaction {
+    fn from(inner: PreparedTransaction) -> Self {
         Self { inner }
     }
 }

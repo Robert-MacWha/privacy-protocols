@@ -8,10 +8,10 @@ use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use super::{BroadcasterError, syncer::RelayerSyncer};
-use crate::{abis::relayer_registry::RelayerAggregator, broadcaster::RelayerRecord};
+use super::{RelayerError, syncer::RelayerSyncer};
+use crate::{abis::relayer_registry::RelayerAggregator, relayers::RelayerRecord};
 
-pub struct BroadcasterIndexer {
+pub struct RelayerIndexer {
     syncer: Arc<dyn RelayerSyncer>,
     mainnet_provider: Arc<dyn EthRpcClient>,
     relayers: Vec<Relayer>,
@@ -20,13 +20,13 @@ pub struct BroadcasterIndexer {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BroadcasterIndexerState {
+pub struct RelayerIndexerState {
     pub relayers: Vec<Relayer>,
     pub synced_block: u64,
 }
 
 /// Chain-specific configuration for relayer discovery
-pub struct BroadcasterConfig {
+pub struct RelayerConfig {
     pub registry_address: Address,
     pub aggregator_address: Address,
     pub all_subdomain_keys: Vec<String>,
@@ -83,8 +83,8 @@ const SUBDOMAINS: [(&str, u64); 8] = [
     ("sepolia-tornado", 11155111),
 ];
 
-impl BroadcasterIndexer {
-    /// Create a new Broadcaster Indexer with the given syncer, config, and mainnet
+impl RelayerIndexer {
+    /// Create a new relayer indexer with the given syncer, config, and mainnet
     /// provider.
     ///
     /// The provided must be connected to mainnet to query the RelayerAggregator
@@ -102,7 +102,7 @@ impl BroadcasterIndexer {
     pub fn from_state(
         syncer: Arc<dyn RelayerSyncer>,
         mainnet_provider: Arc<dyn EthRpcClient>,
-        state: BroadcasterIndexerState,
+        state: RelayerIndexerState,
     ) -> Self {
         Self {
             syncer,
@@ -113,8 +113,8 @@ impl BroadcasterIndexer {
         }
     }
 
-    pub fn state(&self) -> BroadcasterIndexerState {
-        BroadcasterIndexerState {
+    pub fn state(&self) -> RelayerIndexerState {
+        RelayerIndexerState {
             relayers: self.relayers.clone(),
             synced_block: self.synced_block,
         }
@@ -188,16 +188,16 @@ impl BroadcasterIndexer {
         Some(chain_relayers[chain_relayers.len() - 1])
     }
 
-    pub async fn sync(&mut self) -> Result<(), BroadcasterError> {
+    pub async fn sync(&mut self) -> Result<(), RelayerError> {
         self.sync_to(self.syncer.latest_block().await?).await
     }
 
-    pub async fn sync_to(&mut self, block: u64) -> Result<(), BroadcasterError> {
+    pub async fn sync_to(&mut self, block: u64) -> Result<(), RelayerError> {
         let from_block = self.synced_block;
         let to_block = block;
 
         if from_block > to_block {
-            info!("Broadcaster indexer already synced to block {}", to_block);
+            info!("Relayer indexer already synced to block {}", to_block);
             return Ok(());
         }
 
@@ -300,7 +300,7 @@ impl BroadcasterIndexer {
     async fn fetch_relayer_data(
         &mut self,
         records: &Vec<RelayerRecord>,
-    ) -> Result<Vec<RelayerAggregator::Relayer>, BroadcasterError> {
+    ) -> Result<Vec<RelayerAggregator::Relayer>, RelayerError> {
         let ens_hashes: Vec<FixedBytes<32>> = records.iter().map(|r| r.ens_hash).collect();
         let subdomains: Vec<String> = subdomain_keys();
 
@@ -318,7 +318,7 @@ impl BroadcasterIndexer {
     }
 
     /// Health-check all known relayers
-    pub async fn health_check_all(&mut self) -> Result<(), BroadcasterError> {
+    pub async fn health_check_all(&mut self) -> Result<(), RelayerError> {
         for relayer in &mut self.relayers {
             relayer.healthy = false;
 
@@ -385,10 +385,7 @@ impl BroadcasterIndexer {
     }
 }
 
-async fn health_check(
-    client: &HttpClient,
-    hostname: &str,
-) -> Result<RelayerStatus, BroadcasterError> {
+async fn health_check(client: &HttpClient, hostname: &str) -> Result<RelayerStatus, RelayerError> {
     let url = format!("https://{hostname}/status");
     let resp = client.get(&url).await?;
     let status: RelayerStatus = resp.json()?;

@@ -1,8 +1,8 @@
 use wasm_bindgen::JsValue;
 
-#[cfg(feature = "broadcaster")]
-use crate::broadcaster::BroadcasterError;
 use crate::provider::TornadoProviderError;
+#[cfg(feature = "relay")]
+use crate::relayers::RelayerError;
 
 impl From<TornadoProviderError> for JsValue {
     fn from(error: TornadoProviderError) -> Self {
@@ -10,9 +10,9 @@ impl From<TornadoProviderError> for JsValue {
     }
 }
 
-#[cfg(feature = "broadcaster")]
-impl From<BroadcasterError> for JsValue {
-    fn from(error: BroadcasterError) -> Self {
+#[cfg(feature = "relay")]
+impl From<RelayerError> for JsValue {
+    fn from(error: RelayerError) -> Self {
         JsValue::from_str(&format!("Broadcaster error: {}", error))
     }
 }

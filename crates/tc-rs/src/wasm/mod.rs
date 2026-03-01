@@ -9,13 +9,13 @@ pub use provider::{JsDepositResult, JsTornadoProvider};
 pub use syncer::JsSyncer;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[cfg(feature = "broadcaster")]
-mod broadcaster;
-#[cfg(feature = "broadcaster")]
+#[cfg(feature = "relay")]
 mod prepared_broadcast;
+#[cfg(feature = "relay")]
+mod relayer;
 
-#[cfg(feature = "broadcaster")]
-pub use broadcaster::JsBroadcastProvider;
+#[cfg(feature = "relay")]
+pub use relayer::JsRelayerProvider;
 
 #[wasm_bindgen(start)]
 pub fn wasm_start() {

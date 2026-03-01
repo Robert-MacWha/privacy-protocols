@@ -8,33 +8,34 @@ use request::{HttpClient, ResponseExt};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use super::{BroadcasterError, indexer::BroadcasterIndexer};
+use super::{RelayerError, indexer::RelayerIndexer};
 use crate::{
     Asset, Pool, PoolProvider, PoolProviderState, TornadoProvider, TornadoProviderError,
     TornadoProviderState,
     abis::tornado::Tornado::{self, withdrawCall},
-    broadcaster::{Relayer, RpcRelayerSyncer, indexer::BroadcasterIndexerState},
     indexer::Syncer,
     note::Note,
+    relayers::{Relayer, RpcRelayerSyncer, indexer::RelayerIndexerState},
 };
 
 const JOB_POLL_INTERVAL: web_time::Duration = web_time::Duration::from_secs(3);
 const JOB_TIMEOUT: web_time::Duration = web_time::Duration::from_secs(120);
 
-pub struct BroadcastProvider {
+pub struct RelayerProvider {
     inner: TornadoProvider,
-    indexer: BroadcasterIndexer,
+    indexer: RelayerIndexer,
     http: HttpClient,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BroadcasterState {
+pub struct RelayerState {
     pub tornado: TornadoProviderState,
-    pub indexer: BroadcasterIndexerState,
+    pub indexer: RelayerIndexerState,
 }
 
+/// A prepared relayable transaction
 #[derive(Debug)]
-pub struct PreparedBroadcast {
+pub struct PreparedTransaction {
     pub call: withdrawCall,
     pub hostname: String,
     pub pool: Pool,
@@ -54,7 +55,7 @@ struct JobStatusResponse {
     failed_reason: Option<String>,
 }
 
-impl BroadcastProvider {
+impl RelayerProvider {
     pub fn new(
         rpc: Arc<dyn EthRpcClient>,
         syncer: Arc<dyn Syncer>,
@@ -63,7 +64,7 @@ impl BroadcastProvider {
     ) -> Self {
         let inner = TornadoProvider::new(rpc, syncer, prover);
         let relay_syncer = Arc::new(RpcRelayerSyncer::new(mainnet_rpc.clone()));
-        let indexer = BroadcasterIndexer::new(relay_syncer, mainnet_rpc);
+        let indexer = RelayerIndexer::new(relay_syncer, mainnet_rpc);
         Self {
             inner,
             indexer,
@@ -72,7 +73,7 @@ impl BroadcastProvider {
     }
 
     pub fn from_state(
-        state: BroadcasterState,
+        state: RelayerState,
         rpc: Arc<dyn EthRpcClient>,
         syncer: Arc<dyn Syncer>,
         prover: Arc<dyn Prover>,
@@ -80,7 +81,7 @@ impl BroadcastProvider {
     ) -> Self {
         let inner = TornadoProvider::from_state(rpc, syncer, prover, state.tornado);
         let relay_syncer = Arc::new(RpcRelayerSyncer::new(mainnet_rpc.clone()));
-        let indexer = BroadcasterIndexer::from_state(relay_syncer, mainnet_rpc, state.indexer);
+        let indexer = RelayerIndexer::from_state(relay_syncer, mainnet_rpc, state.indexer);
         Self {
             inner,
             indexer,
@@ -88,8 +89,8 @@ impl BroadcastProvider {
         }
     }
 
-    pub fn state(&self) -> BroadcasterState {
-        BroadcasterState {
+    pub fn state(&self) -> RelayerState {
+        RelayerState {
             tornado: self.inner.state(),
             indexer: self.indexer.state(),
         }
@@ -115,13 +116,13 @@ impl BroadcastProvider {
         self.inner.deposit(pool, rng)
     }
 
-    pub async fn sync_to(&mut self, block: u64) -> Result<(), BroadcasterError> {
+    pub async fn sync_to(&mut self, block: u64) -> Result<(), RelayerError> {
         self.indexer.sync_to(block).await?;
         self.inner.sync_to(block).await?;
         Ok(())
     }
 
-    pub async fn sync(&mut self) -> Result<(), BroadcasterError> {
+    pub async fn sync(&mut self) -> Result<(), RelayerError> {
         self.indexer.sync().await?;
         self.inner.sync().await?;
         Ok(())
@@ -131,8 +132,8 @@ impl BroadcastProvider {
         self.indexer.relayers()
     }
 
-    /// Prepares a withdrawal transaction for broadcasting
-    pub async fn prepare_broadcast<R: Rng>(
+    /// Prepares a withdrawal transaction for sending to a given relayer
+    pub async fn prepare<R: Rng>(
         &self,
         pool: &Pool,
         note: &Note,
@@ -140,7 +141,7 @@ impl BroadcastProvider {
         recipient: Address,
         refund: Option<U256>,
         rng: &mut R,
-    ) -> Result<PreparedBroadcast, BroadcasterError> {
+    ) -> Result<PreparedTransaction, RelayerError> {
         let token_symbol = match &pool.asset {
             Asset::Native { .. } => None,
             Asset::Erc20 { symbol, .. } => Some(symbol.as_str()),
@@ -148,7 +149,7 @@ impl BroadcastProvider {
         let relayer = self
             .indexer
             .pick_relayer(pool.chain_id, token_symbol, rng)
-            .ok_or(BroadcasterError::NoRelayerAvailable)?;
+            .ok_or(RelayerError::NoRelayerAvailable)?;
 
         let hostname = relayer.hostname.clone();
         let reward_account = relayer.reward_account;
@@ -174,13 +175,11 @@ impl BroadcastProvider {
             Asset::Native { .. } => U256::from(gas_cost_wei),
             Asset::Erc20 { symbol, .. } => {
                 let eth_price = *relayer.eth_prices.get(symbol).ok_or_else(|| {
-                    BroadcasterError::GasEstimation(format!(
-                        "No ETH price for {symbol} from relayer"
-                    ))
+                    RelayerError::GasEstimation(format!("No ETH price for {symbol} from relayer"))
                 })?;
 
                 if eth_price <= 0.0 {
-                    return Err(BroadcasterError::GasEstimation(
+                    return Err(RelayerError::GasEstimation(
                         "ETH price is zero or negative".to_string(),
                     ));
                 }
@@ -206,15 +205,15 @@ impl BroadcastProvider {
             )
             .await?;
 
-        Ok(PreparedBroadcast {
+        Ok(PreparedTransaction {
             call,
             hostname,
             pool: pool.clone(),
         })
     }
 
-    /// Broadcasts a prepared transaction to the relayer and waits for confirmation
-    pub async fn broadcast(&self, prepared: PreparedBroadcast) -> Result<TxHash, BroadcasterError> {
+    /// Submits a prepared transaction to the relayer and waits for confirmation
+    pub async fn submit(&self, prepared: PreparedTransaction) -> Result<TxHash, RelayerError> {
         let pool = &prepared.pool;
         let hostname = prepared.hostname;
         let call = prepared.call;
@@ -227,16 +226,16 @@ impl BroadcastProvider {
         &self,
         provider: &dyn EthRpcClient,
         tx: TxData,
-    ) -> Result<u128, BroadcasterError> {
+    ) -> Result<u128, RelayerError> {
         let gas_limit = provider
             .estimate_gas(tx.to, tx.data, None)
             .await
-            .map_err(|e| BroadcasterError::GasEstimation(e.to_string()))?;
+            .map_err(|e| RelayerError::GasEstimation(e.to_string()))?;
 
         let gas_price = provider
             .get_gas_price()
             .await
-            .map_err(|e| BroadcasterError::GasEstimation(e.to_string()))?;
+            .map_err(|e| RelayerError::GasEstimation(e.to_string()))?;
 
         let gas_cost_wei = gas_limit as u128 * gas_price;
         Ok(gas_cost_wei)
@@ -248,7 +247,7 @@ impl BroadcastProvider {
         pool: &Pool,
         hostname: &String,
         call: Tornado::withdrawCall,
-    ) -> Result<WithdrawResponse, BroadcasterError> {
+    ) -> Result<WithdrawResponse, RelayerError> {
         let withdraw_payload = serde_json::json!({
             "contract": format!("{:#x}", pool.address),
             "proof": format!("0x{}", hex::encode(&call._proof)),
@@ -274,12 +273,12 @@ impl BroadcastProvider {
         &self,
         hostname: String,
         resp: WithdrawResponse,
-    ) -> Result<TxHash, BroadcasterError> {
+    ) -> Result<TxHash, RelayerError> {
         let job_url = format!("https://{hostname}/v1/jobs/{}", resp.id);
         let start = std::time::Instant::now();
         loop {
             if start.elapsed() > JOB_TIMEOUT {
-                return Err(BroadcasterError::JobTimeout {
+                return Err(RelayerError::JobTimeout {
                     timeout_secs: JOB_TIMEOUT.as_secs(),
                 });
             }
@@ -296,7 +295,7 @@ impl BroadcastProvider {
                 "FAILED" => {
                     let reason = job.failed_reason.unwrap_or_else(|| "unknown".to_string());
                     warn!("Relayer job failed: {}", reason);
-                    return Err(BroadcasterError::JobFailed { reason });
+                    return Err(RelayerError::JobFailed { reason });
                 }
                 status => {
                     info!("Job status: {}, waiting...", status);

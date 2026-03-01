@@ -7,21 +7,21 @@ use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     PoolProviderState,
-    broadcaster::BroadcastProvider,
+    relayers::RelayerProvider,
     wasm::{
-        JsDepositResult, JsPool, JsSyncer, note::JsNote, prepared_broadcast::JsPreparedBroadcast,
+        JsDepositResult, JsPool, JsSyncer, note::JsNote, prepared_broadcast::JsPreparedTransaction,
         provider::bigint_to_u256,
     },
 };
 
 #[wasm_bindgen]
-pub struct JsBroadcastProvider {
-    inner: BroadcastProvider,
+pub struct JsRelayerProvider {
+    inner: RelayerProvider,
 }
 
 #[wasm_bindgen]
-impl JsBroadcastProvider {
-    /// Creates a new BroadcastProvider
+impl JsRelayerProvider {
+    /// Creates a new RelayerProvider
     ///
     /// @param provider RPC provider for the pool's chain (syncing and root verification)
     /// @param syncer Syncer used to index deposits/withdrawals
@@ -32,8 +32,8 @@ impl JsBroadcastProvider {
         syncer: JsSyncer,
         prover: JsProverAdapter,
         mainnet_provider: JsEthRpcAdapter,
-    ) -> Result<JsBroadcastProvider, JsValue> {
-        let inner = BroadcastProvider::new(
+    ) -> Result<JsRelayerProvider, JsValue> {
+        let inner = RelayerProvider::new(
             Arc::new(provider),
             syncer.inner(),
             Arc::new(prover),
@@ -69,22 +69,22 @@ impl JsBroadcastProvider {
         })
     }
 
-    /// Prepares a withdrawal transaction for broadcasting
+    /// Prepares a withdrawal transaction for relaying
     ///
     /// @param pool The pool to withdraw from
     /// @param note The note to withdraw
     /// @param provider RPC provider for the target network (used for gas estimation)
     /// @param recipient The address to receive the withdrawn funds
     /// @param refund Optional
-    #[wasm_bindgen(js_name = "prepareBroadcast")]
-    pub async fn prepare_broadcast(
+    #[wasm_bindgen(js_name = "prepare")]
+    pub async fn prepare(
         &self,
         pool: &JsPool,
         note: &JsNote,
         provider: JsEthRpcAdapter,
         recipient: String,
         refund: Option<js_sys::BigInt>,
-    ) -> Result<JsPreparedBroadcast, JsValue> {
+    ) -> Result<JsPreparedTransaction, JsValue> {
         let recipient: Address = recipient
             .parse()
             .map_err(|e| JsValue::from_str(&format!("Invalid recipient address: {}", e)))?;
@@ -97,7 +97,7 @@ impl JsBroadcastProvider {
         let mut rng = rand::rng();
         let prepared = self
             .inner
-            .prepare_broadcast(
+            .prepare(
                 &pool.inner,
                 &note.inner,
                 &provider,
@@ -109,11 +109,11 @@ impl JsBroadcastProvider {
         Ok(prepared.into())
     }
 
-    /// Broadcasts a prepared transaction
+    /// Submits a prepared transaction
     ///
-    /// @return The txhash for the broadcasted transaction (0x...)
-    pub async fn broadcast(&self, prepared: JsPreparedBroadcast) -> Result<String, JsValue> {
-        let tx_hash = self.inner.broadcast(prepared.inner).await?;
+    /// @return The txhash for the relayed transaction (0x...)
+    pub async fn submit(&self, prepared: JsPreparedTransaction) -> Result<String, JsValue> {
+        let tx_hash = self.inner.submit(prepared.inner).await?;
         Ok(tx_hash.to_string())
     }
 
@@ -125,8 +125,8 @@ impl JsBroadcastProvider {
     }
 }
 
-impl From<BroadcastProvider> for JsBroadcastProvider {
-    fn from(inner: BroadcastProvider) -> Self {
-        JsBroadcastProvider { inner }
+impl From<RelayerProvider> for JsRelayerProvider {
+    fn from(inner: RelayerProvider) -> Self {
+        JsRelayerProvider { inner }
     }
 }

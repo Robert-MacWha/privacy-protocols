@@ -7,8 +7,8 @@ use tracing::{info, warn};
 
 use crate::{
     abis::relayer_registry::RelayerRegistry,
-    broadcaster::{RelayerRecord, RelayerSyncer},
     indexer::SyncerError,
+    relayers::{RelayerRecord, RelayerSyncer},
 };
 
 pub struct RpcRelayerSyncer {
@@ -24,7 +24,7 @@ impl RpcRelayerSyncer {
     pub fn new(mainnet_provider: Arc<dyn EthRpcClient>) -> Self {
         Self {
             mainnet_provider,
-            batch_size: 2000,
+            batch_size: 100000,
         }
     }
 
@@ -62,7 +62,7 @@ impl RelayerSyncer for RpcRelayerSyncer {
                     registry,
                     Some(RelayerRegistry::RelayerRegistered::SIGNATURE_HASH),
                     Some(current_block),
-                    Some(to_block),
+                    Some(batch_end),
                 )
                 .await
                 .map_err(|e| SyncerError::Syncer(Box::new(e)))?;

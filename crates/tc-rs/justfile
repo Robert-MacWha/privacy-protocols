@@ -6,7 +6,7 @@ fork_block := "8800000"
 test: 
     cargo test
 
-integration: integration-sync integration-sync-broadcaster
+integration: integration-sync integration-sync-relayer
 
 integration-sync:
     #!/usr/bin/env bash
@@ -22,5 +22,5 @@ integration-sync:
 
     RUST_LOG=info cargo test --no-default-features -- test_sync_indexer --ignored --nocapture
 
-integration-sync-broadcaster:
+integration-sync-relayer:
     RUST_LOG=info cargo test -- test_sync_broadcaster --ignored --nocapture

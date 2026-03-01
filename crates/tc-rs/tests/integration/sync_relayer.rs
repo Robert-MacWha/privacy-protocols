@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use alloy::{network::Ethereum, providers::ProviderBuilder};
 use prover::{Proof, Prover, ProverError};
 use ruint::aliases::U256;
-use tc_rs::{broadcaster::BroadcastProvider, indexer::RpcSyncer};
+use tc_rs::{indexer::RpcSyncer, relayers::RelayerProvider};
 use tracing::info;
 
 #[tokio::test]
@@ -37,14 +37,15 @@ async fn test_sync_broadcaster() {
     let rpc_syncer = Arc::new(RpcSyncer::new(sepolia_provider.clone()).with_batch_size(10000));
 
     let prover = Arc::new(MockProver);
-    let mut tornado = BroadcastProvider::new(
+    let mut tornado = RelayerProvider::new(
         sepolia_provider.clone(),
         rpc_syncer,
         prover,
         mainnet_provider.clone(),
     );
 
-    tornado.sync_to(14_400_000).await.unwrap();
+    // tornado.sync_to(14_400_000).await.unwrap();
+    tornado.sync().await.unwrap();
     let relayers = tornado.relayers();
     if relayers.is_empty() {
         panic!("Expected to find some relayers, but found none");

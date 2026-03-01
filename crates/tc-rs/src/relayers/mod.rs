@@ -3,8 +3,8 @@ mod provider;
 mod rpc_syncer;
 mod syncer;
 
-pub use indexer::{BroadcasterConfig, BroadcasterIndexer, Relayer};
-pub use provider::{BroadcastProvider, PreparedBroadcast};
+pub use indexer::{Relayer, RelayerConfig, RelayerIndexer};
+pub use provider::{PreparedTransaction, RelayerProvider};
 use request::HttpError;
 pub use rpc_syncer::RpcRelayerSyncer;
 pub use syncer::{RelayerRecord, RelayerSyncer};
@@ -12,7 +12,7 @@ pub use syncer::{RelayerRecord, RelayerSyncer};
 use crate::{TornadoProviderError, indexer::SyncerError};
 
 #[derive(Debug, thiserror::Error)]
-pub enum BroadcasterError {
+pub enum RelayerError {
     #[error("No relayer available")]
     NoRelayerAvailable,
     #[error("RPC error: {0}")]
