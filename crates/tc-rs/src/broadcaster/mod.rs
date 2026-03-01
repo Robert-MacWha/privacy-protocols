@@ -5,6 +5,7 @@ mod syncer;
 
 pub use indexer::{BroadcasterConfig, BroadcasterIndexer, Relayer};
 pub use provider::{BroadcastProvider, PreparedBroadcast};
+use request::HttpError;
 pub use rpc_syncer::RpcRelayerSyncer;
 pub use syncer::{RelayerRecord, RelayerSyncer};
 
@@ -19,7 +20,7 @@ pub enum BroadcasterError {
     #[error("ABI decoding error: {0}")]
     AbiDecoding(#[from] alloy_sol_types::Error),
     #[error("HTTP: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(#[from] HttpError),
     #[error("Relayer job failed: {reason}")]
     JobFailed { reason: String },
     #[error("Relayer job timed out after {timeout_secs}s")]

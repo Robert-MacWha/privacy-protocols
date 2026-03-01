@@ -4,6 +4,7 @@ use alloy_primitives::{Address, TxHash, U256};
 use eth_rpc::{EthRpcClient, TxData};
 use prover::Prover;
 use rand::Rng;
+use request::{HttpClient, ResponseExt};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
@@ -23,7 +24,7 @@ const JOB_TIMEOUT: web_time::Duration = web_time::Duration::from_secs(120);
 pub struct BroadcastProvider {
     inner: TornadoProvider,
     indexer: BroadcasterIndexer,
-    http: reqwest::Client,
+    http: HttpClient,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,7 +67,7 @@ impl BroadcastProvider {
         Self {
             inner,
             indexer,
-            http: reqwest::Client::new(),
+            http: HttpClient::new(Some("tc-rs-health-check")),
         }
     }
 
@@ -84,7 +85,7 @@ impl BroadcastProvider {
         Self {
             inner,
             indexer,
-            http: reqwest::Client::new(),
+            http: HttpClient::new(Some("tc-rs-health-check")),
         }
     }
 
@@ -265,15 +266,7 @@ impl BroadcastProvider {
         let url = format!("https://{hostname}/v1/tornadoWithdraw");
         info!("Submitting withdrawal to relayer: {}", url);
 
-        let resp: WithdrawResponse = self
-            .http
-            .post(&url)
-            .json(&withdraw_payload)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
+        let resp: WithdrawResponse = self.http.post_json(&url, &withdraw_payload).await?.json()?;
         Ok(resp)
     }
 
@@ -294,9 +287,7 @@ impl BroadcastProvider {
 
             common::sleep(JOB_POLL_INTERVAL).await;
 
-            let job_resp = self.http.get(&job_url).send().await?;
-            let job: JobStatusResponse = job_resp.json().await?;
-
+            let job: JobStatusResponse = self.http.get(&job_url).await?.json()?;
             match job.status.as_str() {
                 "CONFIRMED" => {
                     let tx_hash = job.tx_hash.unwrap_or_default();

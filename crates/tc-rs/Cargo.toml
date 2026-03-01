@@ -8,7 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["broadcaster"]
-broadcaster = ["dep:reqwest"]
+broadcaster = ["dep:request"]
 
 [dependencies]
 alloy-primitives = { workspace = true }
@@ -25,7 +25,6 @@ hex = { workspace = true }
 num-bigint = { workspace = true }
 prover = { workspace = true }
 rand = { workspace = true }
-reqwest = { workspace = true, optional = true }
 ruint = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -34,6 +33,7 @@ tracing = { workspace = true }
 tsify = { workspace = true }
 wasm-bindgen = { workspace = true }
 web-time = { workspace = true, features = ["serde"] }
+request = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 alloy = { workspace = true }
@@ -52,7 +52,6 @@ wasm-bindgen-futures = { workspace = true }
 [dev-dependencies]
 insta = { workspace = true }
 rand_chacha = { workspace = true }
-tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-test = { workspace = true }
 

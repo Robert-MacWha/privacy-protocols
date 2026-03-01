@@ -24,15 +24,15 @@
 - Repo
   - [ ] Dependency-inject alloy + reqwests in wasm
     - [x] Remove alloy (except for alloy-primatives and contracts) from wasm build
-    - [ ] Remove reqwest from wasm build
-    - [ ] Remove tokio from wasm build
+    - [x] Remove reqwest from wasm build
+    - [x] Remove tokio from wasm build
     - Hopefully get wasm builds both below 1MiB. TC seems like it could get <500KiB, which would be great.
   - [ ] Add proper documentation explaining the architecture and design decisions. Especially important for the shared design expectations we're trying to create between the different privacy providers.
   - [ ] Clean up rust, abstracting out common code into shared crates. Probably:
-    - Native prover + associate architecture
-    - tx_data
+    - [/] Native prover + associate architecture
+    - [x] tx_data
     - CAIP-style asset primitives
-    - Gas estimation trait
+    - [x] Gas estimation trait
 
 ---
 - [x] Implement unshielding

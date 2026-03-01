@@ -37,7 +37,6 @@ poseidon-rust = { workspace = true }
 prover = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
-reqwest = { workspace = true, default-features = false, features = ["json"] }
 ruint = { workspace = true, features = ["num-bigint", "serde", "ark-ff-05"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -46,6 +45,7 @@ sha2 = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 web-time = { workspace = true }
+request = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 alloy = { workspace = true }

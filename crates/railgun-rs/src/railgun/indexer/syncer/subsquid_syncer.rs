@@ -2,7 +2,7 @@
 //! Subsquid graphql endpoint. Railgun maintains an official indexer for each
 //! supported chain.
 
-use reqwest::StatusCode;
+use request::{ResponseExt, http::StatusCode};
 use serde::{Serialize, de::DeserializeOwned};
 use thiserror::Error;
 use tracing::{info, warn};
@@ -15,7 +15,7 @@ use crate::railgun::indexer::{
 };
 
 pub struct SubsquidSyncer {
-    client: reqwest::Client,
+    client: request::HttpClient,
     url: String,
     batch_size: u64,
     max_retries: usize,
@@ -27,7 +27,7 @@ pub enum SubsquidSyncerError {
     #[error("Serde error: {0}")]
     Serde(#[from] serde_json::Error),
     #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(#[from] request::HttpError),
     #[error("Request failed with status {0}: {1}")]
     Request(StatusCode, String),
     #[error("GraphQL error: {0}")]
@@ -43,7 +43,7 @@ const BLOCK_NUMBER_QUERY: &str = include_str!("./subsquid_graphql/block_number.g
 impl SubsquidSyncer {
     pub fn new(url: &str) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: request::HttpClient::new(None),
             url: url.to_string(),
             batch_size: 20000,
             max_retries: 3,
@@ -269,21 +269,15 @@ impl SubsquidSyncer {
         &self,
         body: Vec<u8>,
     ) -> Result<R, SubsquidSyncerError> {
-        let resp = self
-            .client
-            .post(&self.url)
-            .header("Content-Type", "application/json")
-            .body(body)
-            .send()
-            .await?;
+        let resp = self.client.post_json(&self.url, &body).await?;
         if !resp.status().is_success() {
             return Err(SubsquidSyncerError::Request(
                 resp.status(),
-                resp.text().await.unwrap_or_default(),
+                resp.text().unwrap_or_default(),
             ));
         }
 
-        let value: serde_json::Value = resp.json().await?;
+        let value: serde_json::Value = resp.json()?;
         // info!("Deserializing: {}", &value);
         let graphql_resp: GraphqlResponse<R> = serde_json::from_value(value)?;
         if let Some(errors) = graphql_resp.errors {

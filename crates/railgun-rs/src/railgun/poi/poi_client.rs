@@ -7,7 +7,7 @@ use std::{
 };
 
 use alloy_primitives::ChainId;
-use reqwest::Client;
+use request::ResponseExt;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use thiserror::Error;
 
@@ -32,7 +32,7 @@ pub struct PoiClient {
 }
 
 pub struct PoiClientInner {
-    http: Client,
+    http: request::HttpClient,
     url: String,
     next_id: AtomicU64,
 
@@ -43,7 +43,7 @@ pub struct PoiClientInner {
 #[derive(Debug, Error)]
 pub enum PoiClientError {
     #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(#[from] request::HttpError),
     #[error("JSON-RPC error: {0}")]
     Rpc(JsonRpcError),
     #[error("Null result from RPC")]
@@ -82,7 +82,7 @@ pub struct JsonRpcError {
 impl PoiClient {
     pub async fn new(url: impl Into<String>, chain: ChainId) -> Result<Self, PoiClientError> {
         let next_id = AtomicU64::new(1);
-        let http = Client::new();
+        let http = request::HttpClient::new(None);
         let url = url.into();
 
         let status: NodeStatusAllNetworks = call(
@@ -320,7 +320,7 @@ impl PoiClient {
 
 async fn call<P: Serialize, R: DeserializeOwned>(
     next_id: &AtomicU64,
-    http: &Client,
+    http: &request::HttpClient,
     url: &str,
     method: &'static str,
     params: P,
@@ -334,16 +334,7 @@ async fn call<P: Serialize, R: DeserializeOwned>(
     };
 
     // info!("Request: {}", serde_json::to_string(&req).unwrap());
-
-    let resp: JsonRpcResponse<R> = http
-        .post(url)
-        .header("connection", "close")
-        .json(&req)
-        .send()
-        .await?
-        .json()
-        .await?;
-
+    let resp: JsonRpcResponse<R> = http.post_json(url, &req).await?.json()?;
     if let Some(err) = resp.error {
         return Err(PoiClientError::Rpc(err));
     }

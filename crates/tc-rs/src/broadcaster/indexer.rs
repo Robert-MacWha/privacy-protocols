@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use alloy_primitives::{Address, FixedBytes, address};
 use eth_rpc::{EthRpcClient, eth_call_sol};
 use rand::Rng;
+use request::{HttpClient, ResponseExt};
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
@@ -15,7 +16,7 @@ pub struct BroadcasterIndexer {
     mainnet_provider: Arc<dyn EthRpcClient>,
     relayers: Vec<Relayer>,
     synced_block: u64,
-    http: reqwest::Client,
+    http: request::HttpClient,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,10 +95,7 @@ impl BroadcasterIndexer {
             mainnet_provider,
             relayers: Vec::new(),
             synced_block: REGISTRY_DEPLOYED_BLOCK,
-            http: reqwest::Client::builder()
-                .user_agent("tc-rs-health-check")
-                .build()
-                .unwrap(),
+            http: HttpClient::new(Some("tc-rs-health-check")),
         }
     }
 
@@ -111,10 +109,7 @@ impl BroadcasterIndexer {
             mainnet_provider,
             relayers: state.relayers,
             synced_block: state.synced_block,
-            http: reqwest::Client::builder()
-                .user_agent("tc-rs-health-check")
-                .build()
-                .unwrap(),
+            http: HttpClient::new(Some("tc-rs-health-check")),
         }
     }
 
@@ -391,12 +386,12 @@ impl BroadcasterIndexer {
 }
 
 async fn health_check(
-    client: &reqwest::Client,
+    client: &HttpClient,
     hostname: &str,
 ) -> Result<RelayerStatus, BroadcasterError> {
     let url = format!("https://{hostname}/status");
-    let resp = client.get(&url).send().await?;
-    let status: RelayerStatus = resp.json().await?;
+    let resp = client.get(&url).await?;
+    let status: RelayerStatus = resp.json()?;
     Ok(status)
 }
 
