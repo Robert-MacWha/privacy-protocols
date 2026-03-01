@@ -4,9 +4,12 @@
 //! A "Note" is an already-on-chain note, which can be used as an input to an Operation.
 //!
 //! A "Operation" means a single railgun transaction (IE `RailgunSmartWallet.Transaction` object).
-//!  - An operation can have many input notes, but they must all be on the same tree and held by the same address.
-//!  - An operation may have many output notes, which can be to different addresses and on different trees.
-//!  - An operation may only have one unshield note, since the `RailgunSmartWallet.Transaction` struct only
+//!  - An operation can have many input notes, but they must all be on the same tree and held by the
+//!    same address.
+//!  - An operation may have many output notes, which can be to different addresses and on different
+//!    trees.
+//!  - An operation may only have one unshield note, since the `RailgunSmartWallet.Transaction`
+//!    struct only
 //!
 //! A "Transaction" means an EVM transaction.
 //!  - A transaction can have many operations across many trees and addresses.

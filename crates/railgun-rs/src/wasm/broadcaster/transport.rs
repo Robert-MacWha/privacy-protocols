@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use js_sys::Array;
-use thiserror::Error;
 use wasm_bindgen::prelude::*;
 
 use crate::railgun::broadcaster::{

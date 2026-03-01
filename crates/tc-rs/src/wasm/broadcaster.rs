@@ -9,8 +9,8 @@ use crate::{
     PoolProviderState,
     broadcaster::BroadcastProvider,
     wasm::{
-        JsDepositResult, JsPool, JsSyncer, note::JsNote,
-        prepared_broadcast::JsPreparedBroadcast, provider::bigint_to_u256,
+        JsDepositResult, JsPool, JsSyncer, note::JsNote, prepared_broadcast::JsPreparedBroadcast,
+        provider::bigint_to_u256,
     },
 };
 

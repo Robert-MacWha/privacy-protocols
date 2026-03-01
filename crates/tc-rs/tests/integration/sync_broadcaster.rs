@@ -3,10 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use alloy::{network::Ethereum, providers::ProviderBuilder};
 use prover::{Proof, Prover, ProverError};
 use ruint::aliases::U256;
-use tc_rs::{
-    broadcaster::BroadcastProvider,
-    indexer::RpcSyncer,
-};
+use tc_rs::{broadcaster::BroadcastProvider, indexer::RpcSyncer};
 use tracing::info;
 
 #[tokio::test]

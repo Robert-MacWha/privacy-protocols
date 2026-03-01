@@ -80,8 +80,7 @@ impl BroadcastProvider {
     ) -> Self {
         let inner = TornadoProvider::from_state(rpc, syncer, prover, state.tornado);
         let relay_syncer = Arc::new(RpcRelayerSyncer::new(mainnet_rpc.clone()));
-        let indexer =
-            BroadcasterIndexer::from_state(relay_syncer, mainnet_rpc, state.indexer);
+        let indexer = BroadcasterIndexer::from_state(relay_syncer, mainnet_rpc, state.indexer);
         Self {
             inner,
             indexer,

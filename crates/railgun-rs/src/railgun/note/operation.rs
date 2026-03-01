@@ -18,18 +18,18 @@ use crate::{
 /// Otherwise known as the `RailgunSmartWallet::Transaction` struct in solidity.
 ///
 /// - An operation MUST only spend notes from a single tree.
-/// - An operation MUST have fewer than to 12 out_notes (13 including unshield),
-///   which can be to arbitrary addresses.
+/// - An operation MUST have fewer than to 12 out_notes (13 including unshield), which can be to
+///   arbitrary addresses.
 /// - An operation MUST only spend a single asset.
-///   - The POI proof circuit inputs are designed around this assumption, since the token
-///     of the spent notes is a private input.
+///   - The POI proof circuit inputs are designed around this assumption, since the token of the
+///     spent notes is a private input.
 /// - An operation MUST only spend notes from a single address.
-///   - The POI proof circuit inputs are designed around this assumption, since the
-///     spender's public and nullifying key are private inputs to the circuit.
+///   - The POI proof circuit inputs are designed around this assumption, since the spender's public
+///     and nullifying key are private inputs to the circuit.
 /// - An operation MUST only have a single unshield note.
 ///   - The railgun smart contracts are designed around this assumption, since the
-///     `RailgunSmartWallet::Transaction` struct only supports defining a single
-///      token/value pair for unshielding.
+///     `RailgunSmartWallet::Transaction` struct only supports defining a single token/value pair
+///     for unshielding.
 #[derive(Debug, Clone)]
 pub struct Operation<N> {
     /// The UTXO tree number that the in_notes being spent are from
