@@ -10,7 +10,7 @@ use railgun_rs::{
     abis::erc20::ERC20,
     caip::AssetId,
     chain_config::{ChainConfig, SEPOLIA_CONFIG},
-    circuit::native::Groth16Prover,
+    circuit::native::{Groth16Prover, RemoteArtifactLoader, WasmerWitnessCalculator},
     railgun::{
         PoiProvider,
         indexer::{ChainedSyncer, RpcSyncer, SubsquidSyncer},
@@ -38,7 +38,9 @@ async fn test_transact_poi() {
         .ok();
 
     info!("Setting up prover");
-    let prover = Arc::new(Groth16Prover::new_native("../../artifacts/railgun"));
+    let prover = Arc::new(Groth16Prover::new(RemoteArtifactLoader::new(
+        "https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/artifacts/",
+    )));
 
     info!("Setting up alloy provider");
     let signer_key = std::env::var("DEV_KEY").expect("DEV_KEY must be set");

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use alloy::{network::Ethereum, providers::ProviderBuilder};
 use railgun_rs::{
     chain_config::{ChainConfig, MAINNET_CONFIG},
-    circuit::native::Groth16Prover,
+    circuit::native::{Groth16Prover, RemoteArtifactLoader, WasmerWitnessCalculator},
     railgun::{RailgunProvider, indexer::SubsquidSyncer},
 };
 use tracing::info;
@@ -36,7 +36,9 @@ async fn test_sync_utxo() {
 
     info!("Setting up indexer");
     let subsquid_syncer = Arc::new(SubsquidSyncer::new(CHAIN.subsquid_endpoint));
-    let prover = Arc::new(Groth16Prover::new_native("../../artifacts/railgun"));
+    let prover = Arc::new(Groth16Prover::new(RemoteArtifactLoader::new(
+        "https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/artifacts",
+    )));
     let mut railgun =
         RailgunProvider::new(CHAIN, provider.clone(), subsquid_syncer.clone(), prover);
 

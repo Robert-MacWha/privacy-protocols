@@ -4,13 +4,13 @@ import { erc20, JsPoiProvider, JsSigner, JsSyncer, type AssetId, type RailgunAdd
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
-import { GrothProverAdapter } from "../src/prover-adapter.js";
+import { GrothProverAdapter, RemoteArtifactLoader } from "../src/prover-adapter.js";
 
 const USDC_ADDRESS = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238";
 const CHAIN_ID = 11155111n;
 const RPC_URL = process.env.RPC_URL_SEPOLIA!;
 const SIGNER_KEY = `0x${process.env.DEV_KEY!}` as `0x${string}`;
-const ARTIFACTS_PATH = "../../artifacts/railgun";
+const ARTIFACTS_URL = "https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/artifacts/";
 
 const erc20Abi = parseAbi([
   "function balanceOf(address) view returns (uint256)",
@@ -35,7 +35,7 @@ test("transact-poi", async () => {
   });
 
   console.log("Setup Railgun POI Provider");
-  const prover = new GrothProverAdapter({ artifactsPath: ARTIFACTS_PATH });
+  const prover = new GrothProverAdapter(new RemoteArtifactLoader(ARTIFACTS_URL));
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
   const syncer = JsSyncer.newChained([
     JsSyncer.newSubsquid(CHAIN_ID),

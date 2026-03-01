@@ -1,4 +1,3 @@
 export { createBroadcaster } from "./waku-adapter.js";
-export { ProverAdapter, createProver } from "./prover-adapter.js";
-export type { ProverConfig, ArtifactPaths } from "./prover-adapter.js";
-export { JsBroadcasterManager, JsProver } from "./pkg/railgun_rs.js";
+export { GrothProverAdapter, FsArtifactLoader, RemoteArtifactLoader } from "./prover-adapter.js";
+export type { ArtifactLoader } from "./prover-adapter.js";

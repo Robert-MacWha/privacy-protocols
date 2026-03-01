@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import { JsRailgunProvider, JsSyncer } from "../src/pkg/railgun_rs.js";
-import { GrothProverAdapter } from "../src/prover-adapter.js";
+import { GrothProverAdapter, RemoteArtifactLoader } from "../src/prover-adapter.js";
 import { writeFileSync } from "node:fs";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
@@ -8,7 +8,7 @@ import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
 
 const CHAIN_ID = 1n;
 const RPC_URL = process.env.RPC_URL_MAINNET!;
-const ARTIFACTS_PATH = "../../artifacts/railgun";
+const ARTIFACTS_URL = "https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/artifacts/";
 const FORK_BLOCK = 24379760n;
 
 test("sync-utxo", async () => {
@@ -18,7 +18,7 @@ test("sync-utxo", async () => {
   });
 
   console.log("Setup Railgun");
-  const prover = new GrothProverAdapter({ artifactsPath: ARTIFACTS_PATH });
+  const prover = new GrothProverAdapter(new RemoteArtifactLoader(ARTIFACTS_URL));
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
   const syncer = JsSyncer.newChained([
     JsSyncer.newSubsquid(CHAIN_ID),

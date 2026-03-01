@@ -6,6 +6,7 @@ pub enum HttpError {
     Http(#[from] http::Error),
 }
 
+#[derive(Clone)]
 pub struct HttpClient {
     #[cfg(not(target_arch = "wasm32"))]
     inner: reqwest::Client,

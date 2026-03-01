@@ -5,12 +5,12 @@ import { mainnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { readFileSync } from "node:fs";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
-import { GrothProverAdapter } from "../src/prover-adapter.js";
+import { GrothProverAdapter, RemoteArtifactLoader } from "../src/prover-adapter.js";
 
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const CHAIN_ID = 1n;
 const RPC_URL = "http://localhost:8545";
-const ARTIFACTS_PATH = "../../artifacts/railgun";
+const ARTIFACTS_URL = "https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/artifacts/";
 const FORK_BLOCK = 24379760n;
 
 const erc20Abi = parseAbi([
@@ -34,7 +34,7 @@ test("transact-utxo", async () => {
   });
 
   console.log("Setup Railgun");
-  const prover = new GrothProverAdapter({ artifactsPath: ARTIFACTS_PATH });
+  const prover = new GrothProverAdapter(new RemoteArtifactLoader(ARTIFACTS_URL));
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
   const syncer = await JsSyncer.newRpc(rpcAdapter, CHAIN_ID, 10n);
   const railgun = await JsRailgunProvider.new(rpcAdapter, syncer, prover);

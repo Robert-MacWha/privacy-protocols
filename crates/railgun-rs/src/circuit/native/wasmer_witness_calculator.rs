@@ -2,12 +2,12 @@ use std::{collections::HashMap, sync::Mutex};
 
 use num_bigint::BigInt;
 use ruint::aliases::U256;
-use wasmer::Store;
+use wasmer::{Module, Store};
 
-use crate::circuit::witness::WitnessCalculator;
+use crate::circuit::artifact_loader::ArtifactLoader;
 
-pub struct WasmerWitnessCalculator {
-    path: String,
+pub struct WasmerWitnessCalculator<A> {
+    artifact_loader: A,
     inner: Mutex<Option<WitnessCalcState>>,
 }
 
@@ -17,35 +17,41 @@ struct WitnessCalcState {
     circuit_name: String,
 }
 
-impl WasmerWitnessCalculator {
-    pub fn new(wasm_path: &str) -> Self {
+impl<A: ArtifactLoader> WasmerWitnessCalculator<A> {
+    pub fn new(artifact_loader: A) -> Self {
         Self {
-            path: wasm_path.to_string(),
+            artifact_loader,
             inner: Mutex::new(None),
         }
     }
 }
 
-#[async_trait::async_trait]
-impl WitnessCalculator for WasmerWitnessCalculator {
-    async fn calculate_witness(
+impl<A: ArtifactLoader + Send + Sync + 'static> WasmerWitnessCalculator<A> {
+    pub async fn calculate_witness(
         &self,
         circuit_name: &str,
         inputs: HashMap<String, Vec<U256>>,
     ) -> Result<Vec<U256>, String> {
-        let wasm_path = format!("{}/{}.wasm", self.path, circuit_name);
-        let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
-
-        // Check if we have a cached calculator for this circuit type
-        let needs_reload = match &*guard {
-            Some(state) => state.circuit_name != circuit_name,
-            None => true,
+        // Check if reload needed without holding the lock across await
+        let needs_reload = {
+            let guard = self.inner.lock().map_err(|e| e.to_string())?;
+            match &*guard {
+                Some(state) => state.circuit_name != circuit_name,
+                None => true,
+            }
         };
 
         if needs_reload {
-            let mut store = Store::default();
-            let calculator = ark_circom::WitnessCalculator::new(&mut store, &wasm_path)
+            let wasm_bytes = self
+                .artifact_loader
+                .load_wasm(circuit_name)
+                .await
                 .map_err(|e| e.to_string())?;
+            let mut store = Store::default();
+            let module = Module::new(&store, &wasm_bytes).map_err(|e| e.to_string())?;
+            let calculator = ark_circom::WitnessCalculator::from_module(&mut store, module)
+                .map_err(|e| e.to_string())?;
+            let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
             *guard = Some(WitnessCalcState {
                 store,
                 calculator,
@@ -53,6 +59,7 @@ impl WitnessCalculator for WasmerWitnessCalculator {
             });
         }
 
+        let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
         let state = guard.as_mut().unwrap();
 
         // Convert inputs from U256 to BigInt
