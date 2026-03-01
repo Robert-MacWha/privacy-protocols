@@ -243,11 +243,10 @@ impl SubsquidSyncer {
         variables: V,
     ) -> Result<R, SubsquidSyncerError> {
         let body = GraphqlRequest { query, variables };
-        let json_body = serde_json::to_vec(&body)?;
 
         let mut attempt = 0;
         loop {
-            match self.post_graphql(json_body.clone()).await {
+            match self.post_graphql(&body).await {
                 Ok(data) => return Ok(data),
                 Err(e) => {
                     attempt += 1;
@@ -265,9 +264,9 @@ impl SubsquidSyncer {
         }
     }
 
-    async fn post_graphql<R: DeserializeOwned>(
+    async fn post_graphql<V: Serialize, R: DeserializeOwned>(
         &self,
-        body: Vec<u8>,
+        body: &GraphqlRequest<V>,
     ) -> Result<R, SubsquidSyncerError> {
         let resp = self.client.post_json(&self.url, &body).await?;
         if !resp.status().is_success() {
