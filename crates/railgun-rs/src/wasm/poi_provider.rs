@@ -97,8 +97,21 @@ impl JsPoiProvider {
     }
 
     /// Returns the POI-annotated balance for the given address and list key.
-    pub async fn balance(&mut self, address: RailgunAddress, list_key: ListKey) -> JsPoiBalance {
-        self.inner.balance(address, &list_key).await.into()
+    pub async fn balance(
+        &mut self,
+        address: RailgunAddress,
+        list_key: ListKey,
+    ) -> Vec<JsPoiBalance> {
+        self.inner
+            .balance(address, &list_key)
+            .await
+            .iter()
+            .map(|(k, v)| JsPoiBalance {
+                poi_status: k.0,
+                asset_id: k.1.clone(),
+                balance: *v,
+            })
+            .collect()
     }
 
     /// Helper to create a shield builder

@@ -137,12 +137,16 @@ async function awaitBalanceUpdate(
 
     await railgun.sync();
     const balance = await railgun.balance(address, listKey);
-    const validBalance = balance.get("Valid", asset);
-    console.log(`Balance: ${validBalance}`);
+    console.log('Balance:', balance);
+
+    const validBalance = balance.find(
+      (entry) => entry.poi_status === "Valid" && JSON.stringify(entry.asset_id) === JSON.stringify(asset)
+    )?.balance;
 
     if (expected === undefined && (validBalance === undefined || validBalance === 0n)) {
       return;
     }
+
     if (expected !== undefined && validBalance === expected) {
       return;
     }
