@@ -142,6 +142,8 @@ impl TxidTreeSet {
             total += 1;
         }
 
+        info!("Drained {} operations", target_total);
+
         // Rebuild
         info!("Rebuilding TXID trees");
         for tree in self.trees.values_mut() {

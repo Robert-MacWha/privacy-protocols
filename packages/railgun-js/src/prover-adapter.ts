@@ -25,7 +25,7 @@ export interface ProverConfig {
   verify?: boolean;
 }
 
-export class GrothProver implements ProverAdapter {
+export class GrothProverAdapter implements ProverAdapter {
   private config: Required<Pick<ProverConfig, "artifactsPath" | "verify">> & {
     resolveArtifacts: (circuitName: string, basePath: string) => ArtifactPaths;
   };
@@ -39,7 +39,7 @@ export class GrothProver implements ProverAdapter {
     this.config = {
       artifactsPath: config.artifactsPath,
       verify: config.verify ?? true,
-      resolveArtifacts: config.resolveArtifacts ?? GrothProver.defaultResolveArtifacts,
+      resolveArtifacts: config.resolveArtifacts ?? GrothProverAdapter.defaultResolveArtifacts,
     };
   }
 

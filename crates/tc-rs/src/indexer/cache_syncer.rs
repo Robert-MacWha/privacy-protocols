@@ -89,10 +89,7 @@ impl Syncer for CacheSyncer {
         from_block: u64,
         to_block: u64,
     ) -> Result<Vec<Commitment>, SyncerError> {
-        info!(
-            "CacheSyncer syncing commitments from block {} to {}",
-            from_block, to_block
-        );
+        info!("Syncing commitments {}-{}", from_block, to_block);
 
         let cache = self
             .cache

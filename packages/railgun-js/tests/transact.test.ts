@@ -1,11 +1,11 @@
 import { checksumAddress, createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { expect, test } from "vitest";
 import { erc20, JsRailgunProvider, JsSigner, JsSyncer } from "../src/pkg/railgun_rs.js";
-import { createProver } from "../src/prover-adapter.js";
 import { mainnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { readFileSync } from "node:fs";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
+import { GrothProverAdapter } from "../src/prover-adapter.js";
 
 const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const CHAIN_ID = 1n;
@@ -34,7 +34,7 @@ test("transact-utxo", async () => {
   });
 
   console.log("Setup Railgun");
-  const prover = createProver({ artifactsPath: ARTIFACTS_PATH });
+  const prover = new GrothProverAdapter({ artifactsPath: ARTIFACTS_PATH });
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
   const syncer = await JsSyncer.newRpc(rpcAdapter, CHAIN_ID, 10n);
   const railgun = await JsRailgunProvider.new(CHAIN_ID, rpcAdapter, syncer, prover);
@@ -54,8 +54,8 @@ test("transact-utxo", async () => {
   {
     const tx = railgun.shield().shield(account1.address, USDC, 1_000_000n).build();
     const shieldHash = await walletClient.sendTransaction({
-      to: tx.to as `0x${string}`,
-      data: tx.dataHex as `0x${string}`,
+      to: tx.to,
+      data: tx.data,
       value: BigInt(tx.value),
     });
     await publicClient.waitForTransactionReceipt({ hash: shieldHash });
@@ -73,8 +73,8 @@ test("transact-utxo", async () => {
     const builder = railgun.transact().transfer(account1, account2.address, USDC, 5000n, "test transfer");
     const tx = await railgun.build(builder);
     const transferHash = await walletClient.sendTransaction({
-      to: tx.to as `0x${string}`,
-      data: tx.dataHex as `0x${string}`,
+      to: tx.to,
+      data: tx.data,
       value: BigInt(tx.value),
     });
     await publicClient.waitForTransactionReceipt({ hash: transferHash });
@@ -93,8 +93,8 @@ test("transact-utxo", async () => {
     const builder = railgun.transact().unshield(account1, unshieldRecipient, USDC, 1000n);
     const tx = await railgun.build(builder);
     const unshieldHash = await walletClient.sendTransaction({
-      to: tx.to as `0x${string}`,
-      data: tx.dataHex as `0x${string}`,
+      to: tx.to,
+      data: tx.data,
       value: BigInt(tx.value),
     });
     await publicClient.waitForTransactionReceipt({ hash: unshieldHash });

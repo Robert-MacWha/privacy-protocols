@@ -49,8 +49,8 @@ test("transact", async () => {
 
   console.log("Sending deposit transaction");
   const depositHash = await walletClient.sendTransaction({
-    to: depositTx.to as `0x${string}`,
-    data: depositTx.dataHex as `0x${string}`,
+    to: depositTx.to,
+    data: depositTx.data,
     value: BigInt(depositTx.value),
   });
   await publicClient.waitForTransactionReceipt({ hash: depositHash });
@@ -63,8 +63,8 @@ test("transact", async () => {
 
   console.log("Sending withdraw transaction");
   const withdrawHash = await walletClient.sendTransaction({
-    to: withdrawTx.to as `0x${string}`,
-    data: withdrawTx.dataHex as `0x${string}`,
+    to: withdrawTx.to,
+    data: withdrawTx.data,
     value: BigInt(withdrawTx.value),
   });
   await publicClient.waitForTransactionReceipt({ hash: withdrawHash });

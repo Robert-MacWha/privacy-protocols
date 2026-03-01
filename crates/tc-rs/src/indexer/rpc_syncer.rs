@@ -97,10 +97,10 @@ impl Syncer for RpcSyncer {
                 .collect();
 
             info!(
-                "Fetched {} commitments from blocks {}-{}",
-                commitments.len(),
-                batch_start,
-                batch_end
+                "{}/{} ({} commitments)",
+                batch_end,
+                to_block,
+                all_commitments.len()
             );
             all_commitments.extend(commitments);
         }

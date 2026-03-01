@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import { JsRailgunProvider } from "../src/pkg/railgun_rs.js";
-import { createProver } from "../src/prover-adapter.js";
+import { GrothProverAdapter } from "../src/prover-adapter.js";
 import { writeFileSync } from "node:fs";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
@@ -18,7 +18,7 @@ test("sync-utxo", async () => {
   });
 
   console.log("Setup Railgun");
-  const prover = createProver({ artifactsPath: ARTIFACTS_PATH });
+  const prover = new GrothProverAdapter({ artifactsPath: ARTIFACTS_PATH });
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
   const railgun = await JsRailgunProvider.new_from_rpc(CHAIN_ID, rpcAdapter, 10n, prover);
 
