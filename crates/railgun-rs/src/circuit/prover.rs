@@ -1,6 +1,7 @@
 use prover::{Proof, Prover, ProverError};
 use ruint::aliases::U256;
 
+#[tracing::instrument(name = "prove_transact", skip_all)]
 pub async fn prove_transact(
     prover: &dyn Prover,
     inputs: &crate::circuit::inputs::TransactCircuitInputs,
@@ -14,6 +15,7 @@ pub async fn prove_transact(
 }
 
 #[cfg(feature = "poi")]
+#[tracing::instrument(name = "prove_poi", skip_all)]
 pub async fn prove_poi(
     prover: &dyn Prover,
     inputs: &crate::circuit::inputs::PoiCircuitInputs,
