@@ -25,6 +25,7 @@ hex = { workspace = true }
 num-bigint = { workspace = true }
 prover = { workspace = true }
 rand = { workspace = true }
+request = { workspace = true, optional = true }
 ruint = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -33,7 +34,6 @@ tracing = { workspace = true }
 tsify = { workspace = true }
 wasm-bindgen = { workspace = true }
 web-time = { workspace = true, features = ["serde"] }
-request = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 alloy = { workspace = true }
