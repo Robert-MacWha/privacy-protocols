@@ -1,6 +1,3 @@
-import { readFile, writeFile, access, mkdir } from "node:fs/promises";
-import { join } from "node:path";
-
 export interface TcArtifacts {
   circuit: unknown;
   provingKey: ArrayBuffer;
