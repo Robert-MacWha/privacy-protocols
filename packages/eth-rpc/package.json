@@ -2,7 +2,9 @@
   "name": "eth-rpc",
   "version": "1.0.0",
   "description": "",
-  "scripts": {},
+  "scripts": {
+    "build": "tsc"
+  },
   "keywords": [],
   "type": "module",
   "author": "",
@@ -13,6 +15,10 @@
     "viem": "^2.45.3"
   },
   "exports": {
-    ".": "./src/main.ts"
-  }
+    ".": {
+      "import": "./dist/main.js",
+      "types": "./dist/main.d.ts"
+    }
+  },
+  "files": ["dist/"]
 }

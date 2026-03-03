@@ -1,8 +1,20 @@
 {
-  "name": "railgun-rs",
+  "name": "railgun-js",
   "version": "1.0.0",
   "description": "",
-  "scripts": {},
+  "type": "module",
+  "main": "./dist/index.node.js",
+  "types": "./dist/index.node.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.node.js",
+      "types": "./dist/index.node.d.ts"
+    }
+  },
+  "files": ["dist/"],
+  "scripts": {
+    "build": "tsc && cp -r src/pkg dist/pkg"
+  },
   "dependencies": {
     "@waku/sdk": "^0.0.36",
     "snarkjs": "^0.7.6",
