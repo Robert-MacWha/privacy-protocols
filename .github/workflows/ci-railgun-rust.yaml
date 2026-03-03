@@ -35,12 +35,6 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - name: Build native
-      run: nix develop .#ci --command bash -c " cd crates/railgun-rs && cargo build --no-default-features --features native"
-
-    - name: Build with POI
-      run: nix develop .#ci --command bash -c " cd crates/railgun-rs && cargo build --no-default-features --features native,poi"
-
     - name: Run sync-utxo
       run: nix develop .#ci --command bash -c "cd crates/railgun-rs && just integration-sync-utxo"
 

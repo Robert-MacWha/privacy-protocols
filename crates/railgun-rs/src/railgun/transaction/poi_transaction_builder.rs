@@ -5,6 +5,7 @@ use std::{
 
 use alloy_primitives::Address;
 use eth_rpc::{EthRpcClient, EthRpcClientError};
+use prover::Prover;
 use rand::Rng;
 use thiserror::Error;
 use tracing::info;
@@ -12,10 +13,7 @@ use tracing::info;
 use crate::{
     caip::AssetId,
     chain_config::ChainConfig,
-    circuit::{
-        inputs::PoiCircuitInputsError,
-        prover::{PoiProver, TransactProver},
-    },
+    circuit::inputs::PoiCircuitInputsError,
     railgun::{
         Signer,
         address::RailgunAddress,
@@ -94,9 +92,8 @@ impl PoiTransactionBuilder {
         self,
         chain: ChainConfig,
         indexer: &UtxoIndexer,
-        prover: &dyn TransactProver,
+        prover: &dyn Prover,
         poi_client: &PoiClient,
-        poi_prover: &dyn PoiProver,
         rng: &mut R,
     ) -> Result<PoiProvedTx, PoiTransactionBuilderError> {
         info!("Building POI Transaction");
@@ -110,7 +107,7 @@ impl PoiTransactionBuilder {
         let proved = prove_operations(prover, &indexer.utxo_trees, &ops, chain, 0, rng).await?;
 
         info!("Attaching POI proofs");
-        self.prove_poi(poi_prover, proved, &indexer.utxo_trees, &list_keys, None)
+        self.prove_poi(prover, proved, &indexer.utxo_trees, &list_keys, None)
             .await
     }
 
@@ -122,9 +119,8 @@ impl PoiTransactionBuilder {
         self,
         chain: ChainConfig,
         indexer: &UtxoIndexer,
-        prover: &dyn TransactProver,
+        prover: &dyn Prover,
         poi_client: &PoiClient,
-        poi_prover: &dyn PoiProver,
         estimator: &dyn EthRpcClient,
         fee_payer: Arc<dyn Signer>,
         fee: &Fee,
@@ -151,7 +147,7 @@ impl PoiTransactionBuilder {
         info!("Attaching POI proofs");
         let tx = self
             .prove_poi(
-                poi_prover,
+                prover,
                 proved,
                 &indexer.utxo_trees,
                 &fee.list_keys,
@@ -167,7 +163,7 @@ impl PoiTransactionBuilder {
     async fn calculate_fee_to_convergence<N: SignableNote + IncludedNote + Note + Clone, R: Rng>(
         &self,
         in_notes: &[N],
-        prover: &dyn TransactProver,
+        prover: &dyn Prover,
         utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
         estimator: &dyn EthRpcClient,
         fee_payer: Arc<dyn Signer>,
@@ -250,7 +246,7 @@ impl PoiTransactionBuilder {
     /// Attach POI proofs to a proved transaction.
     async fn prove_poi(
         &self,
-        poi_prover: &dyn PoiProver,
+        prover: &dyn Prover,
         proved: ProvedTx<PoiNote>,
         utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
         list_keys: &[ListKey],
@@ -270,7 +266,7 @@ impl PoiTransactionBuilder {
 
         // Attach POI proofs to each operation
         for poi_op in poi_operations.iter_mut() {
-            poi_op.add_pois(poi_prover, list_keys, utxo_trees).await?;
+            poi_op.add_pois(prover, list_keys, utxo_trees).await?;
         }
 
         Ok(PoiProvedTx {

@@ -1,10 +1,12 @@
 fork_url := env_var("RPC_URL_SEPOLIA")
-# Forking from a slightly historic block so we can perform less work syncing
+# Forking from a historic block so we can perform less work syncing
 # when testing.
 fork_block := "8800000"
 
 test: 
     cargo test
+
+integration: integration-sync integration-sync-relayer
 
 integration-sync:
     #!/usr/bin/env bash
@@ -18,7 +20,7 @@ integration-sync:
     # Wait for anvil to be ready
     sleep 2
 
-    RUST_LOG=info cargo test -- test_sync_indexer --ignored --nocapture
+    RUST_LOG=info cargo test --no-default-features -- test_sync_indexer --ignored --nocapture
 
-integration-sync-broadcaster:
+integration-sync-relayer:
     RUST_LOG=info cargo test -- test_sync_broadcaster --ignored --nocapture

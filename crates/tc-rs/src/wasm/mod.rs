@@ -3,27 +3,19 @@ mod note;
 mod pool;
 mod provider;
 mod syncer;
-mod tx_data;
-mod verifier;
 
 pub use pool::JsPool;
 pub use provider::{JsDepositResult, JsTornadoProvider};
 pub use syncer::JsSyncer;
-pub use tx_data::JsTxData;
-pub use verifier::JsVerifier;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[cfg(feature = "broadcaster")]
-mod broadcaster;
-#[cfg(feature = "broadcaster")]
+#[cfg(feature = "relay")]
 mod prepared_broadcast;
-#[cfg(feature = "broadcaster")]
-mod relayer_syncer;
+#[cfg(feature = "relay")]
+mod relayer;
 
-#[cfg(feature = "broadcaster")]
-pub use broadcaster::JsBroadcastProvider;
-#[cfg(feature = "broadcaster")]
-pub use relayer_syncer::JsRelayerSyncer;
+#[cfg(feature = "relay")]
+pub use relayer::JsRelayerProvider;
 
 #[wasm_bindgen(start)]
 pub fn wasm_start() {

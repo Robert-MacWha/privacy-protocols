@@ -1658,6 +1658,13 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
+dependencies = [
+ "gloo-timers",
+ "ruint",
+ "serde",
+ "tokio",
+ "web-time",
+]
 
 [[package]]
 name = "console"
@@ -2893,6 +2900,27 @@ dependencies = [
  "log",
  "regex-automata",
  "regex-syntax",
+]
+
+[[package]]
+name = "gloo-net"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c06f627b1a58ca3d42b45d6104bf1e1a03799df472df00988b6ba21accc10580"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-sink",
+ "gloo-utils",
+ "http",
+ "js-sys",
+ "pin-project",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -4569,7 +4597,7 @@ dependencies = [
  "prover",
  "rand 0.9.2",
  "rand_chacha 0.9.0",
- "reqwest 0.13.2",
+ "request",
  "ruint",
  "serde",
  "serde-wasm-bindgen 0.6.5",
@@ -4795,6 +4823,21 @@ name = "replace_with"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51743d3e274e2b18df81c4dc6caf8a5b8e15dbe799e0dca05c7617380094e884"
+
+[[package]]
+name = "request"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "common",
+ "gloo-net",
+ "http",
+ "js-sys",
+ "reqwest 0.13.2",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "reqwest"
@@ -5905,6 +5948,7 @@ dependencies = [
  "prover",
  "rand 0.9.2",
  "rand_chacha 0.9.0",
+ "request",
  "reqwest 0.13.2",
  "ruint",
  "serde",

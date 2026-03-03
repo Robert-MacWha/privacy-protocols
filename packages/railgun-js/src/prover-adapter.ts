@@ -3,85 +3,41 @@
  *
  * Adapter that owns snarkjs proving logic and exposes a typed interface
  * for the Rust WASM prover to bind against.
- *
- * Rust calls: proveTransact(), provePoi()
  */
 
 import { readFile } from "node:fs/promises";
 import * as snarkjs from "snarkjs";
-import { JsProofResponse, JsProver } from "./pkg/railgun_rs.js";
+import { JsProof, ProverAdapter } from "./pkg/railgun_rs";
 
-export interface ArtifactPaths {
-  wasmPath: string;
-  zkeyPath: string;
+export interface ArtifactLoader {
+  loadWasm(circuitName: string): Promise<Uint8Array>;
+  loadZkey(circuitName: string): Promise<Uint8Array>;
 }
 
-export interface ProverConfig {
-  /** Base path to circuit artifacts. */
-  artifactsPath: string;
-  /** Custom artifact resolver. */
-  resolveArtifacts?: (circuitName: string, basePath: string) => ArtifactPaths;
-  /** Verify proofs after generation (default: true). */
-  verify?: boolean;
-}
-
-/** Create a JsProver from config. */
-export function createProver(config: ProverConfig): JsProver {
-  const adapter = new ProverAdapter(config);
-  return new JsProver(adapter);
-}
-
-/**
- * Owns snarkjs artifact loading / caching / proving.
- * Passed into Rust via `JsProver::new()`.
- */
-export class ProverAdapter {
-  private config: Required<Pick<ProverConfig, "artifactsPath" | "verify">> & {
-    resolveArtifacts: (circuitName: string, basePath: string) => ArtifactPaths;
-  };
-
+export class GrothProverAdapter implements ProverAdapter {
+  private verify: boolean;
   private artifactCache = new Map<
     string,
     { wasm: Uint8Array; zkey: Uint8Array }
   >();
 
-  constructor(config: ProverConfig) {
-    this.config = {
-      artifactsPath: config.artifactsPath,
-      verify: config.verify ?? true,
-      resolveArtifacts: config.resolveArtifacts ?? ProverAdapter.defaultResolveArtifacts,
-    };
+  constructor(
+    private loader: ArtifactLoader,
+    options?: { verify?: boolean }
+  ) {
+    this.verify = options?.verify ?? true;
   }
 
-  async proveTransact(
+  async prove(
     circuitName: string,
     inputs: Record<string, string[]>
-  ): Promise<JsProofResponse> {
-    return this.prove(circuitName, inputs);
-  }
-
-  async provePoi(
-    circuitName: string,
-    inputs: Record<string, string[]>
-  ): Promise<JsProofResponse> {
-    return this.prove(circuitName, inputs);
-  }
-
-  private async prove(
-    circuitName: string,
-    inputs: Record<string, string[]>
-  ): Promise<JsProofResponse> {
-    const { wasmPath, zkeyPath } = this.config.resolveArtifacts(
-      circuitName,
-      this.config.artifactsPath
-    );
-
+  ): Promise<JsProof> {
     const bigintInputs: Record<string, bigint[]> = {};
     for (const [key, values] of Object.entries(inputs)) {
       bigintInputs[key] = values.map((v) => BigInt(v));
     }
 
-    const { wasm, zkey } = await this.loadArtifacts(wasmPath, zkeyPath);
+    const { wasm, zkey } = await this.loadArtifacts(circuitName);
 
     console.log(`Generating proof for ${circuitName}`);
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
@@ -93,7 +49,7 @@ export class ProverAdapter {
       { singleThread: true }
     );
 
-    if (this.config.verify) {
+    if (this.verify) {
       console.log(`Verifying proof for ${circuitName}`);
       const vkey = await snarkjs.zKey.exportVerificationKey(zkey);
       const valid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
@@ -105,45 +61,62 @@ export class ProverAdapter {
 
     return {
       proof: {
-        pi_a: [proof.pi_a[0]!, proof.pi_a[1]!],
+        pi_a: [proof.pi_a[0]! as `0x${string}`, proof.pi_a[1]! as `0x${string}`],
         pi_b: [
-          [proof.pi_b[0]![0]!, proof.pi_b[0]![1]!],
-          [proof.pi_b[1]![0]!, proof.pi_b[1]![1]!],
+          [proof.pi_b[0]![0]! as `0x${string}`, proof.pi_b[0]![1]! as `0x${string}`],
+          [proof.pi_b[1]![0]! as `0x${string}`, proof.pi_b[1]![1]! as `0x${string}`],
         ],
-        pi_c: [proof.pi_c[0]!, proof.pi_c[1]!],
+        pi_c: [proof.pi_c[0]! as `0x${string}`, proof.pi_c[1]! as `0x${string}`],
       },
-      publicInputs: publicSignals.map((s: string) => '0x' + BigInt(s).toString(16)),
+      publicInputs: publicSignals.map((s: string) => `0x${BigInt(s).toString(16)}` as `0x${string}`),
     };
   }
 
   private async loadArtifacts(
-    wasmPath: string,
-    zkeyPath: string
+    circuitName: string
   ): Promise<{ wasm: Uint8Array; zkey: Uint8Array }> {
-    const cacheKey = `${wasmPath}:${zkeyPath}`;
-    const cached = this.artifactCache.get(cacheKey);
+    const cached = this.artifactCache.get(circuitName);
     if (cached) return cached;
 
     const [wasm, zkey] = await Promise.all([
-      readFile(wasmPath),
-      readFile(zkeyPath),
+      this.loader.loadWasm(circuitName),
+      this.loader.loadZkey(circuitName),
     ]);
 
     const artifacts = { wasm, zkey };
-    this.artifactCache.set(cacheKey, artifacts);
+    this.artifactCache.set(circuitName, artifacts);
     return artifacts;
-  }
-
-  private static defaultResolveArtifacts(
-    circuitName: string,
-    basePath: string
-  ): ArtifactPaths {
-    const [circuitType, size] = circuitName.split("/");
-    const folder = circuitType === "transact" ? "railgun" : "ppoi";
-    return {
-      wasmPath: `${basePath}/${folder}/${size}.wasm`,
-      zkeyPath: `${basePath}/${folder}/${size}.zkey`,
-    };
   }
 }
 
+export class FsArtifactLoader implements ArtifactLoader {
+  constructor(private basePath: string) { }
+
+  async loadWasm(circuitName: string): Promise<Uint8Array> {
+    return readFile(`${this.basePath}/${circuitName}.wasm`);
+  }
+
+  async loadZkey(circuitName: string): Promise<Uint8Array> {
+    return readFile(`${this.basePath}/${circuitName}.zkey`);
+  }
+}
+
+export class RemoteArtifactLoader implements ArtifactLoader {
+  private baseUrl: string;
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl.replace(/\/$/, "");
+  }
+
+  async loadWasm(circuitName: string): Promise<Uint8Array> {
+    const r = await fetch(`${this.baseUrl}/${circuitName}.wasm`);
+    if (!r.ok) throw new Error(`Failed to fetch ${circuitName}.wasm: ${r.status}`);
+    return new Uint8Array(await r.arrayBuffer());
+  }
+
+  async loadZkey(circuitName: string): Promise<Uint8Array> {
+    const r = await fetch(`${this.baseUrl}/${circuitName}.zkey`);
+    if (!r.ok) throw new Error(`Failed to fetch ${circuitName}.zkey: ${r.status}`);
+    return new Uint8Array(await r.arrayBuffer());
+  }
+}

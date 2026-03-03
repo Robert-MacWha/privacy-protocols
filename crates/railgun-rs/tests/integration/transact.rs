@@ -10,7 +10,7 @@ use railgun_rs::{
     abis::erc20::ERC20,
     caip::AssetId,
     chain_config::{ChainConfig, MAINNET_CONFIG},
-    circuit::native::Groth16Prover,
+    circuit::native::{Groth16Prover, RemoteArtifactLoader},
     railgun::{
         RailgunProvider, indexer::RpcSyncer, signer::Signer, transaction::TransactionBuilder,
     },
@@ -34,7 +34,9 @@ async fn test_transact() {
         .ok();
 
     info!("Setting up prover");
-    let prover = Arc::new(Groth16Prover::new_native("../../artifacts/railgun"));
+    let prover = Arc::new(Groth16Prover::new(RemoteArtifactLoader::new(
+        "https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/artifacts/",
+    )));
 
     info!("Setting up alloy provider");
     let signer = PrivateKeySigner::from_str(

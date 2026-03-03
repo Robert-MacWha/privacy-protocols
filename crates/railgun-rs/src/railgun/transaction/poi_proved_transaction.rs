@@ -3,6 +3,8 @@ use std::{
     fmt::Display,
 };
 
+use eth_rpc::TxData;
+use prover::{Prover, ProverError};
 use ruint::aliases::U256;
 use thiserror::Error;
 
@@ -10,7 +12,7 @@ use crate::{
     abis,
     circuit::{
         inputs::{PoiCircuitInputs, PoiCircuitInputsError, TransactCircuitInputs},
-        prover::PoiProver,
+        prover::prove_poi,
     },
     crypto::railgun_txid::Txid,
     railgun::{
@@ -18,7 +20,6 @@ use crate::{
         merkle_tree::{TxidLeafHash, UtxoMerkleTree},
         note::operation::Operation,
         poi::{BlindedCommitment, ListKey, PoiNote, PreTransactionPoi},
-        transaction::tx_data::TxData,
     },
 };
 
@@ -55,14 +56,14 @@ pub enum PoiProvedOperationError {
     #[error("Circuit Inputs error: {0}")]
     CircuitInputs(#[from] PoiCircuitInputsError),
     #[error("Prover error: {0}")]
-    Prover(Box<dyn std::error::Error>),
+    Prover(#[from] ProverError),
 }
 
 impl PoiProvedOperation {
     /// Add POI proofs to this operation for the provided list keys.
     pub async fn add_pois(
         &mut self,
-        prover: &dyn PoiProver,
+        prover: &dyn Prover,
         list_keys: &[ListKey],
         utxo_trees: &BTreeMap<u32, UtxoMerkleTree>,
     ) -> Result<(), PoiProvedOperationError> {
@@ -116,10 +117,7 @@ impl PoiProvedOperation {
                 self.txid_leaf_hash = Some(inputs.txid_leaf_hash);
             }
 
-            let (proof, public_inputs) = prover
-                .prove_poi(&inputs)
-                .await
-                .map_err(PoiProvedOperationError::Prover)?;
+            let (proof, public_inputs) = prove_poi(prover, &inputs).await?;
 
             let pre_transaction_poi = PreTransactionPoi {
                 proof,

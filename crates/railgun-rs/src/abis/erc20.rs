@@ -1,9 +1,9 @@
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 use alloy::sol;
-#[cfg(feature = "wasm")]
+#[cfg(target_arch = "wasm32")]
 use alloy_sol_types::sol;
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 sol! {
     #[sol(rpc)]
     // ERC20 interface
@@ -14,7 +14,7 @@ sol! {
     }
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(target_arch = "wasm32")]
 sol! {
     // ERC20 interface
     contract ERC20 {

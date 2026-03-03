@@ -43,8 +43,7 @@ struct JsProof {
     public_inputs: Vec<U256>,
 }
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[async_trait::async_trait(?Send)]
 impl Prover for JsProverAdapter {
     async fn prove(
         &self,

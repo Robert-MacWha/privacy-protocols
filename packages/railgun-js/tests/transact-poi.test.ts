@@ -1,16 +1,16 @@
 import { checksumAddress, createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { expect, test } from "vitest";
-import { erc20, JsPoiProvider, JsSigner, type AssetId, type RailgunAddress, type ListKey, type PoiStatus } from "../src/pkg/railgun_rs.js";
-import { createProver } from "../src/prover-adapter.js";
+import { erc20, JsPoiProvider, JsSigner, JsSyncer, type AssetId, type RailgunAddress, type ListKey } from "../src/pkg/railgun_rs.js";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
+import { GrothProverAdapter, RemoteArtifactLoader } from "../src/prover-adapter.js";
 
 const USDC_ADDRESS = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238";
 const CHAIN_ID = 11155111n;
 const RPC_URL = process.env.RPC_URL_SEPOLIA!;
 const SIGNER_KEY = `0x${process.env.DEV_KEY!}` as `0x${string}`;
-const ARTIFACTS_PATH = "../../artifacts/railgun";
+const ARTIFACTS_URL = "https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/artifacts/";
 
 const erc20Abi = parseAbi([
   "function balanceOf(address) view returns (uint256)",
@@ -35,9 +35,13 @@ test("transact-poi", async () => {
   });
 
   console.log("Setup Railgun POI Provider");
-  const prover = createProver({ artifactsPath: ARTIFACTS_PATH });
+  const prover = new GrothProverAdapter(new RemoteArtifactLoader(ARTIFACTS_URL));
   const rpcAdapter = new ViemEthRpcAdapter(publicClient);
-  const railgun = await JsPoiProvider.new_from_rpc(CHAIN_ID, rpcAdapter, 10n, prover);
+  const syncer = JsSyncer.newChained([
+    JsSyncer.newSubsquid(CHAIN_ID),
+    await JsSyncer.newRpc(rpcAdapter, CHAIN_ID, 10n),
+  ]);
+  const railgun = await JsPoiProvider.new(rpcAdapter, syncer, prover);
 
   const listKeys = railgun.list_keys();
   expect(listKeys.length).toBeGreaterThan(0);
@@ -55,8 +59,8 @@ test("transact-poi", async () => {
   {
     const tx = railgun.shield().shield(account1.address, USDC, 10n).build();
     const shieldHash = await walletClient.sendTransaction({
-      to: tx.to as `0x${string}`,
-      data: tx.dataHex as `0x${string}`,
+      to: tx.to,
+      data: tx.data,
       value: BigInt(tx.value),
     });
     await publicClient.waitForTransactionReceipt({ hash: shieldHash });
@@ -72,7 +76,7 @@ test("transact-poi", async () => {
     const tx = await railgun.build(builder);
     const transferHash = await walletClient.sendTransaction({
       to: tx.to as `0x${string}`,
-      data: tx.dataHex as `0x${string}`,
+      data: tx.data as `0x${string}`,
       value: tx.value,
     });
     await publicClient.waitForTransactionReceipt({ hash: transferHash });
@@ -97,7 +101,7 @@ test("transact-poi", async () => {
     const tx = await railgun.build(builder);
     const unshieldHash = await walletClient.sendTransaction({
       to: tx.to as `0x${string}`,
-      data: tx.dataHex as `0x${string}`,
+      data: tx.data as `0x${string}`,
       value: tx.value,
     });
     await publicClient.waitForTransactionReceipt({ hash: unshieldHash });
@@ -137,12 +141,16 @@ async function awaitBalanceUpdate(
 
     await railgun.sync();
     const balance = await railgun.balance(address, listKey);
-    const validBalance = balance.get("Valid", asset);
-    console.log(`Balance: ${validBalance}`);
+    console.log('Balance:', balance);
+
+    const validBalance = balance.find(
+      (entry) => entry.poi_status === "Valid" && JSON.stringify(entry.asset_id) === JSON.stringify(asset)
+    )?.balance;
 
     if (expected === undefined && (validBalance === undefined || validBalance === 0n)) {
       return;
     }
+
     if (expected !== undefined && validBalance === expected) {
       return;
     }

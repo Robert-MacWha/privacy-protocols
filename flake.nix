@@ -56,6 +56,7 @@
               # Cargo tools
               pkgs.cargo-bloat
               pkgs.cargo-machete
+              pkgs.cargo-insta
               pkgs.cargo-sort
               pkgs.cargo-llvm-cov
 

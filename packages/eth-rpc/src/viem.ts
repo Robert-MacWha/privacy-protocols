@@ -4,6 +4,10 @@ import { EthRpcAdapter, RawLog } from './pkg/eth_rpc.js';
 export class ViemEthRpcAdapter implements EthRpcAdapter {
     constructor(private client: PublicClient) { }
 
+    async getChainId(): Promise<bigint> {
+        return BigInt(await this.client.getChainId());
+    }
+
     async getBlockNumber(): Promise<bigint> {
         const number = await this.client.getBlockNumber();
         return BigInt(number);

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use alloy_primitives::Address;
+use eth_rpc::{EthRpcClient, TxData};
 use prover::Prover;
 use rand::Rng;
 use ruint::aliases::U256;
@@ -10,13 +11,12 @@ use tracing::warn;
 
 use crate::{
     abis::tornado::Tornado,
-    indexer::{Syncer, Verifier},
+    indexer::{RpcSyncer, Syncer, Verifier},
     note::Note,
     provider::{
         pool::Pool,
         pool_provider::{PoolProvider, PoolProviderError, PoolProviderState},
     },
-    tx_data::TxData,
 };
 
 /// TornadoProvider manages multiple pools and provides a unified interface for
@@ -44,10 +44,11 @@ pub enum TornadoProviderError {
 
 impl TornadoProvider {
     pub fn new(
+        rpc: Arc<dyn EthRpcClient>,
         syncer: Arc<dyn Syncer>,
-        verifier: Arc<dyn Verifier>,
         prover: Arc<dyn Prover>,
     ) -> Self {
+        let verifier = Arc::new(RpcSyncer::new(rpc));
         Self {
             pools: Vec::new(),
             syncer,
@@ -57,12 +58,12 @@ impl TornadoProvider {
     }
 
     pub fn from_state(
+        rpc: Arc<dyn EthRpcClient>,
         syncer: Arc<dyn Syncer>,
-        verifier: Arc<dyn Verifier>,
         prover: Arc<dyn Prover>,
         state: TornadoProviderState,
     ) -> Self {
-        let mut provider = Self::new(syncer, verifier, prover);
+        let mut provider = Self::new(rpc, syncer, prover);
         for pool_state in state.pool_states {
             provider.add_pool_from_state(pool_state);
         }

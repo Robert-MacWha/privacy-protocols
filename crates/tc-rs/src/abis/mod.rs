@@ -1,4 +1,4 @@
 mod erc20;
-#[cfg(feature = "broadcaster")]
+#[cfg(feature = "relay")]
 pub mod relayer_registry;
 pub mod tornado;

@@ -5,7 +5,6 @@ pub mod circuit;
 pub mod crypto;
 pub mod padded_u256;
 pub mod railgun;
-pub mod sleep;
 
-#[cfg(feature = "wasm")]
+#[cfg(target_arch = "wasm32")]
 pub mod wasm;

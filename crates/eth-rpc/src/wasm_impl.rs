@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, FixedBytes};
+use alloy_primitives::{Address, Bytes, FixedBytes};
 use js_sys::BigInt;
 use wasm_bindgen::prelude::*;
 
@@ -7,6 +7,7 @@ use crate::client::{EthRpcClient, EthRpcClientError, RawLog};
 #[wasm_bindgen(typescript_custom_section)]
 const TS_INTERFACE: &str = r#"
 export interface EthRpcAdapter {
+    getChainId(): Promise<bigint>;
     getBlockNumber(): Promise<bigint>;
     getLogs(
         address: `0x${string}`, 
@@ -24,6 +25,9 @@ export interface EthRpcAdapter {
 extern "C" {
     #[wasm_bindgen(typescript_type = "EthRpcAdapter")]
     pub type JsEthRpcAdapter;
+
+    #[wasm_bindgen(method, catch, js_name = "getChainId")]
+    pub async fn get_chain_id(this: &JsEthRpcAdapter) -> Result<JsValue, JsValue>;
 
     #[wasm_bindgen(method, catch, js_name = "getBlockNumber")]
     pub async fn get_block_number(this: &JsEthRpcAdapter) -> Result<JsValue, JsValue>;
@@ -55,6 +59,14 @@ extern "C" {
 
 #[async_trait::async_trait(?Send)]
 impl EthRpcClient for JsEthRpcAdapter {
+    async fn get_chain_id(&self) -> Result<u64, EthRpcClientError> {
+        let result = self
+            .get_chain_id()
+            .await
+            .map_err(|e| EthRpcClientError::Rpc(format!("{:?}", e)))?;
+        js_bigint_to_u64(result)
+    }
+
     async fn get_block_number(&self) -> Result<u64, EthRpcClientError> {
         let result = self
             .get_block_number()
@@ -83,7 +95,7 @@ impl EthRpcClient for JsEthRpcAdapter {
         Ok(logs)
     }
 
-    async fn eth_call(&self, to: Address, data: Vec<u8>) -> Result<Vec<u8>, EthRpcClientError> {
+    async fn eth_call(&self, to: Address, data: Bytes) -> Result<Bytes, EthRpcClientError> {
         let to_str = format!("{:#x}", to);
         let data_str = format!("0x{}", hex::encode(data));
 
@@ -101,7 +113,7 @@ impl EthRpcClient for JsEthRpcAdapter {
     async fn estimate_gas(
         &self,
         to: Address,
-        data: Vec<u8>,
+        data: Bytes,
         from: Option<Address>,
     ) -> Result<u64, EthRpcClientError> {
         let to_str = format!("{:#x}", to);

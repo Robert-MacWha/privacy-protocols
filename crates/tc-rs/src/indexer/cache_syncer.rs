@@ -76,8 +76,8 @@ impl CacheSyncer {
     }
 }
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl Syncer for CacheSyncer {
     async fn latest_block(&self) -> Result<u64, SyncerError> {
         Ok(self.latest_block)
@@ -89,10 +89,7 @@ impl Syncer for CacheSyncer {
         from_block: u64,
         to_block: u64,
     ) -> Result<Vec<Commitment>, SyncerError> {
-        info!(
-            "CacheSyncer syncing commitments from block {} to {}",
-            from_block, to_block
-        );
+        info!("Syncing commitments {}-{}", from_block, to_block);
 
         let cache = self
             .cache
@@ -147,7 +144,8 @@ impl From<&RawDeposit> for Commitment {
             tx_hash: raw.transaction_hash,
             commitment: raw.commitment,
             leaf_index: raw.leaf_index,
-            timestamp: 0, // No timestamp in cache
+            // No timestamp in cache
+            timestamp: 0,
         }
     }
 }
@@ -159,8 +157,9 @@ impl From<&RawWithdrawal> for Nullifier {
             tx_hash: raw.transaction_hash,
             nullifier: raw.nullifier_hash,
             to: raw.to,
-            fee: raw.fee.parse().unwrap_or(0), // Parse fee from string, default to 0 on error
-            timestamp: 0,                      // No timestamp in cache
+            fee: raw.fee.parse().unwrap_or(0),
+            // No timestamp in cache
+            timestamp: 0,
         }
     }
 }

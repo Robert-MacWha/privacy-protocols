@@ -2,7 +2,9 @@ fork_url := env_var("RPC_URL_MAINNET")
 fork_block := "24379760"
 
 wasm:
-    wasm-pack build --target nodejs ../../crates/railgun-rs --out-dir ../../packages/railgun-js/src/pkg --no-default-features --features wasm,poi
+    wasm-pack build --release --target nodejs ../../crates/railgun-rs --out-dir ../../packages/railgun-js/src/pkg
+
+integration: integration-sync-utxo integration-transact integration-transact-poi
 
 integration-sync-utxo:
     pnpm vitest run -t "sync-utxo"

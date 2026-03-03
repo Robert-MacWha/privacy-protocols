@@ -4,17 +4,18 @@ use bech32::Hrp;
 use serde::{self, Deserialize, Serialize};
 use thiserror::Error;
 use tracing::warn;
-use tsify::Tsify;
 
 use crate::crypto::keys::{
     HexKey, KeyError, MasterPublicKey, SpendingKey, ViewingKey, ViewingPublicKey,
 };
 
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Tsify,
-)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
 #[serde(try_from = "String", into = "String")]
-#[tsify(from_wasm_abi, into_wasm_abi, type = "String")]
+#[cfg_attr(
+    target_arch = "wasm32",
+    tsify(from_wasm_abi, into_wasm_abi, type = "String")
+)]
 pub struct RailgunAddress {
     master_key: MasterPublicKey,
     viewing_pubkey: ViewingPublicKey,
@@ -221,8 +222,9 @@ mod tests {
     // #[test]
     // #[traced_test]
     // fn test_railgun_address_all_chains() {
-    //     let address = "0zk1qykqj8ed50tfm8a4ezl2qekk3aqxuq37pgv88pv6s9phk0vj3lv7erv7j6fe3z53la8hh9taj9xq34y835wrscryymjf8qqrasmm2vxrm68y0qsxtcvzj6paxpy";
-    //     let parsed: RailgunAddress = address.parse().unwrap();
+    //     let address =
+    // "0zk1qykqj8ed50tfm8a4ezl2qekk3aqxuq37pgv88pv6s9phk0vj3lv7erv7j6fe3z53la8hh9taj9xq34y835wrscryymjf8qqrasmm2vxrm68y0qsxtcvzj6paxpy"
+    // ;     let parsed: RailgunAddress = address.parse().unwrap();
     //     assert_eq!(parsed.chain(), ChainId::All);
 
     //     let address_string = parsed.to_string();

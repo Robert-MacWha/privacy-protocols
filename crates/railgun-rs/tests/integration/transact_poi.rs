@@ -10,7 +10,7 @@ use railgun_rs::{
     abis::erc20::ERC20,
     caip::AssetId,
     chain_config::{ChainConfig, SEPOLIA_CONFIG},
-    circuit::native::Groth16Prover,
+    circuit::native::{Groth16Prover, RemoteArtifactLoader},
     railgun::{
         PoiProvider,
         indexer::{ChainedSyncer, RpcSyncer, SubsquidSyncer},
@@ -18,7 +18,6 @@ use railgun_rs::{
         signer::Signer,
         transaction::PoiTransactionBuilder,
     },
-    sleep::sleep,
 };
 use rand::random;
 use tracing::info;
@@ -39,7 +38,9 @@ async fn test_transact_poi() {
         .ok();
 
     info!("Setting up prover");
-    let prover = Arc::new(Groth16Prover::new_native("../../artifacts/railgun"));
+    let prover = Arc::new(Groth16Prover::new(RemoteArtifactLoader::new(
+        "https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/artifacts/",
+    )));
 
     info!("Setting up alloy provider");
     let signer_key = std::env::var("DEV_KEY").expect("DEV_KEY must be set");
@@ -230,7 +231,7 @@ async fn await_balance_update(
     let start = std::time::Instant::now();
     loop {
         info!("Waiting for balance to update...");
-        sleep(web_time::Duration::from_secs(10)).await;
+        common::sleep(web_time::Duration::from_secs(10)).await;
 
         if start.elapsed().as_secs() > 200 {
             panic!("Balance did not update within 200 seconds");

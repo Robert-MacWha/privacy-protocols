@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use prover::{Prover, ProverError};
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -8,7 +9,7 @@ use tracing::{info, warn};
 use crate::{
     circuit::{
         inputs::poi_inputs::{PoiCircuitInputs, PoiCircuitInputsError},
-        prover::PoiProver,
+        prover::prove_poi,
     },
     crypto::{
         keys::{NullifyingKey, SpendingPublicKey},
@@ -68,7 +69,7 @@ pub enum PendingPoiError {
     #[error("Circuit inputs error: {0}")]
     CircuitInputs(#[from] PoiCircuitInputsError),
     #[error("Prover error: {0}")]
-    Prover(Box<dyn std::error::Error>),
+    Prover(#[from] ProverError),
     #[error("Missing UTXO tree {0}")]
     MissingUtxoTree(u32),
     #[error("Missing TXID tree {0}")]
@@ -137,7 +138,7 @@ impl PendingPoiSubmitter {
         txid_indexer: &TxidIndexer,
         utxo_indexer: &UtxoIndexer,
         poi_client: &PoiClient,
-        prover: &dyn PoiProver,
+        prover: &dyn Prover,
     ) -> Result<Vec<Txid>, PendingPoiError> {
         let mut submitted = Vec::new();
         for i in (0..self.pending.len()).rev() {
@@ -205,10 +206,7 @@ impl PendingPoiSubmitter {
                     txid_tree,
                 )?;
 
-                let (proof, public_inputs) = prover
-                    .prove_poi(&inputs)
-                    .await
-                    .map_err(PendingPoiError::Prover)?;
+                let (proof, public_inputs) = prove_poi(prover, &inputs).await?;
 
                 let blinded_commitments_out = public_inputs[0..inputs.commitments.len()]
                     .iter()

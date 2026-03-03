@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes};
 use alloy_sol_types::SolCall;
+use eth_rpc::TxData;
 use prover::{Proof, Prover};
 use rand::RngCore;
 use ruint::aliases::U256;
@@ -13,7 +14,6 @@ use crate::{
     indexer::{Indexer, IndexerError, IndexerState, Syncer, Verifier},
     note::Note,
     provider::pool::{Asset, Pool},
-    tx_data::TxData,
 };
 
 /// A provider for a single tornadocash pool
@@ -77,11 +77,10 @@ impl PoolProvider {
             self.pool().chain_id,
         );
 
-        let call = Tornado::depositCall {
+        let calldata = Tornado::depositCall {
             _commitment: note.commitment().into(),
-        };
-        let calldata = call.abi_encode();
-
+        }
+        .abi_encode();
         let value = match self.pool().asset {
             Asset::Native { .. } => self.pool().amount_wei,
             Asset::Erc20 { .. } => 0,
@@ -89,7 +88,7 @@ impl PoolProvider {
 
         let tx_data = TxData {
             to: self.pool().address,
-            data: calldata,
+            data: calldata.into(),
             value: U256::from(value),
         };
         (tx_data, note)
@@ -106,13 +105,14 @@ impl PoolProvider {
     ) -> Result<TxData, PoolProviderError> {
         let call = self
             .withdraw_calldata(note, recipient, relayer, fee, refund)
-            .await?;
+            .await?
+            .abi_encode();
 
-        Ok(TxData {
-            to: self.pool().address,
-            data: call.abi_encode(),
-            value: refund.unwrap_or_default(),
-        })
+        Ok(TxData::new(
+            self.pool().address,
+            call.into(),
+            refund.unwrap_or_default(),
+        ))
     }
 
     /// Create the calldata for a withdrawal transaction

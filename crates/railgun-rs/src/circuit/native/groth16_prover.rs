@@ -5,28 +5,24 @@ use ark_circom::CircomReduction;
 use ark_ff::BigInt;
 use ark_groth16::{Groth16, prepare_verifying_key};
 use ark_std::rand::random;
+use prover::{Prover, ProverError};
 use ruint::aliases::U256;
 use tracing::info;
 
-#[cfg(feature = "poi")]
-use crate::circuit::inputs::PoiCircuitInputs;
-#[cfg(feature = "poi")]
-use crate::circuit::prover::PoiProver;
 use crate::circuit::{
     artifact_loader::ArtifactLoader,
-    inputs::TransactCircuitInputs,
-    native::{FsArtifactLoader, WasmerWitnessCalculator},
-    prover::{PublicInputs, TransactProver},
-    witness::{CircuitType, WitnessCalculator},
+    native::{WasmerWitnessCalculator, wasmer_witness_calculator},
 };
 
-pub struct Groth16Prover<W, A> {
-    witness_calculator: W,
+pub struct Groth16Prover<A> {
+    witness_calculator: WasmerWitnessCalculator<A>,
     artifact_loader: A,
 }
 
-impl<W: WitnessCalculator, A: ArtifactLoader> Groth16Prover<W, A> {
-    pub fn new(witness_calculator: W, artifact_loader: A) -> Self {
+impl<A: ArtifactLoader> Groth16Prover<A> {
+    pub fn new(artifact_loader: A) -> Self {
+        let witness_calculator =
+            wasmer_witness_calculator::WasmerWitnessCalculator::new(artifact_loader.clone());
         Groth16Prover {
             witness_calculator,
             artifact_loader,
@@ -34,62 +30,32 @@ impl<W: WitnessCalculator, A: ArtifactLoader> Groth16Prover<W, A> {
     }
 }
 
-impl Groth16Prover<WasmerWitnessCalculator, FsArtifactLoader> {
-    pub fn new_native(path: &str) -> Self {
-        let witness_calculator = WasmerWitnessCalculator::new(path);
-        let artifact_loader = FsArtifactLoader::new(path);
-        Self::new(witness_calculator, artifact_loader)
-    }
-}
-
 #[async_trait::async_trait]
-impl<W: WitnessCalculator + Send + Sync, A: ArtifactLoader + Send + Sync> TransactProver for Groth16Prover<W, A> {
-    #[tracing::instrument(skip_all)]
-    async fn prove_transact(
+impl<A: ArtifactLoader + Send + Sync + 'static> Prover for Groth16Prover<A> {
+    async fn prove(
         &self,
-        inputs: &TransactCircuitInputs,
-    ) -> Result<(prover::Proof, PublicInputs), Box<dyn std::error::Error>> {
-        let circuit_type = CircuitType::Transact {
-            nullifiers: inputs.nullifiers.len(),
-            commitments: inputs.commitments_out.len(),
-        };
-
-        self.prove(circuit_type, inputs.as_flat_map()).await
-    }
-}
-
-#[cfg(feature = "poi")]
-#[async_trait::async_trait]
-impl<W: WitnessCalculator + Send + Sync, A: ArtifactLoader + Send + Sync> PoiProver for Groth16Prover<W, A> {
-    #[tracing::instrument(skip_all)]
-    async fn prove_poi(
-        &self,
-        inputs: &PoiCircuitInputs,
-    ) -> Result<(prover::Proof, PublicInputs), Box<dyn std::error::Error>> {
-        let circuit_type = CircuitType::Poi {
-            nullifiers: inputs.nullifiers.len(),
-            commitments: inputs.commitments.len(),
-        };
-
-        self.prove(circuit_type, inputs.as_flat_map()).await
-    }
-}
-
-impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> Groth16Prover<W, A> {
-    pub async fn prove(
-        &self,
-        circuit_type: CircuitType,
+        circuit_name: &str,
         inputs: HashMap<String, Vec<U256>>,
-    ) -> Result<(prover::Proof, PublicInputs), Box<dyn std::error::Error>> {
+    ) -> Result<(prover::Proof, Vec<U256>), ProverError> {
         info!("Loading artifacts");
-        let pk = self.artifact_loader.load_proving_key(circuit_type).await?;
-        let matrices = self.artifact_loader.load_matrices(circuit_type).await?;
+        let pk = self
+            .artifact_loader
+            .load_proving_key(circuit_name)
+            .await
+            .map_err(ProverError::InvalidCircuit)?;
+
+        let matrices = self
+            .artifact_loader
+            .load_matrices(circuit_name)
+            .await
+            .map_err(ProverError::InvalidCircuit)?;
 
         info!("Calculating witness");
         let witnesses = self
             .witness_calculator
-            .calculate_witness(circuit_type, inputs)
-            .await?;
+            .calculate_witness(circuit_name, inputs)
+            .await
+            .map_err(ProverError::WitnessGeneration)?;
         let witnesses: Vec<Fr> = witnesses
             .iter()
             .map(|x| Fr::from(BigInt::from(*x)))
@@ -104,14 +70,21 @@ impl<W: WitnessCalculator + Sync, A: ArtifactLoader + Sync> Groth16Prover<W, A> 
             matrices.num_instance_variables,
             matrices.num_constraints,
             &witnesses,
-        )?;
+        )
+        .map_err(|e| ProverError::Other(e.to_string()))?;
 
         info!("Verifying proof");
         let public_inputs = &witnesses[1..matrices.num_instance_variables];
         let pvk = prepare_verifying_key(&pk.vk);
         let verified =
-            Groth16::<Bn254, CircomReduction>::verify_proof(&pvk, &proof, &public_inputs).unwrap();
-        assert!(verified, "Proof verification failed");
+            Groth16::<Bn254, CircomReduction>::verify_proof(&pvk, &proof, &public_inputs)
+                .map_err(|e| ProverError::InvalidProof(e.to_string()))?;
+
+        if !verified {
+            return Err(ProverError::InvalidProof(
+                "Proof verification failed".to_string(),
+            ));
+        }
 
         let public_inputs = public_inputs
             .iter()

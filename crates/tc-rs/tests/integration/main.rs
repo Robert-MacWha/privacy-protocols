@@ -1,4 +1,4 @@
-#[cfg(all(feature = "broadcaster", feature = "native"))]
-mod sync_broadcaster;
-#[cfg(all(feature = "native"))]
+#[cfg(not(target_arch = "wasm32"))]
 mod sync_indexer;
+#[cfg(all(not(target_arch = "wasm32"), feature = "relay"))]
+mod sync_relayer;

@@ -1,13 +1,12 @@
-import { readFile } from "node:fs/promises";
-import circuit from "../../../artifacts/tc/tornado.json" with { type: "json" };
 import buildGroth16 from "@tornado/websnark/src/groth16";
 import * as websnarkUtils from "@tornado/websnark/src/utils";
 import { JsProof, ProverAdapter } from "./pkg/tc_rs.js";
+import { ArtifactLoader } from "./artifact-loader.js";
 
 export class TornadoClassicProver implements ProverAdapter {
   private groth16Promise: Promise<any>;
 
-  constructor() {
+  constructor(private artifactLoader: ArtifactLoader) {
     this.groth16Promise = buildGroth16();
   }
 
@@ -30,10 +29,8 @@ export class TornadoClassicProver implements ProverAdapter {
       }
     }
 
-    console.log("Loading proving key");
-    const provingKeyBuffer = await readFile(
-      new URL("../../../artifacts/tc/tornadoProvingKey.bin", import.meta.url)
-    );
+    console.log("Loading artifacts");
+    const { circuit, provingKey } = await this.artifactLoader.load();
 
     console.log("Generating proof");
     const { pi_a, pi_b, pi_c, publicSignals } =
@@ -41,7 +38,7 @@ export class TornadoClassicProver implements ProverAdapter {
         groth16,
         bigintInputs,
         circuit,
-        provingKeyBuffer.buffer
+        provingKey
       );
 
     return {

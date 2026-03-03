@@ -86,7 +86,8 @@ pub fn encrypt_note<R: Rng + ?Sized>(
         ],
         blindedSenderViewingKey: blinded_sender.to_u256().into(),
         blindedReceiverViewingKey: blinded_receiver.to_u256().into(),
-        // ctr_iv (16) | outputType (1) | senderRandom (15) | padding (16) | applicationIdentifier (16)
+        // ctr_iv (16) | outputType (1) | senderRandom (15) | padding (16) | applicationIdentifier
+        // (16)
         annotationData: [ctr.iv.as_slice(), &ctr.data[0], &ctr.data[1], &ctr.data[2]]
             .concat()
             .into(),

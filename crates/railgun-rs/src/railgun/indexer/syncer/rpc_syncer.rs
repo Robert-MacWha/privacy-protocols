@@ -13,7 +13,6 @@ use crate::{
         normalize_tree_position::normalize_tree_position,
         syncer::{NoteSyncer, SyncEvent, SyncerError},
     },
-    sleep::sleep,
 };
 
 pub struct RpcSyncer {
@@ -54,8 +53,8 @@ impl RpcSyncer {
     }
 }
 
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl NoteSyncer for RpcSyncer {
     async fn latest_block(&self) -> Result<u64, SyncerError> {
         Ok(self.latest_block().await?)
@@ -95,7 +94,7 @@ impl RpcSyncer {
                     Some(batch_end),
                 )
                 .await?;
-            sleep(self.timeout).await;
+            common::sleep(self.timeout).await;
 
             for log in logs {
                 match log_to_sync_events(log) {

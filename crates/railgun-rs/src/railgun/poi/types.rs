@@ -4,7 +4,6 @@ use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
-use tsify::Tsify;
 
 use crate::{
     crypto::railgun_txid::Txid,
@@ -14,8 +13,9 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Tsify)]
-#[tsify(into_wasm_abi, from_wasm_abi)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct ListKey(String);
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Eq, Hash)]
@@ -44,8 +44,9 @@ pub enum PoiEventType {
     LegacyTransact,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Tsify)]
-#[tsify(into_wasm_abi, from_wasm_abi)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum PoiStatus {
     Valid,
     ShieldBlocked,

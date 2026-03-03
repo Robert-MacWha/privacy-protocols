@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use js_sys::Array;
-use thiserror::Error;
 use wasm_bindgen::prelude::*;
 
 use crate::railgun::broadcaster::{
@@ -9,22 +8,43 @@ use crate::railgun::broadcaster::{
     types::WakuMessage,
 };
 
+#[wasm_bindgen(typescript_custom_section)]
+const TS_INTERFACE: &str = r#"
+export interface WakuAdapter {
+    /**
+     * Subscribe to a set of content topics.
+     */
+    subscribe(topics: string[]): Promise<void>;
+
+    /**
+     * Await the next inbound message matching the subscribed topics.
+     * Returns `null` when the subscription has been closed.
+     */
+    nextMessage(): Promise<WakuMessage | null>;
+
+    /**
+     * Publish a message to a content topic.
+     */
+    send(topic: string, payload: Uint8Array): Promise<void>;
+
+    /**
+     * Retrieve historical messages for a content topic.
+     */
+    retrieveHistorical(topic: string): Promise<WakuMessage[]>;
+}
+"#;
+
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_name = "WakuAdapter")]
+    #[wasm_bindgen(typescript_type = "WakuAdapter")]
     pub type JsWakuAdapter;
 
-    /// Subscribe to a set of content topics.
-    /// The adapter manages the subscription callback internally.
     #[wasm_bindgen(method, catch)]
     async fn subscribe(this: &JsWakuAdapter, topics: Array) -> Result<(), JsValue>;
 
-    /// Await the next inbound message matching the subscribed topics.
-    /// Returns `null` when the subscription has been closed.
     #[wasm_bindgen(method, catch, js_name = "nextMessage")]
     async fn next_message(this: &JsWakuAdapter) -> Result<JsValue, JsValue>;
 
-    /// Publish a message to a content topic.
     #[wasm_bindgen(method, catch)]
     async fn send(
         this: &JsWakuAdapter,
@@ -32,29 +52,15 @@ extern "C" {
         payload: js_sys::Uint8Array,
     ) -> Result<(), JsValue>;
 
-    /// Retrieve historical messages for a content topic.
     #[wasm_bindgen(method, catch, js_name = "retrieveHistorical")]
     async fn retrieve_historical(this: &JsWakuAdapter, topic: &str) -> Result<JsValue, JsValue>;
 }
 
-pub struct JsWakuTransport {
-    adapter: Arc<JsWakuAdapter>,
-}
-
-#[derive(Debug, Error)]
-#[allow(dead_code)]
-pub enum JsWakuTransportError {
-    #[error("Serde error: {0}")]
-    Serde(#[from] serde_wasm_bindgen::Error),
-    #[error("JS error: {0:?}")]
-    Js(JsValue),
-}
+pub struct JsWakuTransport(Arc<JsWakuAdapter>);
 
 impl JsWakuTransport {
     pub fn new(adapter: JsWakuAdapter) -> Self {
-        Self {
-            adapter: Arc::new(adapter),
-        }
+        Self(Arc::new(adapter))
     }
 }
 
@@ -69,12 +75,12 @@ impl WakuTransport for JsWakuTransport {
             .map(|t| JsValue::from_str(t))
             .collect::<Array>();
 
-        self.adapter
+        self.0
             .subscribe(topics)
             .await
             .map_err(|e| WakuTransportError::SubscriptionFailed(format!("{e:?}")))?;
 
-        let adapter = Arc::clone(&self.adapter);
+        let adapter = Arc::clone(&self.0);
 
         let stream = futures::stream::unfold(adapter, |adapter| async move {
             let msg_js = adapter.next_message().await.ok()?;
@@ -91,7 +97,7 @@ impl WakuTransport for JsWakuTransport {
     async fn send(&self, content_topic: &str, payload: Vec<u8>) -> Result<(), WakuTransportError> {
         let payload_js = js_sys::Uint8Array::from(payload.as_slice());
 
-        self.adapter
+        self.0
             .send(content_topic, payload_js)
             .await
             .map_err(|e| WakuTransportError::SendFailed(format!("{e:?}")))?;
@@ -104,7 +110,7 @@ impl WakuTransport for JsWakuTransport {
         content_topic: &str,
     ) -> Result<Vec<WakuMessage>, WakuTransportError> {
         let result = self
-            .adapter
+            .0
             .retrieve_historical(content_topic)
             .await
             .map_err(|e| WakuTransportError::RetrieveHistoricalFailed(format!("{e:?}")))?;

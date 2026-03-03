@@ -1,8 +1,8 @@
-#[cfg(all(not(feature = "wasm"), feature = "poi"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "poi"))]
 mod sync_txid;
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 mod sync_utxo;
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 mod transact;
-#[cfg(all(not(feature = "wasm"), feature = "poi"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "poi"))]
 mod transact_poi;

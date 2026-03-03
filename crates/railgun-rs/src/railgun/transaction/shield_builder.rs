@@ -1,4 +1,5 @@
 use alloy_sol_types::SolCall;
+use eth_rpc::TxData;
 use rand::Rng;
 use ruint::aliases::U256;
 use thiserror::Error;
@@ -10,7 +11,6 @@ use crate::{
     railgun::{
         address::RailgunAddress,
         note::encrypt::{EncryptError, encrypt_shield},
-        transaction::tx_data::TxData,
     },
 };
 
@@ -55,7 +55,7 @@ impl ShieldBuilder {
 
         Ok(TxData {
             to: self.chain.railgun_smart_wallet,
-            data: calldata,
+            data: calldata.into(),
             value: U256::ZERO,
         })
     }

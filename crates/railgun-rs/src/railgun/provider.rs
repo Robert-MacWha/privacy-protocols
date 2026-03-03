@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use alloy_primitives::ChainId;
 use eth_rpc::EthRpcClient;
+use prover::Prover;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -9,7 +10,6 @@ use thiserror::Error;
 use crate::{
     caip::AssetId,
     chain_config::{ChainConfig, get_chain_config},
-    circuit::prover::TransactProver,
     railgun::{
         address::RailgunAddress,
         indexer::{NoteSyncer, UtxoIndexer, UtxoIndexerError, UtxoIndexerState},
@@ -23,7 +23,7 @@ use crate::{
 pub struct RailgunProvider {
     pub chain: ChainConfig,
     pub(crate) utxo_indexer: UtxoIndexer,
-    pub(crate) prover: Arc<dyn TransactProver>,
+    pub(crate) prover: Arc<dyn Prover>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -48,7 +48,7 @@ impl RailgunProvider {
         chain: ChainConfig,
         provider: Arc<dyn EthRpcClient>,
         utxo_syncer: Arc<dyn NoteSyncer>,
-        prover: Arc<dyn TransactProver>,
+        prover: Arc<dyn Prover>,
     ) -> Self {
         let utxo_verifier = Arc::new(SmartWalletUtxoVerifier::new(
             chain.railgun_smart_wallet,

@@ -28,7 +28,6 @@ use crate::{
         poi::{ListKey, PreTransactionPoisPerTxidLeafPerList, TxidVersion},
         transaction::PoiProvedTx,
     },
-    sleep::sleep,
 };
 
 /// Broadcaster instance for a specific fee config
@@ -251,16 +250,13 @@ impl Broadcaster {
         let mut last_send = web_time::Instant::now();
         let mut last_store_poll = web_time::Instant::now();
 
-        // Dedup messages by payload hash to avoid re-processing.
         let mut seen: HashSet<u64> = HashSet::new();
-
         loop {
             let elapsed = start_time.elapsed();
             if elapsed >= self.timeout {
                 return Err(BroadcastError::Timeout);
             }
 
-            // Drain any messages that arrived via Filter (non-blocking).
             while let Some(msg) = poll_next_ready(&mut filter_stream) {
                 let hash = hash_payload(&msg.payload);
                 if seen.insert(hash) {
@@ -300,8 +296,7 @@ impl Broadcaster {
                 last_send = web_time::Instant::now();
             }
 
-            // Short sleep to avoid busy-looping between Filter drains.
-            sleep(web_time::Duration::from_millis(250)).await;
+            common::sleep(web_time::Duration::from_millis(250)).await;
         }
     }
 }

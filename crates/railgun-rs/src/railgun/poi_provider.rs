@@ -2,6 +2,7 @@ use std::{collections::HashMap, pin::pin, sync::Arc};
 
 use eth_rpc::EthRpcClient;
 use futures::future::Either;
+use prover::Prover;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -10,7 +11,6 @@ use tracing::info;
 use crate::{
     caip::AssetId,
     chain_config::ChainConfig,
-    circuit::prover::{PoiProver, Prover},
     railgun::{
         address::RailgunAddress,
         broadcaster::broadcaster::{BroadcastError, Broadcaster, Fee},
@@ -37,7 +37,7 @@ pub struct PoiProvider {
     provider: Arc<dyn EthRpcClient>,
     txid_indexer: TxidIndexer,
     poi_client: PoiClient,
-    prover: Arc<dyn PoiProver>,
+    prover: Arc<dyn Prover>,
     pending_submitter: PendingPoiSubmitter,
 }
 
@@ -162,7 +162,6 @@ impl PoiProvider {
                 &self.inner.utxo_indexer,
                 self.inner.prover.as_ref(),
                 &self.poi_client,
-                self.prover.as_ref(),
                 rng,
             )
             .await?;
@@ -189,7 +188,6 @@ impl PoiProvider {
                 &self.inner.utxo_indexer,
                 self.inner.prover.as_ref(),
                 &self.poi_client,
-                self.prover.as_ref(),
                 self.provider.as_ref(),
                 fee_payer,
                 fee,

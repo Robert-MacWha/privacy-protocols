@@ -17,15 +17,15 @@ pub enum WakuTransportError {
     RetrieveHistoricalFailed(String),
 }
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 pub type MessageStream = Pin<Box<dyn Stream<Item = WakuMessage> + Send>>;
 
-#[cfg(feature = "wasm")]
+#[cfg(target_arch = "wasm32")]
 pub type MessageStream = Pin<Box<dyn Stream<Item = WakuMessage>>>;
 
 /// Transport layer for Waku network communication.
-#[cfg_attr(not(feature = "wasm"), async_trait::async_trait)]
-#[cfg_attr(feature = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 pub trait WakuTransport: common::MaybeSend {
     /// Subscribe to messages on the given content topics.
     ///
