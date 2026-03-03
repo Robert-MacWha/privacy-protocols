@@ -7,7 +7,7 @@
 
 import { readFile } from "node:fs/promises";
 import * as snarkjs from "snarkjs";
-import { JsProof, ProverAdapter } from "./pkg/railgun_rs";
+import { JsProof, ProverAdapter } from "./pkg/railgun_rs.js";
 
 export interface ArtifactLoader {
   loadWasm(circuitName: string): Promise<Uint8Array>;
