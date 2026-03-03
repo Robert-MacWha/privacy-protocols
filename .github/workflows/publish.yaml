@@ -39,6 +39,9 @@ jobs:
     - name: Install dependencies
       run: nix develop .#ci-js --command bash -c "pnpm install"
 
+    - name: Build eth-rpc WASM
+      run: nix develop .#ci-js --command bash -c "cd packages/eth-rpc && just wasm"
+
     - name: Build railgun-js WASM
       run: nix develop .#ci-js --command bash -c "cd packages/railgun-js && just wasm"
 
