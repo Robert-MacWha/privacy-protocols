@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "build": "tsc && cp -r src/pkg dist/pkg"
+    "build": "tsc && cp -r src/pkg dist/pkg && rm -f dist/pkg/.gitignore"
   },
   "keywords": [],
   "type": "module",

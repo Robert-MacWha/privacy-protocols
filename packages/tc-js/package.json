@@ -13,7 +13,7 @@
   },
   "files": ["dist/"],
   "scripts": {
-    "build": "tsc && cp -r src/pkg dist/pkg"
+    "build": "tsc && cp -r src/pkg dist/pkg && rm -f dist/pkg/.gitignore"
   },
   "keywords": [],
   "author": "",
