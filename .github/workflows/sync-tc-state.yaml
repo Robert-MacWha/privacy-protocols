@@ -17,6 +17,12 @@ jobs:
     steps:
     - uses: actions/checkout@v5
 
+    - name: Checkout sync-state branch
+      uses: actions/checkout@v5
+      with:
+        ref: sync-state
+        path: sync-state
+
     - uses: ./.github/actions/load-sops-secrets
       with:
         age_key: ${{ secrets.SOPS_AGE_KEY }}
@@ -37,24 +43,19 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - name: Download existing state from latest release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        mkdir -p sync-input
-        gh release download --pattern "*.ndjson" --dir sync-input/ || true
-
     - name: Run syncer
       env:
         RPC_URL_MAINNET: ${{ env.RPC_URL_MAINNET }}
         RPC_URL_SEPOLIA: ${{ env.RPC_URL_SEPOLIA }}
         RPC_URL_OPTIMISM: ${{ env.RPC_URL_OPTIMISM }}
         RUST_LOG: info
-      run: |
-        mkdir -p sync-output
-        nix develop .#ci --command cargo run --release -p tc-syncer -- --input sync-input --output sync-output
+      run: nix develop .#ci --command cargo run --release -p tc-syncer -- --dir sync-state
 
-    - name: Upload state to latest release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: gh release upload --clobber $(gh release view --json tagName -q .tagName) sync-output/*.ndjson
+    - name: Commit and push state
+      run: |
+        cd sync-state
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add *.ndjson
+        git diff --cached --quiet || git commit -m "sync: update pool state"
+        git push

@@ -16,10 +16,8 @@ use tracing::info;
 
 #[derive(Parser)]
 struct Args {
-    #[arg(long, default_value = "./sync-input")]
-    input: PathBuf,
-    #[arg(long, default_value = "./sync-output")]
-    output: PathBuf,
+    #[arg(long, default_value = "./tornadocash-sync")]
+    dir: PathBuf,
 }
 
 #[derive(Deserialize)]
@@ -47,21 +45,6 @@ fn rpc_url_for_chain(chain_id: u64) -> Option<String> {
     std::env::var(var_name).ok()
 }
 
-fn append_to_output(input: &Path, output: &Path, lines: &str) -> std::io::Result<()> {
-    if input != output && input.exists() {
-        fs::copy(input, output)?;
-    }
-    if lines.is_empty() {
-        return Ok(());
-    }
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(output)?;
-    file.write_all(lines.as_bytes())?;
-    Ok(())
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
@@ -69,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let args = Args::parse();
-    fs::create_dir_all(&args.output)?;
+    fs::create_dir_all(&args.dir)?;
 
     for pool in POOLS {
         let Some(rpc_url) = rpc_url_for_chain(pool.chain_id) else {
@@ -78,14 +61,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         let prefix = format!("{}_{}_{}", pool.chain_id, pool.symbol(), pool.amount());
-        let deposits_in = args.input.join(format!("{prefix}_deposits.ndjson"));
-        let nullifiers_in = args.input.join(format!("{prefix}_nullifiers.ndjson"));
-        let deposits_out = args.output.join(format!("{prefix}_deposits.ndjson"));
-        let nullifiers_out = args.output.join(format!("{prefix}_nullifiers.ndjson"));
+        let deposits_path = args.dir.join(format!("{prefix}_deposits.ndjson"));
+        let nullifiers_path = args.dir.join(format!("{prefix}_nullifiers.ndjson"));
 
         let from_block = [
-            last_block_number(&deposits_in),
-            last_block_number(&nullifiers_in),
+            last_block_number(&deposits_path),
+            last_block_number(&nullifiers_path),
         ]
         .into_iter()
         .flatten()
@@ -93,12 +74,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|b| b + 1)
         .unwrap_or(0);
 
-        let from_block = from_block.max(pool.deployed_block);
         let provider = ProviderBuilder::new()
             .network::<Ethereum>()
             .connect(&rpc_url)
             .await?;
-        let rpc_syncer = RpcSyncer::new(Arc::new(provider)).with_batch_size(100_000);
+        let rpc_syncer = RpcSyncer::new(Arc::new(provider)).with_batch_size(10_000);
 
         let latest_block = rpc_syncer.latest_block().await?;
         info!("{prefix}: from_block={from_block}, latest={latest_block}");
@@ -121,20 +101,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             nullifiers.len()
         );
 
-        let mut deposit_lines = String::new();
+        let mut deposits_file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&deposits_path)?;
         for c in &commitments {
-            deposit_lines.push_str(&serde_json::to_string(c)?);
-            deposit_lines.push('\n');
+            writeln!(deposits_file, "{}", serde_json::to_string(c)?)?;
         }
 
-        let mut nullifier_lines = String::new();
+        let mut nullifiers_file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&nullifiers_path)?;
         for n in &nullifiers {
-            nullifier_lines.push_str(&serde_json::to_string(n)?);
-            nullifier_lines.push('\n');
+            writeln!(nullifiers_file, "{}", serde_json::to_string(n)?)?;
         }
-
-        append_to_output(&deposits_in, &deposits_out, &deposit_lines)?;
-        append_to_output(&nullifiers_in, &nullifiers_out, &nullifier_lines)?;
     }
 
     info!("Done");
