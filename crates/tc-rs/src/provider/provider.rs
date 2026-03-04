@@ -7,7 +7,6 @@ use rand::Rng;
 use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::warn;
 
 use crate::{
     abis::tornado::Tornado,
@@ -38,6 +37,8 @@ pub struct TornadoProviderState {
 pub enum TornadoProviderError {
     #[error("Missing pool: {0}")]
     MissingPool(Pool),
+    #[error("Unknown pool: amount={0}, symbol={1}, chain_id={2}")]
+    UnknownPool(String, String, u64),
     #[error("Pool error: {0}")]
     Pool(#[from] PoolProviderError),
 }
@@ -62,63 +63,19 @@ impl TornadoProvider {
         syncer: Arc<dyn Syncer>,
         prover: Arc<dyn Prover>,
         state: TornadoProviderState,
-    ) -> Self {
+    ) -> Result<Self, TornadoProviderError> {
         let mut provider = Self::new(rpc, syncer, prover);
         for pool_state in state.pool_states {
-            provider.add_pool_from_state(pool_state);
+            provider.add_pool_from_state(pool_state)?;
         }
-        provider
+        Ok(provider)
     }
 
-    pub fn add_pool(&mut self, pool: Pool) {
-        let provider = PoolProvider::new(
-            self.syncer.clone(),
-            self.verifier.clone(),
-            self.prover.clone(),
-            pool,
-        );
-
-        let pool = provider.pool();
-        if let Ok(_) = self.pool(&pool) {
-            warn!("Overwriting existing provider for pool: {}", pool.address);
+    pub fn pool(&mut self, pool: &Pool) -> &mut PoolProvider {
+        if let Some(i) = self.pools.iter().position(|p| p.pool() == pool) {
+            return &mut self.pools[i];
         }
-
-        self.pools.retain(|p| p.pool() != pool);
-        self.pools.push(provider);
-    }
-
-    pub fn add_pool_provider(&mut self, provider: PoolProvider) {
-        let pool = provider.pool();
-        if let Ok(_) = self.pool(&pool) {
-            warn!("Overwriting existing provider for pool: {}", pool.address);
-        }
-
-        self.pools.retain(|p| p.pool() != pool);
-        self.pools.push(provider);
-    }
-
-    pub fn add_pool_from_state(&mut self, state: PoolProviderState) {
-        let provider = PoolProvider::from_state(
-            self.syncer.clone(),
-            self.verifier.clone(),
-            self.prover.clone(),
-            state,
-        );
-
-        let pool = provider.pool();
-        if let Ok(_) = self.pool(&pool) {
-            warn!("Overwriting existing provider for pool: {}", pool.address);
-        }
-
-        self.pools.retain(|p| p.pool() != pool);
-        self.pools.push(provider);
-    }
-
-    pub fn pool(&self, pool: &Pool) -> Result<&PoolProvider, TornadoProviderError> {
-        self.pools
-            .iter()
-            .find(|p| p.pool() == pool)
-            .ok_or(TornadoProviderError::MissingPool(pool.clone()))
+        self.add_pool(*pool)
     }
 
     pub fn state(&self) -> TornadoProviderState {
@@ -127,26 +84,30 @@ impl TornadoProvider {
     }
 
     /// Create a deposit transaction
-    pub fn deposit<R: Rng>(
-        &self,
-        pool: &Pool,
-        rng: &mut R,
-    ) -> Result<(TxData, Note), TornadoProviderError> {
-        let provider = self.pool(pool)?;
-        Ok(provider.deposit(rng))
+    pub fn deposit<R: Rng>(&mut self, pool: &Pool, rng: &mut R) -> (TxData, Note) {
+        let provider = self.pool(pool);
+        provider.deposit(rng)
     }
 
     /// Create a withdrawal transaction
     pub async fn withdraw(
-        &self,
-        pool: &Pool,
+        &mut self,
         note: &Note,
         recipient: Address,
         relayer: Option<Address>,
         fee: Option<U256>,
         refund: Option<U256>,
     ) -> Result<TxData, TornadoProviderError> {
-        let provider = self.pool(pool)?;
+        let pool = Pool::from_id(&note.amount, &note.symbol, note.chain_id).ok_or_else(|| {
+            TornadoProviderError::UnknownPool(
+                note.amount.clone(),
+                note.symbol.clone(),
+                note.chain_id,
+            )
+        })?;
+
+        let provider = self.pool(&pool);
+        provider.sync().await?;
         Ok(provider
             .withdraw(note, recipient, relayer, fee, refund)
             .await?)
@@ -154,15 +115,23 @@ impl TornadoProvider {
 
     /// Create the calldata for a withdrawal transaction
     pub async fn withdraw_calldata(
-        &self,
-        pool: &Pool,
+        &mut self,
         note: &Note,
         recipient: Address,
         relayer: Option<Address>,
         fee: Option<U256>,
         refund: Option<U256>,
     ) -> Result<Tornado::withdrawCall, TornadoProviderError> {
-        let provider = self.pool(pool)?;
+        let pool = Pool::from_id(&note.amount, &note.symbol, note.chain_id).ok_or_else(|| {
+            TornadoProviderError::UnknownPool(
+                note.amount.clone(),
+                note.symbol.clone(),
+                note.chain_id,
+            )
+        })?;
+
+        let provider = self.pool(&pool);
+        provider.sync().await?;
         Ok(provider
             .withdraw_calldata(note, recipient, relayer, fee, refund)
             .await?)
@@ -179,6 +148,35 @@ impl TornadoProvider {
         for provider in self.pools.iter_mut() {
             provider.sync_to(block).await?;
         }
+        Ok(())
+    }
+
+    fn add_pool(&mut self, pool: Pool) -> &mut PoolProvider {
+        let provider = PoolProvider::new(
+            self.syncer.clone(),
+            self.verifier.clone(),
+            self.prover.clone(),
+            pool,
+        );
+
+        self.pools.retain(|p| *p.pool() != pool);
+        self.pools.push(provider);
+        self.pools.last_mut().unwrap()
+    }
+
+    fn add_pool_from_state(
+        &mut self,
+        state: PoolProviderState,
+    ) -> Result<(), TornadoProviderError> {
+        let provider = PoolProvider::from_state(
+            self.syncer.clone(),
+            self.verifier.clone(),
+            self.prover.clone(),
+            state,
+        )?;
+
+        self.pools.retain(|p| *p.pool() != *provider.pool());
+        self.pools.push(provider);
         Ok(())
     }
 }

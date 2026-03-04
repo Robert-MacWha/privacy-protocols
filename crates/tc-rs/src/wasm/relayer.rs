@@ -6,7 +6,7 @@ use prover::JsProverAdapter;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
-    PoolProviderState,
+    Pool,
     relayers::RelayerProvider,
     wasm::{
         JsDepositResult, JsPool, JsSyncer, note::JsNote, prepared_broadcast::JsPreparedTransaction,
@@ -42,27 +42,24 @@ impl JsRelayerProvider {
         Ok(inner.into())
     }
 
-    #[wasm_bindgen(js_name = "addPool")]
-    pub fn add_pool(&mut self, pool: &JsPool) {
-        self.inner.add_pool(pool.inner.clone());
-    }
-
-    #[wasm_bindgen(js_name = "addPoolFromState")]
-    pub fn add_pool_from_state(&mut self, state: &[u8]) -> Result<(), JsValue> {
-        let state: PoolProviderState = serde_json::from_slice(state)
-            .map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))?;
-        self.inner.add_pool_from_state(state);
-        Ok(())
-    }
-
     pub fn state(&self) -> Result<Vec<u8>, JsValue> {
         let state = self.inner.state();
         serde_json::to_vec(&state).map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))
     }
 
-    pub fn deposit(&self, pool: &JsPool) -> Result<JsDepositResult, JsValue> {
+    pub fn deposit(&mut self, pool: &JsPool) -> Result<JsDepositResult, JsValue> {
         let mut rng = rand::rng();
-        let (tx_data, note) = self.inner.deposit(&pool.inner, &mut rng)?;
+
+        let pool = Pool::from_id(&pool.amount, pool.symbol(), pool.chain_id).ok_or_else(|| {
+            JsValue::from_str(&format!(
+                "Pool not found for chain_id {}, symbol {}, amount {}",
+                pool.chain_id,
+                pool.symbol(),
+                pool.amount
+            ))
+        })?;
+
+        let (tx_data, note) = self.inner.deposit(&pool, &mut rng);
         Ok(JsDepositResult {
             tx_data: tx_data.into(),
             note: note.into(),
@@ -71,15 +68,13 @@ impl JsRelayerProvider {
 
     /// Prepares a withdrawal transaction for relaying
     ///
-    /// @param pool The pool to withdraw from
     /// @param note The note to withdraw
     /// @param provider RPC provider for the target network (used for gas estimation)
     /// @param recipient The address to receive the withdrawn funds
     /// @param refund Optional
     #[wasm_bindgen(js_name = "prepare")]
     pub async fn prepare(
-        &self,
-        pool: &JsPool,
+        &mut self,
         note: &JsNote,
         provider: JsEthRpcAdapter,
         recipient: String,
@@ -97,14 +92,7 @@ impl JsRelayerProvider {
         let mut rng = rand::rng();
         let prepared = self
             .inner
-            .prepare(
-                &pool.inner,
-                &note.inner,
-                &provider,
-                recipient,
-                refund,
-                &mut rng,
-            )
+            .prepare(&note.inner, &provider, recipient, refund, &mut rng)
             .await?;
         Ok(prepared.into())
     }

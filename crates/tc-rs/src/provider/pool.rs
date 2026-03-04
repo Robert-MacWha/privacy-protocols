@@ -3,20 +3,22 @@ use std::fmt::Display;
 use alloy_primitives::{Address, address};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+use crate::note::Note;
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Asset {
     Native {
-        symbol: String,
+        symbol: &'static str,
         decimals: u8,
     },
     Erc20 {
         address: Address,
-        symbol: String,
+        symbol: &'static str,
         decimals: u8,
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Pool {
     pub chain_id: u64,
     pub address: Address,
@@ -24,37 +26,46 @@ pub struct Pool {
     pub amount_wei: u128,
 }
 
-impl Pool {
-    pub fn sepolia_ether_1() -> Pool {
-        Pool {
-            chain_id: 11155111,
-            address: address!("0x8cc930096b4df705a007c4a039bdfa1320ed2508"),
-            asset: Asset::Native {
-                symbol: "ETH".to_string(),
-                decimals: 18,
-            },
-            amount_wei: 1 * 10_u128.pow(18),
-        }
-    }
+pub const POOLS: &[Pool] = &[SEPOLIA_ETHER_1, ETHEREUM_ETHER_100];
 
-    pub fn ethereum_ether_100() -> Pool {
-        Pool {
-            chain_id: 1,
-            address: address!("0xA160cdAB225685dA1d56aa342Ad8841c3b53f291"),
-            asset: Asset::Native {
-                symbol: "ETH".to_string(),
-                decimals: 18,
-            },
-            amount_wei: 100 * 10_u128.pow(18),
-        }
-    }
-}
+pub const SEPOLIA_ETHER_1: Pool = Pool {
+    chain_id: 11155111,
+    address: address!("0x8cc930096b4df705a007c4a039bdfa1320ed2508"),
+    asset: Asset::Native {
+        symbol: "ETH",
+        decimals: 18,
+    },
+    amount_wei: 1 * 10_u128.pow(18),
+};
+
+pub const ETHEREUM_ETHER_100: Pool = Pool {
+    chain_id: 1,
+    address: address!("0xA160cdAB225685dA1d56aa342Ad8841c3b53f291"),
+    asset: Asset::Native {
+        symbol: "ETH",
+        decimals: 18,
+    },
+    amount_wei: 100 * 10_u128.pow(18),
+};
 
 impl Pool {
+    pub fn from_note(note: &Note) -> Option<Self> {
+        Self::from_id(&note.amount, &note.symbol, note.chain_id)
+    }
+
+    pub fn from_id(amount: &str, symbol: &str, chain_id: u64) -> Option<Self> {
+        POOLS
+            .iter()
+            .find(|pool| {
+                pool.chain_id == chain_id && pool.symbol() == symbol && pool.amount() == amount
+            })
+            .cloned()
+    }
+
     pub fn symbol(&self) -> String {
         match &self.asset {
-            Asset::Native { symbol, .. } => symbol.clone(),
-            Asset::Erc20 { symbol, .. } => symbol.clone(),
+            Asset::Native { symbol, .. } => symbol.to_string(),
+            Asset::Erc20 { symbol, .. } => symbol.to_string(),
         }
     }
 

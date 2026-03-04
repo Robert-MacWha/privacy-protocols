@@ -7,7 +7,8 @@ use rand::rng;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
-    provider::{PoolProviderState, TornadoProvider},
+    Pool,
+    provider::TornadoProvider,
     wasm::{JsPool, note::JsNote, syncer::JsSyncer},
 };
 
@@ -52,27 +53,24 @@ impl JsTornadoProvider {
         inner.into()
     }
 
-    #[wasm_bindgen(js_name = "addPool")]
-    pub fn add_pool(&mut self, pool: &JsPool) {
-        self.inner.add_pool(pool.inner.clone());
-    }
-
-    #[wasm_bindgen(js_name = "addPoolFromState")]
-    pub fn add_pool_from_state(&mut self, state: &[u8]) -> Result<(), JsValue> {
-        let state: PoolProviderState = serde_json::from_slice(state)
-            .map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))?;
-        self.inner.add_pool_from_state(state);
-        Ok(())
-    }
-
     pub fn state(&self) -> Result<Vec<u8>, JsValue> {
         let state = self.inner.state();
         serde_json::to_vec(&state).map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))
     }
 
-    pub fn deposit(&self, pool: &JsPool) -> Result<JsDepositResult, JsValue> {
+    pub fn deposit(&mut self, pool: &JsPool) -> Result<JsDepositResult, JsValue> {
         let mut rng = rng();
-        let (tx_data, note) = self.inner.deposit(&pool.inner, &mut rng)?;
+
+        let pool = Pool::from_id(&pool.amount, pool.symbol(), pool.chain_id).ok_or_else(|| {
+            JsValue::from_str(&format!(
+                "Pool not found for chain_id {}, symbol {}, amount {}",
+                pool.chain_id,
+                pool.symbol(),
+                pool.amount
+            ))
+        })?;
+
+        let (tx_data, note) = self.inner.deposit(&pool, &mut rng);
         Ok(JsDepositResult {
             tx_data: tx_data.into(),
             note: note.into(),
@@ -81,7 +79,6 @@ impl JsTornadoProvider {
 
     /// Creates a withdrawal transaction for the given note
     ///
-    /// @param pool The pool to withdraw from
     /// @param note The note to withdraw
     /// @param recipient The address to receive the withdrawn funds
     /// @param refund Optional
@@ -89,8 +86,7 @@ impl JsTornadoProvider {
     /// @returns The transaction data for the withdrawal transaction, which can
     /// be signed and broadcast by the caller
     pub async fn withdraw(
-        &self,
-        pool: &JsPool,
+        &mut self,
         note: &JsNote,
         recipient: String,
         refund: Option<js_sys::BigInt>,
@@ -106,7 +102,7 @@ impl JsTornadoProvider {
 
         let tx_data = self
             .inner
-            .withdraw(&pool.inner, &note.inner, recipient, None, None, refund)
+            .withdraw(&note.inner, recipient, None, None, refund)
             .await?;
 
         Ok(tx_data)

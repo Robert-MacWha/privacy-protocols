@@ -33,4 +33,6 @@ pub enum RelayerError {
     Syncer(#[from] SyncerError),
     #[error("Aggregator call failed: {0}")]
     Aggregator(String),
+    #[error("Unknown pool: amount={0}, symbol={1}, chain_id={2}")]
+    UnknownPool(String, String, u64),
 }

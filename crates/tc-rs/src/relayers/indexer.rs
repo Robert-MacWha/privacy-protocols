@@ -125,22 +125,18 @@ impl RelayerIndexer {
     }
 
     /// Select a relayer using weighted random selection, filtered to the given
-    /// chain and token. Pass `None` for native ETH pools, or `Some(symbol)` for
-    /// ERC20 pools to filter to relayers that have an ETH price for that token.
+    /// chain and token.
     pub fn pick_relayer<R: Rng>(
         &self,
         chain_id: u64,
-        token_symbol: Option<&str>,
+        token_symbol: &str,
         rng: &mut R,
     ) -> Option<&Relayer> {
         let chain_relayers: Vec<&Relayer> = self
             .relayers
             .iter()
             .filter(|r| r.chain_id == chain_id)
-            .filter(|r| match token_symbol {
-                Some(sym) => r.eth_prices.contains_key(sym),
-                None => true,
-            })
+            .filter(|r| r.eth_prices.contains_key(token_symbol))
             .collect();
 
         if chain_relayers.is_empty() {

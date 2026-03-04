@@ -29,13 +29,17 @@ pub enum IndexerError {
     Syncer(#[from] SyncerError),
     #[error("Verifier error: {0}")]
     Verifier(#[from] VerifierError),
+    #[error("Unknown pool: amount={0}, symbol={1}, chain_id={2}")]
+    UnknownPool(String, String, u64),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexerState {
     pub synced_block: u64,
     pub tree_state: MerkleTreeState<TornadoMerkleConfig>,
-    pub pool: Pool,
+    pub amount: String,
+    pub symbol: String,
+    pub chain_id: u64,
 }
 
 impl Indexer {
@@ -53,14 +57,23 @@ impl Indexer {
         syncer: Arc<dyn Syncer>,
         verifier: Arc<dyn Verifier>,
         state: IndexerState,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, IndexerError> {
+        let pool =
+            Pool::from_id(&state.amount, &state.symbol, state.chain_id).ok_or_else(|| {
+                IndexerError::UnknownPool(
+                    state.amount.clone(),
+                    state.symbol.clone(),
+                    state.chain_id,
+                )
+            })?;
+
+        Ok(Self {
             syncer,
             verifier,
             synced_block: state.synced_block,
             tree: TornadoMerkleTree::from_state(state.tree_state),
-            pool: state.pool,
-        }
+            pool,
+        })
     }
 
     pub fn tree(&self) -> &TornadoMerkleTree {
@@ -75,7 +88,9 @@ impl Indexer {
         IndexerState {
             synced_block: self.synced_block,
             tree_state: self.tree.state(),
-            pool: self.pool.clone(),
+            amount: self.pool.amount(),
+            symbol: self.pool.symbol(),
+            chain_id: self.pool.chain_id,
         }
     }
 

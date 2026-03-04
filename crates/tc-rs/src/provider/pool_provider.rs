@@ -29,6 +29,10 @@ pub struct PoolProviderState {
 
 #[derive(Debug, thiserror::Error)]
 pub enum PoolProviderError {
+    #[error("Invalid amount for pool: {0} != {1}")]
+    InvalidAmount(String, String),
+    #[error("Invalid symbol for pool: {0} != {1}")]
+    InvalidSymbol(String, String),
     #[error("Indexer: {0}")]
     Indexer(#[from] IndexerError),
     #[error("Prover: {0}")]
@@ -53,9 +57,9 @@ impl PoolProvider {
         verifier: Arc<dyn Verifier>,
         prover: Arc<dyn Prover>,
         state: PoolProviderState,
-    ) -> Self {
-        let indexer = Indexer::from_state(syncer, verifier, state.indexer_state);
-        Self { indexer, prover }
+    ) -> Result<Self, PoolProviderError> {
+        let indexer = Indexer::from_state(syncer, verifier, state.indexer_state)?;
+        Ok(Self { indexer, prover })
     }
 
     pub fn pool(&self) -> &Pool {
@@ -124,6 +128,20 @@ impl PoolProvider {
         fee: Option<U256>,
         refund: Option<U256>,
     ) -> Result<Tornado::withdrawCall, PoolProviderError> {
+        if note.amount != self.pool().amount() {
+            return Err(PoolProviderError::InvalidAmount(
+                note.amount.clone(),
+                self.pool().amount(),
+            ));
+        }
+
+        if note.symbol != self.pool().symbol() {
+            return Err(PoolProviderError::InvalidSymbol(
+                note.symbol.clone(),
+                self.pool().symbol(),
+            ));
+        }
+
         let relayer = relayer.unwrap_or_default();
         let fee = fee.unwrap_or_default();
         let refund = refund.unwrap_or_default();

@@ -1,47 +1,85 @@
-use wasm_bindgen::prelude::wasm_bindgen;
+use alloy_primitives::Address;
+use serde::{Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
 
-use crate::Pool;
+use crate::{Asset, ETHEREUM_ETHER_100, POOLS, Pool, SEPOLIA_ETHER_1};
 
-#[wasm_bindgen]
+#[derive(Serialize, Deserialize, tsify::Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub enum JsAsset {
+    Native {
+        symbol: String,
+        decimals: u8,
+    },
+    Erc20 {
+        address: Address,
+        symbol: String,
+        decimals: u8,
+    },
+}
+
+#[derive(Serialize, Deserialize, tsify::Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct JsPool {
-    pub(crate) inner: Pool,
+    pub chain_id: u64,
+    pub address: Address,
+    pub asset: JsAsset,
+    pub amount: String,
+    pub amount_wei: u128,
 }
 
 #[wasm_bindgen]
+pub fn pools() -> Vec<JsPool> {
+    POOLS.iter().cloned().map(JsPool::from).collect()
+}
+
+#[wasm_bindgen(js_name = "ethereumEther100")]
+pub fn ethereum_ether_100() -> JsPool {
+    JsPool::from(ETHEREUM_ETHER_100)
+}
+
+#[wasm_bindgen(js_name = "sepoliaEther1")]
+pub fn sepolia_ether_1() -> JsPool {
+    JsPool::from(SEPOLIA_ETHER_1)
+}
+
 impl JsPool {
-    #[wasm_bindgen(getter)]
-    pub fn address(&self) -> String {
-        format!("{:?}", self.inner.address)
-    }
-
-    #[wasm_bindgen(getter, js_name = "chainId")]
-    pub fn chain_id(&self) -> u64 {
-        self.inner.chain_id
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn symbol(&self) -> String {
-        self.inner.symbol()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn amount(&self) -> String {
-        self.inner.amount()
-    }
-
-    #[wasm_bindgen(js_name = "sepoliaEther1", getter)]
-    pub fn sepolia_ether_1() -> JsPool {
-        Pool::sepolia_ether_1().into()
-    }
-
-    #[wasm_bindgen(js_name = "ethereumEther100", getter)]
-    pub fn ethereum_ether_100() -> JsPool {
-        Pool::ethereum_ether_100().into()
+    pub fn symbol(&self) -> &str {
+        match &self.asset {
+            JsAsset::Native { symbol, .. } => symbol,
+            JsAsset::Erc20 { symbol, .. } => symbol,
+        }
     }
 }
 
 impl From<Pool> for JsPool {
-    fn from(pool: Pool) -> Self {
-        JsPool { inner: pool }
+    fn from(value: Pool) -> Self {
+        Self {
+            chain_id: value.chain_id,
+            address: value.address,
+            amount: value.amount(),
+            asset: value.asset.into(),
+            amount_wei: value.amount_wei,
+        }
+    }
+}
+
+impl From<Asset> for JsAsset {
+    fn from(value: Asset) -> Self {
+        match value {
+            Asset::Native { symbol, decimals } => Self::Native {
+                symbol: symbol.to_string(),
+                decimals,
+            },
+            Asset::Erc20 {
+                address,
+                symbol,
+                decimals,
+            } => Self::Erc20 {
+                address,
+                symbol: symbol.to_string(),
+                decimals,
+            },
+        }
     }
 }

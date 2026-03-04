@@ -4,7 +4,7 @@ import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { TornadoClassicProver } from "../src/prover-adapter.js";
 import { RemoteArtifactLoader } from "../src/artifact-loader.js";
-import { JsPool, JsSyncer, JsTornadoProvider } from "../src/pkg/tc_rs.js";
+import { JsSyncer, JsTornadoProvider, sepoliaEther1 } from "../src/pkg/tc_rs.js";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
 
 const RPC_URL = "http://localhost:8545";
@@ -26,7 +26,7 @@ test("transact", async () => {
   });
 
   console.log("Setup TC");
-  const pool = JsPool.sepoliaEther1;
+  const pool = sepoliaEther1();
   const loader = new RemoteArtifactLoader(
     "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocol-artifacts/refs/heads/main/artifacts/tornadocash-classic/tornado.json",
     "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocol-artifacts/refs/heads/main/artifacts/tornadocash-classic/tornadoProvingKey.bin"
@@ -39,7 +39,6 @@ test("transact", async () => {
   const rpcSyncer = await JsSyncer.newRpc(rpcAdapter, 10000n);
   const syncer = JsSyncer.newChained([cacheSyncer, rpcSyncer]);
   const tornado = JsTornadoProvider.new(rpcAdapter, syncer, prover);
-  tornado.addPool(pool);
 
   console.log("Syncing");
   await tornado.sync();
@@ -61,7 +60,7 @@ test("transact", async () => {
   await tornado.sync();
 
   console.log("Testing Withdraw");
-  const withdrawTx = await tornado.withdraw(pool, note, account.address);
+  const withdrawTx = await tornado.withdraw(note, account.address);
 
   console.log("Sending withdraw transaction");
   const withdrawHash = await walletClient.sendTransaction({

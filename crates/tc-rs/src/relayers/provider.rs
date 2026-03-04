@@ -10,8 +10,7 @@ use tracing::{info, warn};
 
 use super::{RelayerError, indexer::RelayerIndexer};
 use crate::{
-    Asset, Pool, PoolProvider, PoolProviderState, TornadoProvider, TornadoProviderError,
-    TornadoProviderState,
+    Asset, Pool, TornadoProvider, TornadoProviderState,
     abis::tornado::Tornado::{self, withdrawCall},
     indexer::Syncer,
     note::Note,
@@ -78,15 +77,15 @@ impl RelayerProvider {
         syncer: Arc<dyn Syncer>,
         prover: Arc<dyn Prover>,
         mainnet_rpc: Arc<dyn EthRpcClient>,
-    ) -> Self {
-        let inner = TornadoProvider::from_state(rpc, syncer, prover, state.tornado);
+    ) -> Result<Self, RelayerError> {
+        let inner = TornadoProvider::from_state(rpc, syncer, prover, state.tornado)?;
         let relay_syncer = Arc::new(RpcRelayerSyncer::new(mainnet_rpc.clone()));
         let indexer = RelayerIndexer::from_state(relay_syncer, mainnet_rpc, state.indexer);
-        Self {
+        Ok(Self {
             inner,
             indexer,
             http: HttpClient::new(Some("tc-rs-health-check")),
-        }
+        })
     }
 
     pub fn state(&self) -> RelayerState {
@@ -96,23 +95,7 @@ impl RelayerProvider {
         }
     }
 
-    pub fn add_pool(&mut self, pool: Pool) {
-        self.inner.add_pool(pool);
-    }
-
-    pub fn add_pool_provider(&mut self, pool_provider: PoolProvider) {
-        self.inner.add_pool_provider(pool_provider);
-    }
-
-    pub fn add_pool_from_state(&mut self, state: PoolProviderState) {
-        self.inner.add_pool_from_state(state);
-    }
-
-    pub fn deposit<R: Rng>(
-        &self,
-        pool: &Pool,
-        rng: &mut R,
-    ) -> Result<(TxData, Note), TornadoProviderError> {
+    pub fn deposit<R: Rng>(&mut self, pool: &Pool, rng: &mut R) -> (TxData, Note) {
         self.inner.deposit(pool, rng)
     }
 
@@ -134,21 +117,22 @@ impl RelayerProvider {
 
     /// Prepares a withdrawal transaction for sending to a given relayer
     pub async fn prepare<R: Rng>(
-        &self,
-        pool: &Pool,
+        &mut self,
         note: &Note,
         provider: &dyn EthRpcClient,
         recipient: Address,
         refund: Option<U256>,
         rng: &mut R,
     ) -> Result<PreparedTransaction, RelayerError> {
-        let token_symbol = match &pool.asset {
-            Asset::Native { .. } => None,
-            Asset::Erc20 { symbol, .. } => Some(symbol.as_str()),
-        };
+        let pool = Pool::from_note(note).ok_or(RelayerError::UnknownPool(
+            note.amount.clone(),
+            note.symbol.clone(),
+            note.chain_id,
+        ))?;
+
         let relayer = self
             .indexer
-            .pick_relayer(pool.chain_id, token_symbol, rng)
+            .pick_relayer(note.chain_id, &note.symbol, rng)
             .ok_or(RelayerError::NoRelayerAvailable)?;
 
         let hostname = relayer.hostname.clone();
@@ -159,7 +143,6 @@ impl RelayerProvider {
         let dummy_tx = self
             .inner
             .withdraw(
-                pool,
                 note,
                 recipient,
                 Some(reward_account),
@@ -174,9 +157,14 @@ impl RelayerProvider {
         let gas_cost_in_token = match &pool.asset {
             Asset::Native { .. } => U256::from(gas_cost_wei),
             Asset::Erc20 { symbol, .. } => {
-                let eth_price = *relayer.eth_prices.get(symbol).ok_or_else(|| {
-                    RelayerError::GasEstimation(format!("No ETH price for {symbol} from relayer"))
-                })?;
+                let eth_price = *relayer
+                    .eth_prices
+                    .get(symbol.to_string().as_str())
+                    .ok_or_else(|| {
+                        RelayerError::GasEstimation(format!(
+                            "No ETH price for {symbol} from relayer"
+                        ))
+                    })?;
 
                 if eth_price <= 0.0 {
                     return Err(RelayerError::GasEstimation(
@@ -196,7 +184,6 @@ impl RelayerProvider {
         let call = self
             .inner
             .withdraw_calldata(
-                pool,
                 note,
                 recipient,
                 Some(reward_account),

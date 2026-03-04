@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy::{network::Ethereum, providers::ProviderBuilder};
 use tc_rs::{
-    Pool,
+    SEPOLIA_ETHER_1,
     indexer::{CacheSyncer, ChainedSyncer, Indexer, RpcSyncer},
 };
 use tracing::info;
@@ -36,7 +36,7 @@ async fn test_sync_indexer() {
     let rpc_syncer = Arc::new(RpcSyncer::new(provider).with_batch_size(10000));
     let syncer: Arc<ChainedSyncer> =
         Arc::new(ChainedSyncer::new(vec![cache_syncer, rpc_syncer.clone()]));
-    let mut indexer = Indexer::new(syncer.clone(), rpc_syncer.clone(), Pool::sepolia_ether_1());
+    let mut indexer = Indexer::new(syncer.clone(), rpc_syncer.clone(), SEPOLIA_ETHER_1);
 
     info!("Syncing indexer...");
     indexer.sync().await.unwrap();
