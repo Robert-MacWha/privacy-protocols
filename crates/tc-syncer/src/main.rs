@@ -73,12 +73,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .max()
         .map(|b| b + 1)
         .unwrap_or(0);
+        let from_block = from_block.max(pool.deployed_block);
 
         let provider = ProviderBuilder::new()
             .network::<Ethereum>()
             .connect(&rpc_url)
             .await?;
-        let rpc_syncer = RpcSyncer::new(Arc::new(provider)).with_batch_size(10_000);
+        let rpc_syncer = RpcSyncer::new(Arc::new(provider)).with_batch_size(200_000);
 
         let latest_block = rpc_syncer.latest_block().await?;
         info!("{prefix}: from_block={from_block}, latest={latest_block}");
