@@ -11,17 +11,19 @@
       "types": "./dist/index.node.d.ts"
     }
   },
-  "files": ["dist/"],
+  "files": [
+    "dist/"
+  ],
   "scripts": {
     "build": "tsc && cp -r src/pkg dist/pkg && rm -f dist/pkg/.gitignore"
   },
   "dependencies": {
     "@waku/sdk": "^0.0.36",
     "snarkjs": "^0.7.6",
-    "viem": "^2.45.3",
-    "eth-rpc": "workspace:*"
+    "viem": "^2.45.3"
   },
   "devDependencies": {
+    "eth-rpc": "workspace:*",
     "@types/snarkjs": "^0.7.9",
     "vitest": "^3.0.0"
   },

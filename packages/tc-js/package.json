@@ -11,7 +11,9 @@
       "types": "./dist/index.node.d.ts"
     }
   },
-  "files": ["dist/"],
+  "files": [
+    "dist/"
+  ],
   "scripts": {
     "build": "tsc && cp -r src/pkg dist/pkg && rm -f dist/pkg/.gitignore"
   },
@@ -20,11 +22,11 @@
   "license": "ISC",
   "packageManager": "pnpm@10.28.0",
   "devDependencies": {
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "eth-rpc": "workspace:*"
   },
   "dependencies": {
     "viem": "^2.45.3",
-    "eth-rpc": "workspace:*",
     "@tornado/snarkjs": "github:Robert-MacWha/tornado-snarkjs",
     "@tornado/websnark": "github:Robert-MacWha/tornado-websnark"
   }
