@@ -2,7 +2,10 @@ use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use crate::{Asset, ETHEREUM_ETHER_100, POOLS, Pool, SEPOLIA_ETHER_1};
+use crate::{
+    Asset, ETHEREUM_ETHER_01, ETHEREUM_ETHER_1, ETHEREUM_ETHER_10, ETHEREUM_ETHER_100, POOLS, Pool,
+    SEPOLIA_ETHER_01, SEPOLIA_ETHER_1, SEPOLIA_ETHER_10,
+};
 
 #[derive(Serialize, Deserialize, tsify::Tsify)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
@@ -33,14 +36,39 @@ pub fn pools() -> Vec<JsPool> {
     POOLS.iter().cloned().map(JsPool::from).collect()
 }
 
+#[wasm_bindgen(js_name = "ethereumEther01")]
+pub fn ethereum_ether_01() -> JsPool {
+    JsPool::from(ETHEREUM_ETHER_01)
+}
+
+#[wasm_bindgen(js_name = "ethereumEther1")]
+pub fn ethereum_ether_1() -> JsPool {
+    JsPool::from(ETHEREUM_ETHER_1)
+}
+
+#[wasm_bindgen(js_name = "ethereumEther10")]
+pub fn ethereum_ether_10() -> JsPool {
+    JsPool::from(ETHEREUM_ETHER_10)
+}
+
 #[wasm_bindgen(js_name = "ethereumEther100")]
 pub fn ethereum_ether_100() -> JsPool {
     JsPool::from(ETHEREUM_ETHER_100)
 }
 
+#[wasm_bindgen(js_name = "sepoliaEther01")]
+pub fn sepolia_ether_01() -> JsPool {
+    JsPool::from(SEPOLIA_ETHER_01)
+}
+
 #[wasm_bindgen(js_name = "sepoliaEther1")]
 pub fn sepolia_ether_1() -> JsPool {
     JsPool::from(SEPOLIA_ETHER_1)
+}
+
+#[wasm_bindgen(js_name = "sepoliaEther10")]
+pub fn sepolia_ether_10() -> JsPool {
+    JsPool::from(SEPOLIA_ETHER_10)
 }
 
 impl JsPool {

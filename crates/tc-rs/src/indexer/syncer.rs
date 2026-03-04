@@ -1,6 +1,7 @@
 use alloy_primitives::{Address, FixedBytes, TxHash};
 use alloy_sol_types::SolEvent;
 use eth_rpc::RawLog;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::abis::tornado::Tornado;
@@ -33,7 +34,7 @@ pub trait Syncer: common::MaybeSend {
     ) -> Result<Vec<Nullifier>, SyncerError>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Commitment {
     pub block_number: u64,
     pub tx_hash: TxHash,
@@ -42,7 +43,7 @@ pub struct Commitment {
     pub timestamp: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Nullifier {
     pub block_number: u64,
     pub tx_hash: TxHash,

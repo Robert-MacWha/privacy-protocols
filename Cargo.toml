@@ -8,6 +8,7 @@ members = [
     "crates/railgun-rs",
     "crates/request",
     "crates/tc-rs",
+    "crates/tc-syncer",
 ]
 resolver = "3"
 

@@ -24,9 +24,29 @@ pub struct Pool {
     pub address: Address,
     pub asset: Asset,
     pub amount_wei: u128,
+    pub deployed_block: u64,
 }
 
-pub const POOLS: &[Pool] = &[SEPOLIA_ETHER_1, ETHEREUM_ETHER_100];
+pub const POOLS: &[Pool] = &[
+    SEPOLIA_ETHER_01,
+    SEPOLIA_ETHER_1,
+    SEPOLIA_ETHER_10,
+    ETHEREUM_ETHER_01,
+    ETHEREUM_ETHER_1,
+    ETHEREUM_ETHER_10,
+    ETHEREUM_ETHER_100,
+];
+
+pub const SEPOLIA_ETHER_01: Pool = Pool {
+    chain_id: 11155111,
+    address: address!("0x8C4A04d872a6C1BE37964A21ba3a138525dFF50b"),
+    asset: Asset::Native {
+        symbol: "ETH",
+        decimals: 18,
+    },
+    amount_wei: 1 * 10_u128.pow(17),
+    deployed_block: 5594400,
+};
 
 pub const SEPOLIA_ETHER_1: Pool = Pool {
     chain_id: 11155111,
@@ -36,6 +56,51 @@ pub const SEPOLIA_ETHER_1: Pool = Pool {
         decimals: 18,
     },
     amount_wei: 1 * 10_u128.pow(18),
+    deployed_block: 5594401,
+};
+
+pub const SEPOLIA_ETHER_10: Pool = Pool {
+    chain_id: 11155111,
+    address: address!("0x8D10d506D29Fc62ABb8A290B99F66dB27Fc43585"),
+    asset: Asset::Native {
+        symbol: "ETH",
+        decimals: 18,
+    },
+    amount_wei: 10 * 10_u128.pow(18),
+    deployed_block: 5594402,
+};
+
+pub const ETHEREUM_ETHER_01: Pool = Pool {
+    chain_id: 1,
+    address: address!("0x12D66f87A04A9E220743712cE6d9bB1B5616B8Fc"),
+    asset: Asset::Native {
+        symbol: "ETH",
+        decimals: 18,
+    },
+    amount_wei: 1 * 10_u128.pow(17),
+    deployed_block: 9116966,
+};
+
+pub const ETHEREUM_ETHER_1: Pool = Pool {
+    chain_id: 1,
+    address: address!("0x47CE0C6eD5B0Ce3d3A51fdb1C52DC66a7c3c2936"),
+    asset: Asset::Native {
+        symbol: "ETH",
+        decimals: 18,
+    },
+    amount_wei: 1 * 10_u128.pow(18),
+    deployed_block: 9117609,
+};
+
+pub const ETHEREUM_ETHER_10: Pool = Pool {
+    chain_id: 1,
+    address: address!("0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF"),
+    asset: Asset::Native {
+        symbol: "ETH",
+        decimals: 18,
+    },
+    amount_wei: 10 * 10_u128.pow(18),
+    deployed_block: 9117720,
 };
 
 pub const ETHEREUM_ETHER_100: Pool = Pool {
@@ -46,6 +111,7 @@ pub const ETHEREUM_ETHER_100: Pool = Pool {
         decimals: 18,
     },
     amount_wei: 100 * 10_u128.pow(18),
+    deployed_block: 9161895,
 };
 
 impl Pool {

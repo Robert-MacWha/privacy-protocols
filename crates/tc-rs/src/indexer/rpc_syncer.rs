@@ -160,10 +160,10 @@ impl Syncer for RpcSyncer {
                 .collect();
 
             info!(
-                "Fetched {} nullifiers from blocks {}-{}",
-                nullifiers.len(),
-                batch_start,
-                batch_end
+                "{}/{} ({} nullifiers)",
+                batch_end,
+                to_block,
+                all_nullifiers.len()
             );
             all_nullifiers.extend(nullifiers);
         }

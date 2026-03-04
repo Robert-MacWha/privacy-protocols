@@ -1,0 +1,60 @@
+name: Sync TC Pool State
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # daily at midnight UTC
+  workflow_dispatch:        # allow manual trigger
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - uses: ./.github/actions/load-sops-secrets
+      with:
+        age_key: ${{ secrets.SOPS_AGE_KEY }}
+
+    - uses: nixbuild/nix-quick-install-action@v30
+      with:
+        nix_conf: |
+          keep-env-derivations = true
+          keep-outputs = true
+
+    - uses: nix-community/cache-nix-action@v7
+      with:
+        primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-
+        purge: true
+        purge-prefixes: nix-${{ runner.os }}-
+        purge-primary-key: never
+
+    - uses: Swatinem/rust-cache@v2
+
+    - name: Download existing state from latest release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        mkdir -p sync-input
+        gh release download --pattern "*.ndjson" --dir sync-input/ || true
+
+    - name: Run syncer
+      env:
+        RPC_URL_MAINNET: ${{ env.RPC_URL_MAINNET }}
+        RPC_URL_SEPOLIA: ${{ env.RPC_URL_SEPOLIA }}
+        RPC_URL_OPTIMISM: ${{ env.RPC_URL_OPTIMISM }}
+        RUST_LOG: info
+      run: |
+        mkdir -p sync-output
+        nix develop .#ci --command cargo run --release -p tc-syncer -- --input sync-input --output sync-output
+
+    - name: Upload state to latest release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh release upload --clobber $(gh release view --json tagName -q .tagName) sync-output/*.ndjson
