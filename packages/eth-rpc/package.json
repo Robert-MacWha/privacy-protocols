@@ -1,6 +1,6 @@
 {
   "name": "eth-rpc",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "",
   "scripts": {
     "build": "tsc && cp -r src/pkg dist/pkg && rm -f dist/pkg/.gitignore"
@@ -20,5 +20,7 @@
       "types": "./dist/main.d.ts"
     }
   },
-  "files": ["dist/"]
+  "files": [
+    "dist/"
+  ]
 }
