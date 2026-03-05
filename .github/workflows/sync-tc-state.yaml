@@ -49,7 +49,7 @@ jobs:
         RPC_URL_SEPOLIA: ${{ env.RPC_URL_SEPOLIA }}
         RPC_URL_OPTIMISM: ${{ env.RPC_URL_OPTIMISM }}
         RUST_LOG: info
-      run: nix develop .#ci --command cargo run --release -p tc-syncer -- --dir sync-state
+      run: nix develop .#ci --command cargo run --release -p tc-syncer -- --dir sync-state/tornadocash-sync
 
     - name: Commit and push state
       run: |

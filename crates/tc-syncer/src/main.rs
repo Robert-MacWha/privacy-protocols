@@ -16,7 +16,7 @@ use tracing::info;
 
 #[derive(Parser)]
 struct Args {
-    #[arg(long, default_value = "./tornadocash-sync")]
+    #[arg(long)]
     dir: PathBuf,
 }
 
