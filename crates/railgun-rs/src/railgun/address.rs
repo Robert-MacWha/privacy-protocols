@@ -14,7 +14,7 @@ use crate::crypto::keys::{
 #[serde(try_from = "String", into = "String")]
 #[cfg_attr(
     target_arch = "wasm32",
-    tsify(from_wasm_abi, into_wasm_abi, type = "String")
+    tsify(from_wasm_abi, into_wasm_abi, type = "`0zk${string}`")
 )]
 pub struct RailgunAddress {
     master_key: MasterPublicKey,

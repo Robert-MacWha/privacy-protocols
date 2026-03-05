@@ -22,10 +22,10 @@ impl JsTransactionBuilder {
         to: RailgunAddress,
         asset: AssetId,
         value: u128,
-        memo: &str,
+        memo: Option<String>,
     ) -> Self {
         self.inner
-            .transfer(from.inner(), to, asset, value, memo)
+            .transfer(from.inner(), to, asset, value, &memo.unwrap_or_default())
             .into()
     }
 

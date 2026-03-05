@@ -30,7 +30,13 @@ const HISTORICAL_LOOK_BACK_MS = 300_000;
 const PEER_DISCOVERY_TIMEOUT_MS = 60_000;
 
 /**
- * Create a `JsBroadcasterManager` from a new or existing WakuAdapter.
+ * Create a broadcaster manager. By default creates and manages a new Waku LightNode.
+ * 
+ * @param chainId Chain ID for the broadcast manager.
+ * @param whitelistedBroadcasters List of whitelisted broadcaster railgun addresses (0zk-addrs). Empty list means no whitelisting.
+ * @param adapter Optional WakuAdapter instance. If not provided a new Waku LightNode will be created and managed internally.
+ * @param nodeOptions Options for creating the waku node if `adapter` is not provided. Ignored if `adapter` is provided.
+ * @returns Newly created broadcaster manager instance.
  */
 export async function createBroadcaster(
   chainId: bigint,
