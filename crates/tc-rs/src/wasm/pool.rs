@@ -15,6 +15,7 @@ pub enum JsAsset {
         decimals: u8,
     },
     Erc20 {
+        #[tsify(type = "`0x${string}`")]
         address: Address,
         symbol: String,
         decimals: u8,
@@ -25,6 +26,7 @@ pub enum JsAsset {
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct JsPool {
     pub chain_id: u64,
+    #[tsify(type = "`0x${string}`")]
     pub address: Address,
     pub asset: JsAsset,
     pub amount: String,

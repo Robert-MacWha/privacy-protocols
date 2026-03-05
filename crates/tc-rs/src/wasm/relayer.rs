@@ -100,6 +100,7 @@ impl JsRelayerProvider {
     /// Submits a prepared transaction
     ///
     /// @return The txhash for the relayed transaction (0x...)
+    #[wasm_bindgen(unchecked_return_type = "`0x${string}`")]
     pub async fn submit(&self, prepared: JsPreparedTransaction) -> Result<String, JsValue> {
         let tx_hash = self.inner.submit(prepared.inner).await?;
         Ok(tx_hash.to_string())

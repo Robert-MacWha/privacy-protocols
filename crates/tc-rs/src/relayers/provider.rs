@@ -35,8 +35,9 @@ pub struct RelayerState {
 /// A prepared relayable transaction
 #[derive(Debug)]
 pub struct PreparedTransaction {
-    pub call: withdrawCall,
+    /// Hostname of the relayer to send this transaction to
     pub hostname: String,
+    pub call: withdrawCall,
     pub pool: Pool,
 }
 

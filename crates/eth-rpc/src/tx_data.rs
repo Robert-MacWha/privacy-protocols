@@ -9,7 +9,7 @@ pub struct TxData {
     pub to: Address,
     #[cfg_attr(target_arch = "wasm32", tsify(type = "`0x${string}`"))]
     pub data: Bytes,
-    #[cfg_attr(target_arch = "wasm32", tsify(type = "string"))]
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "`0x${string}`"))]
     pub value: U256,
 }
 
