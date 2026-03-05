@@ -44,11 +44,16 @@ pub struct Broadcaster {
 }
 
 /// Fee information for a specific token from a broadcaster.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Fee {
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "`0x${string}`"))]
     pub token: Address,
     /// Fee per unit gas, where the fee is in the token's base units and the gas
     /// is in units of ether (1e18)
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "bigint"))]
     pub per_unit_gas: u128,
     pub recipient: RailgunAddress,
     /// Unix timestamp when this fee expires
@@ -58,6 +63,7 @@ pub struct Fee {
     /// Number of wallets available for broadcasting
     pub available_wallets: u32,
     /// Address of the relay adapt contract
+    #[cfg_attr(target_arch = "wasm32", tsify(type = "`0x${string}`"))]
     pub relay_adapt: Address,
     /// Reliability score (0-100)
     pub reliability: u32,

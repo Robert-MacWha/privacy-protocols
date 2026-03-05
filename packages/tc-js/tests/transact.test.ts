@@ -4,7 +4,7 @@ import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { TornadoClassicProver } from "../src/prover-adapter.js";
 import { RemoteArtifactLoader } from "../src/artifact-loader.js";
-import { JsSyncer, JsTornadoProvider, sepoliaEther1 } from "../src/pkg/tc_rs.js";
+import { initLogging, JsSyncer, JsTornadoProvider, sepoliaEther1 } from "../src/pkg/tc_rs.js";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
 
 const RPC_URL = "http://localhost:8545";
@@ -12,6 +12,8 @@ const PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf
 
 // Tests the full transaction flow for depositing and withdrawing a note from a tornado pool.
 test("transact", async () => {
+  initLogging();
+
   console.log("Setup viem");
   const publicClient = createPublicClient({
     chain: sepolia,

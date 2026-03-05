@@ -40,6 +40,7 @@ pub enum EthRpcClientError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
 pub struct RawLog {
     #[cfg_attr(target_arch = "wasm32", tsify(type = "number | null"))]

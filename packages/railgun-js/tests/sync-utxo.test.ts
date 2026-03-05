@@ -1,5 +1,5 @@
 import { test } from "vitest";
-import { JsRailgunProvider, JsSyncer } from "../src/pkg/railgun_rs.js";
+import { initLogging, JsRailgunProvider, JsSyncer } from "../src/pkg/railgun_rs.js";
 import { GrothProverAdapter, RemoteArtifactLoader } from "../src/prover-adapter.js";
 import { writeFileSync } from "node:fs";
 import { createPublicClient, http } from "viem";
@@ -12,6 +12,8 @@ const ARTIFACTS_URL = "https://github.com/Robert-MacWha/privacy-protocol-artifac
 const FORK_BLOCK = 24379760n;
 
 test("sync-utxo", async () => {
+  initLogging();
+
   const publicClient = createPublicClient({
     chain: mainnet,
     transport: http(RPC_URL),
@@ -27,7 +29,7 @@ test("sync-utxo", async () => {
   const railgun = await JsRailgunProvider.new(rpcAdapter, syncer, prover);
 
   console.log("Sync Railgun");
-  await railgun.sync_to(FORK_BLOCK);
+  await railgun.syncTo(FORK_BLOCK);
 
   // Save state to disk
   let state = railgun.state();

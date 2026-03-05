@@ -36,9 +36,9 @@ export class ViemEthRpcAdapter implements EthRpcAdapter {
         });
 
         const rawLogs: RawLog[] = logs.map((log) => ({
-            block_number: log.blockNumber ? Number(BigInt(log.blockNumber)) : null,
-            block_timestamp: log.blockTimestamp ? Number(BigInt(log.blockTimestamp)) : null,
-            transaction_hash: log.transactionHash,
+            blockNumber: log.blockNumber ? Number(BigInt(log.blockNumber)) : null,
+            blockTimestamp: log.blockTimestamp ? Number(BigInt(log.blockTimestamp)) : null,
+            transactionHash: log.transactionHash,
             address: log.address,
             topics: log.topics as `0x${string}`[],
             data: log.data

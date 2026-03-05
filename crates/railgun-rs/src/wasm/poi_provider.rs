@@ -13,7 +13,7 @@ use crate::{
         poi::{ListKey, PoiClient},
     },
     wasm::{
-        JsBroadcaster, JsFee, JsPoiProvedTx, JsPoiTransactionBuilder, JsShieldBuilder, JsSigner,
+        JsBroadcaster, JsPoiProvedTx, JsPoiTransactionBuilder, JsShieldBuilder, JsSigner,
         JsSyncer, chain::try_get_chain, poi_balance::JsPoiBalance,
     },
 };
@@ -59,6 +59,7 @@ impl JsPoiProvider {
 
     /// Sets the provider's state from a serialized state object. Used to restore
     /// state from a previous session.
+    #[wasm_bindgen(js_name = "setState")]
     pub fn set_state(&mut self, state: &[u8]) -> Result<(), JsValue> {
         let state: PoiProviderState = serde_json::from_slice(state)
             .map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))?;
@@ -130,14 +131,14 @@ impl JsPoiProvider {
 
     /// Build a broadcastable transaction from a POI transaction builder and
     /// register it in the POI proving queue.
+    #[wasm_bindgen(js_name = "buildBroadcast")]
     pub async fn build_broadcast(
         &mut self,
         builder: JsPoiTransactionBuilder,
         fee_payer: &JsSigner,
-        fee: &JsFee,
+        fee: Fee,
     ) -> Result<JsPoiProvedTx, JsError> {
         let mut rng = rand::rng();
-        let fee: Fee = fee.into();
         let proved_tx = self
             .inner
             .build_broadcast(builder.inner, fee_payer.inner(), &fee, &mut rng)
@@ -165,10 +166,12 @@ impl JsPoiProvider {
         Ok(self.inner.sync().await?)
     }
 
+    #[wasm_bindgen(js_name = "syncTo")]
     pub async fn sync_to(&mut self, block_number: u64) -> Result<(), JsValue> {
         Ok(self.inner.sync_to(block_number).await?)
     }
 
+    #[wasm_bindgen(js_name = "listKeys")]
     pub fn list_keys(&self) -> Vec<String> {
         self.inner
             .list_keys()
@@ -177,6 +180,7 @@ impl JsPoiProvider {
             .collect()
     }
 
+    #[wasm_bindgen(js_name = "resetIndexer")]
     pub fn reset_indexer(&mut self) {
         self.inner.reset_indexer();
     }

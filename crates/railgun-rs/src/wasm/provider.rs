@@ -7,7 +7,7 @@ use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use crate::{
     railgun::{RailgunProvider, RailgunProviderState, address::RailgunAddress},
     wasm::{
-        JsShieldBuilder, JsSigner, JsSyncer, JsTransactionBuilder, balance::JsBalance,
+        JsShieldBuilder, JsSigner, JsSyncer, JsTransactionBuilder, balance::JsBalanceEntry,
         chain::try_get_chain,
     },
 };
@@ -36,6 +36,7 @@ impl JsRailgunProvider {
         Ok(RailgunProvider::new(chain, provider, syncer.inner(), prover).into())
     }
 
+    #[wasm_bindgen(js_name = "setState")]
     pub fn set_state(&mut self, state: &[u8]) -> Result<(), JsValue> {
         let state: RailgunProviderState = serde_json::from_slice(state)
             .map_err(|e| JsValue::from_str(&format!("Serde error: {}", e)))?;
@@ -65,8 +66,12 @@ impl JsRailgunProvider {
     }
 
     /// Returns the raw balance for the given address
-    pub fn balance(&mut self, address: RailgunAddress) -> Result<JsBalance, JsValue> {
-        Ok(self.inner.balance(address).into())
+    pub fn balance(&mut self, address: RailgunAddress) -> Vec<JsBalanceEntry> {
+        self.inner
+            .balance(address)
+            .into_iter()
+            .map(|(asset_id, balance)| JsBalanceEntry { asset_id, balance })
+            .collect()
     }
 
     /// Helper to create a shield builder
@@ -90,6 +95,7 @@ impl JsRailgunProvider {
         Ok(self.inner.sync().await?)
     }
 
+    #[wasm_bindgen(js_name = "syncTo")]
     pub async fn sync_to(&mut self, block_number: u64) -> Result<(), JsValue> {
         Ok(self.inner.sync_to(block_number).await?)
     }

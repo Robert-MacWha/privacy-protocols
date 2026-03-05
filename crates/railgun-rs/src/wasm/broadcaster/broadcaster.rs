@@ -1,8 +1,8 @@
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
-    railgun::broadcaster::broadcaster::Broadcaster,
-    wasm::{JsPoiProvedTx, broadcaster::JsFee},
+    railgun::broadcaster::broadcaster::{Broadcaster, Fee},
+    wasm::JsPoiProvedTx,
 };
 
 #[wasm_bindgen]
@@ -12,14 +12,16 @@ pub struct JsBroadcaster {
 
 #[wasm_bindgen]
 impl JsBroadcaster {
-    pub fn fee(&self) -> JsFee {
-        self.inner.fee.clone().into()
+    pub fn fee(&self) -> Fee {
+        self.inner.fee.clone()
     }
 
+    #[wasm_bindgen(unchecked_return_type = "`0x${string}`")]
     pub fn address(&self) -> String {
         self.inner.address.to_string()
     }
 
+    #[wasm_bindgen(unchecked_return_type = "`0x${string}`")]
     pub async fn broadcast(&self, tx: &JsPoiProvedTx) -> Result<String, JsValue> {
         let tx_hash = self
             .inner

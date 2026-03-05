@@ -1,6 +1,6 @@
 import { checksumAddress, createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { expect, test } from "vitest";
-import { erc20, JsRailgunProvider, JsSigner, JsSyncer } from "../src/pkg/railgun_rs.js";
+import { erc20, initLogging, JsRailgunProvider, JsSigner, JsSyncer } from "../src/pkg/railgun_rs.js";
 import { mainnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { readFileSync } from "node:fs";
@@ -18,6 +18,8 @@ const erc20Abi = parseAbi([
 ]);
 
 test("transact-utxo", async () => {
+  initLogging();
+
   const USDC = erc20(USDC_ADDRESS);
 
   console.log("Setup viem");
@@ -40,13 +42,13 @@ test("transact-utxo", async () => {
   const railgun = await JsRailgunProvider.new(rpcAdapter, syncer, prover);
 
   const state = readFileSync("./provider_state_utxo_1.json");
-  railgun.set_state(state);
+  railgun.setState(state);
 
   const account1 = JsSigner.random(CHAIN_ID);
   const account2 = JsSigner.random(CHAIN_ID);
 
   console.log("Sync Railgun");
-  await railgun.sync_to(FORK_BLOCK);
+  await railgun.syncTo(FORK_BLOCK);
   railgun.register(account1);
   railgun.register(account2);
 
@@ -64,8 +66,8 @@ test("transact-utxo", async () => {
     const balance1 = railgun.balance(account1.address);
     const balance2 = railgun.balance(account2.address);
 
-    expect(balance1.get(USDC)).toBe(997500n);
-    expect(balance2.get(USDC)).toBeUndefined();
+    expect(balance1.find((entry) => JSON.stringify(entry.assetId) === JSON.stringify(USDC))?.balance).toBe(997500n);
+    expect(balance2.find((entry) => JSON.stringify(entry.assetId) === JSON.stringify(USDC))?.balance).toBeUndefined();
   }
 
   console.log("Testing Transfer");
@@ -83,8 +85,8 @@ test("transact-utxo", async () => {
     const balance1 = railgun.balance(account1.address);
     const balance2 = railgun.balance(account2.address);
 
-    expect(balance1.get(USDC)).toBe(992500n);
-    expect(balance2.get(USDC)).toBe(5000n);
+    expect(balance1.find((entry) => JSON.stringify(entry.assetId) === JSON.stringify(USDC))?.balance).toBe(992500n);
+    expect(balance2.find((entry) => JSON.stringify(entry.assetId) === JSON.stringify(USDC))?.balance).toBe(5000n);
   }
 
   console.log("Testing Unshield");
@@ -103,8 +105,8 @@ test("transact-utxo", async () => {
     const balance1 = railgun.balance(account1.address);
     const balance2 = railgun.balance(account2.address);
 
-    expect(balance1.get(USDC)).toBe(991500n);
-    expect(balance2.get(USDC)).toBe(5000n);
+    expect(balance1.find((entry) => JSON.stringify(entry.assetId) === JSON.stringify(USDC))?.balance).toBe(991500n);
+    expect(balance2.find((entry) => JSON.stringify(entry.assetId) === JSON.stringify(USDC))?.balance).toBe(5000n);
 
     const eoaBalance = await publicClient.readContract({
       address: USDC_ADDRESS as `0x${string}`,

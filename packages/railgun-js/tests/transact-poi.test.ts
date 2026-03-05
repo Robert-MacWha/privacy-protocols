@@ -1,6 +1,6 @@
 import { checksumAddress, createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { expect, test } from "vitest";
-import { erc20, JsPoiProvider, JsSigner, JsSyncer, type AssetId, type RailgunAddress, type ListKey } from "../src/pkg/railgun_rs.js";
+import { erc20, JsPoiProvider, JsSigner, JsSyncer, type AssetId, type RailgunAddress, type ListKey, initLogging } from "../src/pkg/railgun_rs.js";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { ViemEthRpcAdapter } from "../../eth-rpc/src/viem.js";
@@ -19,6 +19,8 @@ const erc20Abi = parseAbi([
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 test("transact-poi", async () => {
+  initLogging();
+
   const USDC = erc20(USDC_ADDRESS);
 
   console.log("Setup viem");
@@ -43,7 +45,7 @@ test("transact-poi", async () => {
   ]);
   const railgun = await JsPoiProvider.new(rpcAdapter, syncer, prover);
 
-  const listKeys = railgun.list_keys();
+  const listKeys = railgun.listKeys();
   expect(listKeys.length).toBeGreaterThan(0);
   const listKey = listKeys[0]!;
 
@@ -144,7 +146,7 @@ async function awaitBalanceUpdate(
     console.log('Balance:', balance);
 
     const validBalance = balance.find(
-      (entry) => entry.poi_status === "Valid" && JSON.stringify(entry.asset_id) === JSON.stringify(asset)
+      (entry) => entry.poiStatus === "Valid" && JSON.stringify(entry.assetId) === JSON.stringify(asset)
     )?.balance;
 
     if (expected === undefined && (validBalance === undefined || validBalance === 0n)) {

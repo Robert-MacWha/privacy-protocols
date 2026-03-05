@@ -8,6 +8,7 @@ use crate::{
 };
 
 #[derive(Serialize, Deserialize, tsify::Tsify)]
+#[serde(tag = "type")]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub enum JsAsset {
     Native {
@@ -23,6 +24,7 @@ pub enum JsAsset {
 }
 
 #[derive(Serialize, Deserialize, tsify::Tsify)]
+#[serde(rename_all = "camelCase")]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct JsPool {
     pub chain_id: u64,
@@ -30,6 +32,7 @@ pub struct JsPool {
     pub address: Address,
     pub asset: JsAsset,
     pub amount: String,
+    #[tsify(type = "bigint")]
     pub amount_wei: u128,
 }
 

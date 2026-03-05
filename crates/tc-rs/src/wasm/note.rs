@@ -37,8 +37,8 @@ impl JsNote {
         self.inner.chain_id
     }
 
-    #[wasm_bindgen(getter)]
-    pub fn stringify(&self) -> String {
+    #[wasm_bindgen(getter, js_name = "serialized")]
+    pub fn serialized(&self) -> String {
         self.inner.to_string()
     }
 

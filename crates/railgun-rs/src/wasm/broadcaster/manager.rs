@@ -41,7 +41,7 @@ impl JsBroadcasterManager {
         });
     }
 
-    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = "bestBroadcasterForToken")]
     pub async fn best_broadcaster_for_token(
         &self,
         token_address: String,
