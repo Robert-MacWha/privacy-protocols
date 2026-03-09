@@ -12,11 +12,12 @@ pub struct JsBroadcaster {
 
 #[wasm_bindgen]
 impl JsBroadcaster {
+    #[wasm_bindgen(getter)]
     pub fn fee(&self) -> Fee {
         self.inner.fee.clone()
     }
 
-    #[wasm_bindgen(unchecked_return_type = "`0x${string}`")]
+    #[wasm_bindgen(getter, unchecked_return_type = "`0x${string}`")]
     pub fn address(&self) -> String {
         self.inner.address.to_string()
     }

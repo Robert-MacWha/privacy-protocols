@@ -3,11 +3,11 @@ pub mod indexer;
 pub mod merkle_tree;
 pub mod note;
 mod provider;
-pub mod signer;
+mod signer;
 pub mod transaction;
 
 pub use provider::{RailgunProvider, RailgunProviderError, RailgunProviderState};
-pub use signer::{PrivateKeySigner, Signer};
+pub use signer::{PrivateKeySigner, Signer, derivation_paths};
 
 #[cfg(feature = "poi")]
 pub mod broadcaster;

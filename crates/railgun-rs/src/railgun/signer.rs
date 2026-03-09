@@ -11,6 +11,7 @@ pub trait Signer: SpendingKeyProvider + ViewingKeyProvider {
     fn sign(&self, inputs: U256) -> SpendingSignature;
     fn address(&self) -> RailgunAddress;
 }
+
 pub trait SpendingKeyProvider {
     fn spending_key(&self) -> SpendingKey;
 }
@@ -20,15 +21,15 @@ pub trait ViewingKeyProvider {
 }
 
 pub struct PrivateKeySigner {
-    spending_key: SpendingKey,
-    viewing_key: ViewingKey,
-    chain_id: ChainId,
+    pub spending_key: SpendingKey,
+    pub viewing_key: ViewingKey,
+    pub chain_id: ChainId,
 }
 
-impl Debug for dyn Signer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Signer(address: {})", self.address())
-    }
+pub fn derivation_paths(index: u32) -> (String, String) {
+    let spending_path = format!("m/44'/1984'/0'/0'/{}", index);
+    let viewing_path = format!("m/420'/1984'/0'/0'/{}", index);
+    (spending_path, viewing_path)
 }
 
 impl PrivateKeySigner {
@@ -64,5 +65,24 @@ impl Signer for PrivateKeySigner {
 
     fn address(&self) -> RailgunAddress {
         RailgunAddress::from_private_keys(self.spending_key, self.viewing_key, self.chain_id)
+    }
+}
+
+impl Debug for dyn Signer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Signer(address: {})", self.address())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_derivation_paths() {
+        let index = 5;
+        let (spending_path, viewing_path) = derivation_paths(index);
+        assert_eq!(spending_path, "m/44'/1984'/0'/0'/5");
+        assert_eq!(viewing_path, "m/420'/1984'/0'/0'/5");
     }
 }

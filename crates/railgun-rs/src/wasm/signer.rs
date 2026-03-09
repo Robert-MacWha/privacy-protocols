@@ -1,17 +1,35 @@
 use std::sync::Arc;
 
 use rand::random;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::{
     crypto::keys::{HexKey, SpendingKey, ViewingKey},
-    railgun::{PrivateKeySigner, Signer, address::RailgunAddress},
+    railgun::{self, PrivateKeySigner, Signer, address::RailgunAddress},
 };
 
 #[wasm_bindgen]
 pub struct JsSigner {
     //? Inner func used so we can clone the arc
     inner: Arc<PrivateKeySigner>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, tsify::Tsify)]
+#[serde(rename_all = "camelCase")]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct JsDerivationPaths {
+    pub spending_path: String,
+    pub viewing_path: String,
+}
+
+#[wasm_bindgen(js_name = "derivationPaths")]
+pub fn derivation_paths(index: u32) -> JsDerivationPaths {
+    let (spending_path, viewing_path) = railgun::derivation_paths(index);
+    JsDerivationPaths {
+        spending_path,
+        viewing_path,
+    }
 }
 
 #[wasm_bindgen]
@@ -36,6 +54,24 @@ impl JsSigner {
     #[wasm_bindgen(getter)]
     pub fn address(&self) -> RailgunAddress {
         self.inner.address()
+    }
+
+    #[wasm_bindgen(
+        getter,
+        js_name = "spendingKey",
+        unchecked_return_type = "`0x${string}`"
+    )]
+    pub fn spending_key(&self) -> String {
+        self.inner.spending_key.to_hex()
+    }
+
+    #[wasm_bindgen(
+        getter,
+        js_name = "viewingKey",
+        unchecked_return_type = "`0x${string}`"
+    )]
+    pub fn viewing_key(&self) -> String {
+        self.inner.viewing_key.to_hex()
     }
 }
 
