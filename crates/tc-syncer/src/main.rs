@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await?;
         let rpc_syncer = RpcSyncer::new(Arc::new(provider)).with_batch_size(200_000);
 
-        let latest_block = rpc_syncer.latest_block().await?;
+        let latest_block = rpc_syncer.latest_block(pool.address).await?;
         info!("{prefix}: from_block={from_block}, latest={latest_block}");
 
         if from_block > latest_block {

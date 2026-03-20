@@ -103,7 +103,7 @@ impl Indexer {
     }
 
     pub async fn sync(&mut self) -> Result<(), IndexerError> {
-        let latest = self.syncer.latest_block().await?;
+        let latest = self.syncer.latest_block(self.pool.address).await?;
         self.sync_to(latest).await
     }
 
@@ -116,8 +116,8 @@ impl Indexer {
         info!("Syncing from block {} to {}", from_block, to_block);
 
         let leaves = {
-            let syncer = Arc::clone(&self.syncer);
-            let commitments = syncer
+            let commitments = self
+                .syncer
                 .sync_commitments(self.pool.address, from_block, to_block)
                 .await?;
 

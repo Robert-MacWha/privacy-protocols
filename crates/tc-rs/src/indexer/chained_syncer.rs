@@ -21,10 +21,10 @@ impl ChainedSyncer {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 impl Syncer for ChainedSyncer {
-    async fn latest_block(&self) -> Result<u64, SyncerError> {
+    async fn latest_block(&self, contract: Address) -> Result<u64, SyncerError> {
         let mut max_block = 0u64;
         for syncer in &self.syncers {
-            if let Ok(block) = syncer.latest_block().await {
+            if let Ok(block) = syncer.latest_block(contract).await {
                 max_block = max_block.max(block);
             }
         }
@@ -45,7 +45,7 @@ impl Syncer for ChainedSyncer {
                 break;
             }
 
-            let syncer_latest = syncer.latest_block().await?;
+            let syncer_latest = syncer.latest_block(contract).await?;
             if syncer_latest < current_from {
                 continue;
             }
@@ -81,7 +81,7 @@ impl Syncer for ChainedSyncer {
                 break;
             }
 
-            let syncer_latest = syncer.latest_block().await?;
+            let syncer_latest = syncer.latest_block(contract).await?;
             if syncer_latest < current_from {
                 continue;
             }

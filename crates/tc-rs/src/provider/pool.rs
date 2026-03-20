@@ -128,6 +128,10 @@ impl Pool {
             .cloned()
     }
 
+    pub fn from_address(address: Address) -> Option<Self> {
+        POOLS.iter().find(|pool| pool.address == address).cloned()
+    }
+
     pub fn symbol(&self) -> String {
         match &self.asset {
             Asset::Native { symbol, .. } => symbol.to_string(),

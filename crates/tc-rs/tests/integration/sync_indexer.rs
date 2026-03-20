@@ -3,7 +3,7 @@ use std::sync::Arc;
 use alloy::{network::Ethereum, providers::ProviderBuilder};
 use tc_rs::{
     SEPOLIA_ETHER_1,
-    indexer::{CacheSyncer, ChainedSyncer, Indexer, RpcSyncer},
+    indexer::{ChainedSyncer, Indexer, RemoteSyncer, RpcSyncer},
 };
 use tracing::info;
 
@@ -16,14 +16,9 @@ async fn test_sync_indexer() {
         .try_init()
         .ok();
 
-    let cache_json = reqwest::get("https://github.com/Robert-MacWha/privacy-protocol-artifacts/raw/refs/heads/main/cache/tornadocash-classic/cache_sepolia_eth_1.json")
-        .await
-        .unwrap()
-        .text()
-        .await
-        .unwrap();
-    let cache_syncer = Arc::new(CacheSyncer::from_str(&cache_json).unwrap());
-
+    let remote_syncer = Arc::new(RemoteSyncer::new(
+        "https://raw.githubusercontent.com/Robert-MacWha/privacy-protocols/refs/heads/sync-state/tornadocash-sync/",
+    ));
     let rpc_url = "http://localhost:8545";
     let provider = Arc::new(
         ProviderBuilder::new()
@@ -35,7 +30,7 @@ async fn test_sync_indexer() {
 
     let rpc_syncer = Arc::new(RpcSyncer::new(provider).with_batch_size(10000));
     let syncer: Arc<ChainedSyncer> =
-        Arc::new(ChainedSyncer::new(vec![cache_syncer, rpc_syncer.clone()]));
+        Arc::new(ChainedSyncer::new(vec![remote_syncer, rpc_syncer.clone()]));
     let mut indexer = Indexer::new(syncer.clone(), rpc_syncer.clone(), SEPOLIA_ETHER_1);
 
     info!("Syncing indexer...");

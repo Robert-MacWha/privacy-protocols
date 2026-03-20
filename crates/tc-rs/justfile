@@ -1,7 +1,4 @@
 fork_url := env_var("RPC_URL_SEPOLIA")
-# Forking from a historic block so we can perform less work syncing
-# when testing.
-fork_block := "8800000"
 
 test: 
     cargo test
@@ -13,7 +10,7 @@ integration-sync:
     set -euo pipefail
 
     # Start anvil in background
-    anvil --fork-url {{fork_url}} --fork-block-number {{fork_block}} --port 8545 &
+    anvil --fork-url {{fork_url}} --port 8545 &
     ANVIL_PID=$!
     trap "kill $ANVIL_PID" EXIT
 

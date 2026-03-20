@@ -3,7 +3,7 @@ use std::sync::Arc;
 use eth_rpc::JsEthRpcAdapter;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
-use crate::indexer::{CacheSyncer, ChainedSyncer, RpcSyncer, Syncer};
+use crate::indexer::{ChainedSyncer, RemoteSyncer, RpcSyncer, Syncer};
 
 #[wasm_bindgen]
 pub struct JsSyncer {
@@ -19,11 +19,9 @@ impl JsSyncer {
             .into())
     }
 
-    #[wasm_bindgen(js_name = "newCache")]
-    pub fn new_cache(cache_json: &str) -> Result<JsSyncer, JsValue> {
-        CacheSyncer::from_str(cache_json)
-            .map(Into::into)
-            .map_err(|e| JsValue::from_str(&format!("Cache syncer error: {}", e)))
+    #[wasm_bindgen(js_name = "newRemote")]
+    pub fn new_remote(base_url: &str) -> JsSyncer {
+        RemoteSyncer::new(base_url.to_string()).into()
     }
 
     #[wasm_bindgen(js_name = "newChained")]
@@ -46,8 +44,8 @@ impl From<RpcSyncer> for JsSyncer {
     }
 }
 
-impl From<CacheSyncer> for JsSyncer {
-    fn from(syncer: CacheSyncer) -> Self {
+impl From<RemoteSyncer> for JsSyncer {
+    fn from(syncer: RemoteSyncer) -> Self {
         JsSyncer {
             inner: Arc::new(syncer),
         }
