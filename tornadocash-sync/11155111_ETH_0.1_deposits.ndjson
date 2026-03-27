@@ -1166,3 +1166,4 @@
 {"block_number":10482918,"tx_hash":"0x984f3ea43eb218bf4f0368eef99cf078875b4ea917af06bfff00a46fc553d989","commitment":"0x22a02c4442421ced245d7f0937cc1648133b8f9542b79154226b00b2eb2fbac2","leaf_index":1165,"timestamp":1773998796}
 {"block_number":10514828,"tx_hash":"0xd758fbb3f6298234d25a44de531c7dedae99dbf9a0aa8d4d941c75ccee1f0440","commitment":"0x0697c5c9d3045ed55f326f85d5b0cf0e5fe6cab4d8ae5fe783f13be1e2157652","leaf_index":1166,"timestamp":1774393560}
 {"block_number":10516599,"tx_hash":"0x58c9cea90b12fdc7b859f3f9a237df56c9fd88318f9991ebce2ba9bd95192d44","commitment":"0x2cc850ac4607e141f0eceff7f504ef5ad1818460740a3d6c7aee03f5e2e1602f","leaf_index":1167,"timestamp":1774415640}
+{"block_number":10525440,"tx_hash":"0x828740a0c52b157619af8e9251d4cd154bba7e59741488700146fad462ac34de","commitment":"0x041a9842b5f49a6aaeb269975caba680efcbc6b6bc1b76e6f7b00d27c29a6ebe","leaf_index":1168,"timestamp":1774525596}
