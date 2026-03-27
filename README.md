@@ -10,7 +10,7 @@ To edit secrets:
 - `sops secrets/secrets.yaml`
 
 To load secrets:
-- `export $(sops -d secrets/secrets.yaml | xargs)`
+- `eval "$(sops -d secrets/secrets.yaml | sed 's/: /=/' | sed 's/^/export /')"`
 - Or load them automatically with direnv
 
 To add a new contributor: 

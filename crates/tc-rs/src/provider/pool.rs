@@ -35,6 +35,8 @@ pub const POOLS: &[Pool] = &[
     ETHEREUM_ETHER_1,
     ETHEREUM_ETHER_10,
     ETHEREUM_ETHER_100,
+    POLYGON_MATIC_100,
+    POLYGON_MATIC_1000,
 ];
 
 pub const SEPOLIA_ETHER_01: Pool = Pool {
@@ -112,6 +114,28 @@ pub const ETHEREUM_ETHER_100: Pool = Pool {
     },
     amount_wei: 100 * 10_u128.pow(18),
     deployed_block: 9161895,
+};
+
+pub const POLYGON_MATIC_100: Pool = Pool {
+    chain_id: 137,
+    address: address!("0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD"),
+    asset: Asset::Native {
+        symbol: "MATIC",
+        decimals: 18,
+    },
+    amount_wei: 100 * 10_u128.pow(18),
+    deployed_block: 16258013,
+};
+
+pub const POLYGON_MATIC_1000: Pool = Pool {
+    chain_id: 137,
+    address: address!("0xdf231d99Ff8b6c6CBF4E9B9a945CBAcEF9339178"),
+    asset: Asset::Native {
+        symbol: "MATIC",
+        decimals: 18,
+    },
+    amount_wei: 1000 * 10_u128.pow(18),
+    deployed_block: 16258032,
 };
 
 impl Pool {

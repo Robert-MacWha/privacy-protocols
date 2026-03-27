@@ -39,7 +39,7 @@ fn rpc_url_for_chain(chain_id: u64) -> Option<String> {
     let var_name = match chain_id {
         1 => "RPC_URL_MAINNET",
         11155111 => "RPC_URL_SEPOLIA",
-        10 => "RPC_URL_OPTIMISM",
+        137 => "RPC_URL_POLYGON",
         _ => return None,
     };
     std::env::var(var_name).ok()
