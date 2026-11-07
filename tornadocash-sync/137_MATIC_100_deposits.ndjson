@@ -12235,3 +12235,4 @@
 {"block_number":96733493,"tx_hash":"0x65feb54c8e2aa88946eeb4cdb31ba4c9e19bb802567e6143c1e38661e4bdc966","commitment":"0x1403e2cd00823e9fc0ee4dc130c9e74cbab66d4aae755d9f95b5494ac4329812","leaf_index":12238,"timestamp":1793805696}
 {"block_number":96733613,"tx_hash":"0xe1ff633d4bf8a71c02b350e6515046aabb5d21b138d1bbd521cafc3c92c5a93b","commitment":"0x243148eec2ddf10d7edef1b9b801005507833222e7368d9971177a710419ef31","leaf_index":12239,"timestamp":1793805876}
 {"block_number":96796522,"tx_hash":"0xb881041e9a71ff2038417f50ffad8cbb10bc46c9672b37453c4306e5e82e28b3","commitment":"0x2dd30e4bee0d91c600c323e51df4ac7269ef3fdebdd9c2fe8af5e9c6e860bdb9","leaf_index":12240,"timestamp":1793900239}
+{"block_number":96861470,"tx_hash":"0xe8c87f843ac7c66a2b185b3c5f0dceaf7bfc4de0eedb7ab65f373991cebc27c9","commitment":"0x1946df1dc86d2aa6a83b34ccf1d94bf82a5d50a7e8c81fe6468fa8cf86c8e909","leaf_index":12241,"timestamp":1793997661}
